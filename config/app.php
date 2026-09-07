@@ -7,6 +7,7 @@ return [
     'with_route' => true,
     'auto_multi_app' => true,
     'default_app' => 'web',
+    'app_express' => true,
     'app_map' => [],
     'domain_bind' => [],
     'deny_app_list' => ['common', 'worker'],
