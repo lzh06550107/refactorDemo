@@ -1,0 +1,57 @@
+## php tests/run.php
+[PASS] StructureContractTest.php
+[PASS] IamTenantAccountSchemaContractTest.php
+[PASS] RequestContextTest.php
+[PASS] CorrelationIdFactoryTest.php
+[PASS] SecretValueTest.php
+[PASS] ErrorEnvelopeTest.php
+[PASS] AuditEventTest.php
+[PASS] LegacyAccountRoleResolverTest.php
+[PASS] AdminUserTest.php
+[PASS] TenantTest.php
+[PASS] LegacyAccountTypeMapTest.php
+[PASS] AccountTest.php
+[PASS] LegacyAccountMappingTest.php
+[PASS] ResolveLegacyAccountTest.php
+[PASS] AdminSessionTest.php
+[PASS] SessionTokenHasherTest.php
+[PASS] RestoreAdminSessionTest.php
+[PASS] LegacyEntrypointMappingTest.php
+
+## PHP lint
+PHP_LINT_FILES=74
+
+## composer.json
+COMPOSER_JSON=OK
+framework=8.1.3
+multi-app=1.1.1
+
+## legacy globals scan
+LEGACY_GLOBALS=NONE
+
+## placeholder scan
+PLACEHOLDERS=NONE
+
+## git diff check
+GIT_DIFF_CHECK=OK
+
+## migration contract evidence
+CREATE TABLE `admin_users` (
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE TABLE `tenants` (
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE TABLE `admin_sessions` (
+  UNIQUE KEY `uk_admin_sessions_token_hash` (`token_hash`),
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE TABLE `tenant_memberships` (
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE TABLE `accounts` (
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE TABLE `account_capabilities` (
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE TABLE `legacy_mappings` (
+  UNIQUE KEY `uk_legacy_identity` (`entity_type`,`legacy_key`,`legacy_value`),
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+TRACKED_FILES=182
+BRANCH=refactor/iam-tenant-account-r2
