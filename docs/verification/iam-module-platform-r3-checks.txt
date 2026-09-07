@@ -1,0 +1,27 @@
+R3 offline verification evidence
+
+[PASS] StructureContractTest.php
+[PASS] RequestContextTest.php
+[PASS] CorrelationIdFactoryTest.php
+[PASS] SecretValueTest.php
+[PASS] ErrorEnvelopeTest.php
+[PASS] AuditEventTest.php
+[PASS] LegacyPermissionPolicyTest.php
+[PASS] RuntimeModuleResolverTest.php
+[PASS] BindingRuntimeRouterTest.php
+[PASS] LegacyModulePermissionCatalogTest.php
+[PASS] ModuleActionAuthorizerTest.php
+[PASS] LegacyModuleAdapterTest.php
+[PASS] IamModulePlatformSchemaContractTest.php
+[PASS] LegacyEntrypointMappingTest.php
+
+OFFLINE_PASS_COUNT=14
+PHP_LINT_FILES=70
+COMPOSER_JSON=OK
+FRAMEWORK=8.1.3
+LEGACY_GLOBALS=NONE
+PLACEHOLDERS=NONE
+MIGRATION_CONTRACT=PASS
+GIT_DIFF_CHECK=PASS
+
+Scope note: the local validation tree is R1 + R3 plus the R2 AccountType dependency. The GitHub main branch already contains R2; its 18-test runner is preserved and extended with the 7 R3 tests during publication. Composer/ThinkPHP/MySQL runtime verification remains unavailable in this sandbox.

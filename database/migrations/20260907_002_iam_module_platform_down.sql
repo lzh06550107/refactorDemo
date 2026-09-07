@@ -1,0 +1,10 @@
+DROP TABLE IF EXISTS `account_module_configs`;
+DROP TABLE IF EXISTS `tenant_modules`;
+DROP TABLE IF EXISTS `module_capabilities`;
+DROP TABLE IF EXISTS `module_bindings`;
+DROP TABLE IF EXISTS `module_versions`;
+DROP TABLE IF EXISTS `module_definitions`;
+DROP TABLE IF EXISTS `permission_assignments`;
+DROP TABLE IF EXISTS `role_permissions`;
+DROP TABLE IF EXISTS `permissions`;
+DROP TABLE IF EXISTS `roles`;

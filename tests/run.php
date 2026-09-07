@@ -7,6 +7,7 @@ require __DIR__ . '/Support/bootstrap.php';
 $files = [
     __DIR__ . '/Contract/StructureContractTest.php',
     __DIR__ . '/Contract/IamTenantAccountSchemaContractTest.php',
+    __DIR__ . '/Contract/IamModulePlatformSchemaContractTest.php',
     __DIR__ . '/Unit/Common/Context/RequestContextTest.php',
     __DIR__ . '/Unit/Common/Context/CorrelationIdFactoryTest.php',
     __DIR__ . '/Unit/Common/Security/SecretValueTest.php',
@@ -14,6 +15,7 @@ $files = [
     __DIR__ . '/Unit/Common/Audit/AuditEventTest.php',
     __DIR__ . '/Unit/Iam/LegacyAccountRoleResolverTest.php',
     __DIR__ . '/Unit/Iam/AdminUserTest.php',
+    __DIR__ . '/Unit/Iam/LegacyPermissionPolicyTest.php',
     __DIR__ . '/Unit/Tenant/TenantTest.php',
     __DIR__ . '/Unit/Account/LegacyAccountTypeMapTest.php',
     __DIR__ . '/Unit/Account/AccountTest.php',
@@ -22,6 +24,11 @@ $files = [
     __DIR__ . '/Unit/Iam/AdminSessionTest.php',
     __DIR__ . '/Unit/Iam/SessionTokenHasherTest.php',
     __DIR__ . '/Component/Iam/RestoreAdminSessionTest.php',
+    __DIR__ . '/Unit/Module/RuntimeModuleResolverTest.php',
+    __DIR__ . '/Unit/Module/BindingRuntimeRouterTest.php',
+    __DIR__ . '/Unit/Module/LegacyModulePermissionCatalogTest.php',
+    __DIR__ . '/Unit/Module/ModuleActionAuthorizerTest.php',
+    __DIR__ . '/GoldenMaster/LegacyModuleAdapterTest.php',
     __DIR__ . '/GoldenMaster/LegacyEntrypointMappingTest.php',
 ];
 
