@@ -13,6 +13,16 @@ This is the first Strangler-style implementation increment based on the supplied
 - Legacy R20 entrypoint Golden-Master mapping without executing or mutating legacy code.
 - Offline test runner for framework-independent contracts.
 
+## Implemented in R2
+
+- IAM compatibility model for confirmed R20 account-role precedence.
+- Explicit `AdminUser` identity and server-side administrator sessions.
+- Tenant, tenant membership, Account, AccountType and capability domain models.
+- `LegacyAccountMapping` for new account/tenant IDs versus R20 `uniacid` / `acid`.
+- Stable legacy-account resolution errors through existing `AppException` contracts.
+- MySQL 8-compatible up/down DDL for IAM/Tenant/Account foundations.
+- Expanded offline suite covering R1 + R2 contracts.
+
 ## Dependency baseline
 
 `composer.json` currently pins `topthink/framework` to `8.1.3` and `topthink/think-multi-app` to `1.1.1`. Framework 8.1.4 has a currently open multi-app/root-route regression report, so R1 intentionally avoids it until the project's real route suite can verify a fixed patch.
@@ -35,8 +45,8 @@ Expected smoke endpoints after Composer dependencies are installed:
 
 ## Current sandbox limitation
 
-The build sandbox used for R1 has PHP 8.4 but no Composer binary and no outbound DNS/network. Therefore `vendor/`, `composer.lock`, real ThinkPHP boot, route-list, and PHPUnit-through-Composer could not be produced/verified here. Do not treat R1 as production-ready until those checks pass in a Composer-enabled environment.
+The build sandbox used for R1/R2 has PHP 8.4 but no Composer binary and no outbound DNS/network. Therefore `vendor/`, `composer.lock`, real ThinkPHP boot, route-list, PHPUnit-through-Composer, and disposable MySQL migration execution could not be produced/verified here. Do not treat these slices as production-ready until those checks pass in a Composer/MySQL-enabled environment.
 
 ## Next implementation slice
 
-Continue M1 with IAM + Tenant + Account, including explicit `LegacyAccountMapping` for `uniacid`; do not jump directly to module/payment migration.
+Continue IAM authorization policy and Tenant/Account infrastructure adapters, then Module Registry/Binding + Legacy Adapter. Do not jump directly to payment or marketplace migration.
