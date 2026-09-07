@@ -1,52 +1,49 @@
-# WePlatform ThinkPHP Refactor — Foundation Runtime R1
+# WePlatform ThinkPHP Refactor
 
-This is the first Strangler-style implementation increment based on the supplied WeEngine 2.7.4 R20 source and the V4 ThinkPHP refactor design.
+WeEngine 2.7.4 R20 strangler refactor on ThinkPHP 8.
 
-## Implemented in R1
+## Current increments
 
-- ThinkPHP 8 project manifest and standard `public/index.php` / `think` entrypoints.
-- Multi-app structure: `app/admin`, `app/web`, `app/api`; `app/worker` and `app/common` are non-HTTP.
-- Immutable `RequestContext`, runtime type and principal value objects.
-- Request/trace correlation IDs and request-context middleware.
-- Stable JSON envelope and `AppException` adaptation through ThinkPHP `ExceptionHandle`.
-- Secret redaction and audit event/logger foundations.
-- Legacy R20 entrypoint Golden-Master mapping without executing or mutating legacy code.
-- Offline test runner for framework-independent contracts.
+### R1 — Foundation Runtime
 
-## Implemented in R2
+- ThinkPHP multi-app foundation (`admin`, `web`, `api`).
+- Immutable `RequestContext`, correlation IDs, stable error envelope.
+- Audit/security primitives and legacy entrypoint Golden-Master mapping.
 
-- IAM compatibility model for confirmed R20 account-role precedence.
-- Explicit `AdminUser` identity and server-side administrator sessions.
-- Tenant, tenant membership, Account, AccountType and capability domain models.
-- `LegacyAccountMapping` for new account/tenant IDs versus R20 `uniacid` / `acid`.
-- Stable legacy-account resolution errors through existing `AppException` contracts.
-- MySQL 8-compatible up/down DDL for IAM/Tenant/Account foundations.
-- Expanded offline suite covering R1 + R2 contracts.
+### R2 — IAM + Tenant + Account
+
+- `AdminUser` / server-side `AdminSession` with HMAC token hashing.
+- Tenant / membership / account domain boundaries.
+- Explicit R20 role precedence compatibility.
+- `LegacyAccountMapping` for `uniacid` / `acid` without using legacy IDs as new primary keys.
+- R2 MySQL migrations.
+
+### R3 — IAM Authorization + Module Platform
+
+- R20-compatible permission assignment semantics: role-default, explicit all, explicit list and frame wildcard.
+- Module registry definition, account-type support matrix and `uni_account_modules` overlay runtime.
+- Binding router separates new runtime routes from `LEGACY_DELEGATE` dynamic callbacks.
+- R20 `module_permission_fetch()` naming catalog plus server-side module action authorization.
+- Legacy `modules` / `uni_account_modules` snapshot adapter.
+- R3 IAM/module-platform MySQL schema and rollback.
 
 ## Dependency baseline
 
-`composer.json` currently pins `topthink/framework` to `8.1.3` and `topthink/think-multi-app` to `1.1.1`. Framework 8.1.4 has a currently open multi-app/root-route regression report, so R1 intentionally avoids it until the project's real route suite can verify a fixed patch.
+- PHP `^8.2`
+- `topthink/framework` `8.1.3`
+- `topthink/think-multi-app` `1.1.1`
 
-## Run in a normal development environment
+## Run in a Composer-enabled development environment
 
 ```bash
 composer install
 php tests/run.php
 php vendor/bin/phpunit
 php think route:list
-php think run
 ```
 
-Expected smoke endpoints after Composer dependencies are installed:
+The offline runner currently contains the R1 + R2 + R3 contract/unit/Golden-Master entries. The sandbox used during the refactor has PHP but no usable Composer/networked dependency install, so ThinkPHP boot, MySQL migration execution, and Composer PHPUnit execution must still be verified in a normal development environment.
 
-- `GET /health` → web
-- `GET /admin/health` → admin
-- `GET /api/v1/health` → api
+## Migration strategy
 
-## Current sandbox limitation
-
-The build sandbox used for R1/R2 has PHP 8.4 but no Composer binary and no outbound DNS/network. Therefore `vendor/`, `composer.lock`, real ThinkPHP boot, route-list, PHPUnit-through-Composer, and disposable MySQL migration execution could not be produced/verified here. Do not treat these slices as production-ready until those checks pass in a Composer/MySQL-enabled environment.
-
-## Next implementation slice
-
-Continue IAM authorization policy and Tenant/Account infrastructure adapters, then Module Registry/Binding + Legacy Adapter. Do not jump directly to payment or marketplace migration.
+The project follows a Strangler approach. Confirmed R20 behavior is isolated in `Legacy*` adapters/policies; new domain/application code must not access `$_W` or `$_GPC`. Legacy dynamic module callbacks are delegated rather than executed inside the new runtime until their domains are migrated.
