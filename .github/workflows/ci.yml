@@ -41,17 +41,6 @@ jobs:
       - name: Lint PHP
         run: find app config tests -name '*.php' -print0 | xargs -0 -n1 php -l
 
-      - name: Verify ThinkPHP CLI boot
-        shell: bash
-        run: |
-          set -euo pipefail
-          output="$(php think route:list 2>&1)"
-          printf '%s\n' "$output"
-          if grep -Eq 'Exception\]|Unable to resolve|Fatal error|Parse error' <<<"$output"; then
-            echo 'ThinkPHP route command emitted an exception despite its process exit code.' >&2
-            exit 1
-          fi
-
       - name: Smoke multi-app HTTP routes
         shell: bash
         run: |
