@@ -49,11 +49,26 @@ jobs:
           server_pid=$!
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT
 
+          request_json() {
+            local path="$1"
+            local body="$2"
+            local status
+            status="$(curl -sS -H 'Accept: application/json' -o "$body" -w '%{http_code}' "http://127.0.0.1:18080${path}" || true)"
+            printf '%s' "$status"
+          }
+
           ready=0
           for _ in $(seq 1 30); do
-            if curl -fsS http://127.0.0.1:18080/health > /tmp/health-web.json; then
+            status="$(request_json /health /tmp/health-web.json)"
+            if [ "$status" = "200" ]; then
               ready=1
               break
+            fi
+            if [ "$status" != "000" ]; then
+              echo "GET /health returned HTTP $status" >&2
+              cat /tmp/health-web.json >&2 || true
+              cat /tmp/thinkphp-server.log >&2 || true
+              exit 1
             fi
             sleep 0.5
           done
@@ -62,8 +77,18 @@ jobs:
             exit 1
           fi
 
-          curl -fsS http://127.0.0.1:18080/admin/health > /tmp/health-admin.json
-          curl -fsS http://127.0.0.1:18080/api/v1/health > /tmp/health-api.json
+          for spec in 'admin:/admin/health' 'api:/api/v1/health'; do
+            app="${spec%%:*}"
+            path="${spec#*:}"
+            body="/tmp/health-${app}.json"
+            status="$(request_json "$path" "$body")"
+            if [ "$status" != "200" ]; then
+              echo "GET $path returned HTTP $status" >&2
+              cat "$body" >&2 || true
+              cat /tmp/thinkphp-server.log >&2 || true
+              exit 1
+            fi
+          done
 
           php -r '$j=json_decode(file_get_contents("/tmp/health-web.json"), true); exit(($j["data"]["application"] ?? null) === "web" ? 0 : 1);'
           php -r '$j=json_decode(file_get_contents("/tmp/health-admin.json"), true); exit(($j["data"]["application"] ?? null) === "admin" ? 0 : 1);'
