@@ -41,14 +41,41 @@ jobs:
       - name: Lint PHP
         run: find app config tests -name '*.php' -print0 | xargs -0 -n1 php -l
 
-      - name: Verify ThinkPHP routes
+      - name: Verify ThinkPHP CLI boot
         shell: bash
         run: |
           set -euo pipefail
           output="$(php think route:list 2>&1)"
           printf '%s\n' "$output"
-          test -n "$output"
           if grep -Eq 'Exception\]|Unable to resolve|Fatal error|Parse error' <<<"$output"; then
             echo 'ThinkPHP route command emitted an exception despite its process exit code.' >&2
             exit 1
           fi
+
+      - name: Smoke multi-app HTTP routes
+        shell: bash
+        run: |
+          set -euo pipefail
+          php think run -p 18080 > /tmp/thinkphp-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+
+          ready=0
+          for _ in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:18080/health > /tmp/health-web.json; then
+              ready=1
+              break
+            fi
+            sleep 0.5
+          done
+          if [ "$ready" -ne 1 ]; then
+            cat /tmp/thinkphp-server.log >&2
+            exit 1
+          fi
+
+          curl -fsS http://127.0.0.1:18080/admin/health > /tmp/health-admin.json
+          curl -fsS http://127.0.0.1:18080/api/v1/health > /tmp/health-api.json
+
+          php -r '$j=json_decode(file_get_contents("/tmp/health-web.json"), true); exit(($j["data"]["application"] ?? null) === "web" ? 0 : 1);'
+          php -r '$j=json_decode(file_get_contents("/tmp/health-admin.json"), true); exit(($j["data"]["application"] ?? null) === "admin" ? 0 : 1);'
+          php -r '$j=json_decode(file_get_contents("/tmp/health-api.json"), true); exit(($j["data"]["application"] ?? null) === "api" ? 0 : 1);'
