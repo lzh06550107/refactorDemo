@@ -11,6 +11,7 @@ $files = [
     __DIR__ . '/Contract/IamModulePlatformSchemaContractTest.php',
     __DIR__ . '/Contract/LegacyDatabaseReadOnlyContractTest.php',
     __DIR__ . '/Contract/EntitlementQuotaSchemaContractTest.php',
+    __DIR__ . '/Contract/SiteThemeSchemaContractTest.php',
     __DIR__ . '/Unit/Common/Context/RequestContextTest.php',
     __DIR__ . '/Unit/Common/Context/CorrelationIdFactoryTest.php',
     __DIR__ . '/Unit/Common/Security/SecretValueTest.php',
@@ -45,6 +46,15 @@ $files = [
     __DIR__ . '/Unit/Quota/QuotaLedgerTest.php',
     __DIR__ . '/Component/Quota/QuotaServiceIdempotencyTest.php',
     __DIR__ . '/GoldenMaster/R20AccountQuotaSnapshotTest.php',
+    __DIR__ . '/Unit/Site/SiteTest.php',
+    __DIR__ . '/Unit/Site/DomainNameTest.php',
+    __DIR__ . '/Component/Site/SiteDomainResolverTest.php',
+    __DIR__ . '/GoldenMaster/R20SiteSnapshotTest.php',
+    __DIR__ . '/Unit/Theme/ThemeVersionTest.php',
+    __DIR__ . '/Unit/Theme/StyleSnapshotTest.php',
+    __DIR__ . '/Component/Theme/ThemeReleaseServiceTest.php',
+    __DIR__ . '/Unit/Theme/SafeThemeRendererTest.php',
+    __DIR__ . '/GoldenMaster/R20ThemeStyleSnapshotTest.php',
     __DIR__ . '/GoldenMaster/LegacyEntrypointMappingTest.php',
 ];
 
