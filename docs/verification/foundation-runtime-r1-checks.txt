@@ -1,0 +1,29 @@
+# Foundation Runtime R1 fresh verification
+UTC 2026-09-07T03:44:56Z
+
+## PHP version
+PHP 8.4.23 (cli) (built: Jul  3 2026 12:26:56) (NTS)
+
+## Offline tests
+[PASS] StructureContractTest.php
+[PASS] RequestContextTest.php
+[PASS] CorrelationIdFactoryTest.php
+[PASS] SecretValueTest.php
+[PASS] ErrorEnvelopeTest.php
+[PASS] AuditEventTest.php
+[PASS] LegacyEntrypointMappingTest.php
+
+## PHP syntax
+PASS: php -l 42 files
+
+## composer.json
+PASS: framework=8.1.3 multi-app=1.1.1
+
+## legacy globals scan
+PASS: no $_W/$_GPC in app/
+
+## non-HTTP route scan
+PASS: app/common and app/worker expose no route directories
+
+## PHPUnit bridge contract
+PASS: PHPUnit bridge configured

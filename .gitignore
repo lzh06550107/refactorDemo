@@ -1,0 +1,5 @@
+.worktrees/
+vendor/
+runtime/
+.env
+.phpunit.result.cache

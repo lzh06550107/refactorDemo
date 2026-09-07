@@ -1,0 +1,12 @@
+<?php
+
+declare(strict_types=1);
+
+return [
+    'deployment_profile' => env('WEPLATFORM_DEPLOYMENT_PROFILE', 'selfhost-multi-tenant'),
+    'legacy_root' => env('WEPLATFORM_LEGACY_ROOT', ''),
+    'legacy_base_url' => env('WEPLATFORM_LEGACY_BASE_URL', ''),
+    'trusted_hosts' => array_values(array_filter(explode(',', (string) env('WEPLATFORM_TRUSTED_HOSTS', '')))),
+    'trusted_proxies' => array_values(array_filter(explode(',', (string) env('WEPLATFORM_TRUSTED_PROXIES', '')))),
+    'audit_channel' => env('WEPLATFORM_AUDIT_CHANNEL', 'file'),
+];

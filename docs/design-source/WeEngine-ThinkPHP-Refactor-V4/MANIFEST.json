@@ -1,0 +1,457 @@
+{
+  "name": "WeEngine ThinkPHP Refactor V4",
+  "baseline": "WeEngine 2.7.4/R20",
+  "generated_files": 90,
+  "files": [
+    {
+      "path": "00-requirements/00-PRD.md",
+      "bytes": 2896,
+      "sha256": "28ef8ca1d637bcaf5dc33b73e495f79c9e6a909a3818d55ab03e5178f751abe2"
+    },
+    {
+      "path": "00-requirements/01-scope-and-principles.md",
+      "bytes": 838,
+      "sha256": "6c8b4dcfe5536407b6d55065c98dbeedee3be2e7c01718356915abd88e0f5ddc"
+    },
+    {
+      "path": "00-requirements/02-NFR.md",
+      "bytes": 752,
+      "sha256": "d5b80900def0c25dd63a1f8967d8401402b11b57f30465f11191f3e6b875880e"
+    },
+    {
+      "path": "00-requirements/03-requirement-traceability.md",
+      "bytes": 485,
+      "sha256": "f541f2b153d041c622f2e168ceaa2a23e88a482a7d2562ac3d6ba151c5e87291"
+    },
+    {
+      "path": "01-architecture/00-target-architecture.md",
+      "bytes": 772,
+      "sha256": "6f8e70f4bbaa9918502281ca0fde2142e208fd9c39a97f0c7e6058704467e621"
+    },
+    {
+      "path": "01-architecture/01-project-directory.md",
+      "bytes": 1073,
+      "sha256": "d298591fa7d8c7570cebfd3cbe88c1e2ae4b2df001371616c301b71a24028438"
+    },
+    {
+      "path": "01-architecture/02-request-context-routing.md",
+      "bytes": 665,
+      "sha256": "fbcb943b1e3eac36fda0e59576ab574ca2915c52549ecc1cc60de07792819225"
+    },
+    {
+      "path": "01-architecture/03-data-transaction.md",
+      "bytes": 853,
+      "sha256": "12e0881fd44210133a94b7c5305bc6227667047dfb59fdacdbeb6d99090557f5"
+    },
+    {
+      "path": "01-architecture/04-security-authorization.md",
+      "bytes": 520,
+      "sha256": "d955cee94c3dd7646abd66fd5ef63d30149e7c8620ba339fb66a959b6061266a"
+    },
+    {
+      "path": "01-architecture/05-deployment-modes.md",
+      "bytes": 656,
+      "sha256": "acc4e86648a28bcb1f456f3f07f8977caf961858e51042962730bce02d0d88fa"
+    },
+    {
+      "path": "01-architecture/06-module-runtime.md",
+      "bytes": 924,
+      "sha256": "dd91179350287bd766047c1830dace01632ce4ee32899eac6e3080bcfaaede9e"
+    },
+    {
+      "path": "01-architecture/07-theme-architecture.md",
+      "bytes": 350,
+      "sha256": "fffba52a66e9add4fdaee85843319c3f36aeea485a8e693fff787a144295ca39"
+    },
+    {
+      "path": "02-as-is-mapping/00-as-is-to-be-overview.md",
+      "bytes": 863,
+      "sha256": "8a3953baad5af262e20ad9365831353f3fca8dfdff2d454f473c167ded8659fc"
+    },
+    {
+      "path": "02-as-is-mapping/01-entrypoints.md",
+      "bytes": 430,
+      "sha256": "a6bbb73b8f332bd5d4fa213360de11480739d094f2db10b1a950bb3c4944b4ec"
+    },
+    {
+      "path": "02-as-is-mapping/02-permission-model.md",
+      "bytes": 363,
+      "sha256": "1096c5ad63b6191ef723e2c42f8111239e26a5a83dae8f08c40670912d8f65d4"
+    },
+    {
+      "path": "02-as-is-mapping/03-user-vs-account-module.md",
+      "bytes": 617,
+      "sha256": "9b807a0c2813bfdea99bcb08cc04998acf4c8aa0f1ff649df2f58fe834fe611d"
+    },
+    {
+      "path": "02-as-is-mapping/04-account-quota.md",
+      "bytes": 568,
+      "sha256": "f465a85acd1387da7960cf4d664722c01de44775b04dbac574bf3bab6cc79baf"
+    },
+    {
+      "path": "02-as-is-mapping/05-module-fetch.md",
+      "bytes": 506,
+      "sha256": "373a88b22eaa53f5cc1246268eda0b4788a2ec46ac71d8cdbfd7b02c47a682eb"
+    },
+    {
+      "path": "02-as-is-mapping/06-saas-selfhost.md",
+      "bytes": 250,
+      "sha256": "b39eaad64c7f158f71925838261d450a11ade1b8e3c3cbda000e6018d222841e"
+    },
+    {
+      "path": "10-epics/EPIC-01/ST-01-01.md",
+      "bytes": 2067,
+      "sha256": "fbdf5a978a52b9968c7ccf33390141ca192d1beb18cce85f93934d4839b4b8bb"
+    },
+    {
+      "path": "10-epics/EPIC-01/ST-01-02.md",
+      "bytes": 2075,
+      "sha256": "3896bb8691f5a570409cd555f3e9eca5b787a5901770d2e2257952a324245504"
+    },
+    {
+      "path": "10-epics/EPIC-01/ST-01-03.md",
+      "bytes": 2079,
+      "sha256": "eef984ee9de4f62404c3ba8562ee62598dc72545a86c26c98d12efd5b2af0862"
+    },
+    {
+      "path": "10-epics/EPIC-01.md",
+      "bytes": 584,
+      "sha256": "0fe3d3080a3332356e7196e280d3912ab3eee6eeb9228260f57fd7fed0356e91"
+    },
+    {
+      "path": "10-epics/EPIC-02/ST-02-01.md",
+      "bytes": 2048,
+      "sha256": "d0690474bf9e11712ed1c7fdcdbbfd32ab794e23a29fa41bfd0f88e8f759e6db"
+    },
+    {
+      "path": "10-epics/EPIC-02/ST-02-02.md",
+      "bytes": 2044,
+      "sha256": "ad38ca1554276ccd34bcd14024be178a29e606677d3daff29ad5afb643f320fa"
+    },
+    {
+      "path": "10-epics/EPIC-02/ST-02-03.md",
+      "bytes": 2226,
+      "sha256": "2f128594e6830134d728303b4741b356bdc0694cebf770407f65dabb81fec8b2"
+    },
+    {
+      "path": "10-epics/EPIC-02.md",
+      "bytes": 540,
+      "sha256": "69d1d0afcfef6f32c5a03cb2456dd19b428aa24f0beae5b9cac25ff1bdb7f90e"
+    },
+    {
+      "path": "10-epics/EPIC-03/ST-03-01.md",
+      "bytes": 2039,
+      "sha256": "9e80ba320a9e07b64d3f0f7249848dbdd916eac139327fd07a14969a876aa6ba"
+    },
+    {
+      "path": "10-epics/EPIC-03/ST-03-02.md",
+      "bytes": 2073,
+      "sha256": "4e393728d0aef9180e5e59c4c17a8588c6bef83d073d659763d208f8178ad487"
+    },
+    {
+      "path": "10-epics/EPIC-03/ST-03-03.md",
+      "bytes": 2069,
+      "sha256": "360d1c08f78c0c87c27272679e880bfcecaf98a56aa986d481ef547f8dc6feed"
+    },
+    {
+      "path": "10-epics/EPIC-03/ST-03-04.md",
+      "bytes": 2049,
+      "sha256": "5350f9eea05d79210ee4fb335126d557c4de92f397dc7c63622df340a22fb34c"
+    },
+    {
+      "path": "10-epics/EPIC-03.md",
+      "bytes": 618,
+      "sha256": "68b68e46b86031197bb9e0efc03c290da074a0bdd3d8431786168e1b434154fb"
+    },
+    {
+      "path": "10-epics/EPIC-04/ST-04-01.md",
+      "bytes": 2058,
+      "sha256": "cb5be2948f3bad62f311b247a4219fdb3d065b1ae8e25b2b7c723a67f9eb947b"
+    },
+    {
+      "path": "10-epics/EPIC-04/ST-04-02.md",
+      "bytes": 2056,
+      "sha256": "c97bb1441990cc6fc7d397179ebf3118b6664d44cd9dba3d92da7b763bbc8acc"
+    },
+    {
+      "path": "10-epics/EPIC-04/ST-04-03.md",
+      "bytes": 2056,
+      "sha256": "0095948a24893a846a850e2758939132c7006953e6ffa9ed57ec6fb05263f76d"
+    },
+    {
+      "path": "10-epics/EPIC-04/ST-04-04.md",
+      "bytes": 2366,
+      "sha256": "c10ede1dc5125612e740a8d1a2ddce0e19333bfc53e3058fa7f332bced18322c"
+    },
+    {
+      "path": "10-epics/EPIC-04/ST-04-05.md",
+      "bytes": 2054,
+      "sha256": "34fc6b8ce3c05aa0473b430a07be924e6735bb20e928992b209d19f63ec97548"
+    },
+    {
+      "path": "10-epics/EPIC-04.md",
+      "bytes": 684,
+      "sha256": "cc40a332bbf8a298b37990c8dacc3dc8c78d524e6974df05871a73ff58e7bb94"
+    },
+    {
+      "path": "10-epics/EPIC-05/ST-05-01.md",
+      "bytes": 2066,
+      "sha256": "ff97047f03979923982b642123f328ea74b5368a634db8597291890e1b407ea7"
+    },
+    {
+      "path": "10-epics/EPIC-05/ST-05-02.md",
+      "bytes": 2283,
+      "sha256": "4fe3e12d8c5aef6644dbb16e88fcaebee049fb114cac974c04875802eeede6e2"
+    },
+    {
+      "path": "10-epics/EPIC-05/ST-05-03.md",
+      "bytes": 2066,
+      "sha256": "1e92c2645651812ffdbb83d9adda8910f2f8bdbc645c39a8785a63df2f7ea35c"
+    },
+    {
+      "path": "10-epics/EPIC-05/ST-05-04.md",
+      "bytes": 2064,
+      "sha256": "facc0d2b62b8ded2e365d39c1120884964c84fc621a82be05cf1632b6c380e60"
+    },
+    {
+      "path": "10-epics/EPIC-05.md",
+      "bytes": 631,
+      "sha256": "88418ef0849d3f12305ce17279e902a70ee5ede72f2ff27a3e433be716b39668"
+    },
+    {
+      "path": "10-epics/EPIC-06/ST-06-01.md",
+      "bytes": 2047,
+      "sha256": "18d8c9c25d05c04ca10e7df6bedb3bb132e3eb6d9d5fe5cb53cc6371693a14cb"
+    },
+    {
+      "path": "10-epics/EPIC-06/ST-06-02.md",
+      "bytes": 2035,
+      "sha256": "8cb285b11a7aa99bc9f1a72e75d488ea0d6186e39a38ded22b772add078f378c"
+    },
+    {
+      "path": "10-epics/EPIC-06/ST-06-03.md",
+      "bytes": 2065,
+      "sha256": "7a2ed5c4646331d4e6ad6c141716a083191485224ec897dc1990315b5ecab9ed"
+    },
+    {
+      "path": "10-epics/EPIC-06/ST-06-04.md",
+      "bytes": 2061,
+      "sha256": "09823b4427b090a7c6d093ad99ff16451d5f7445bc8d5b9e3b385f1afa9e4b76"
+    },
+    {
+      "path": "10-epics/EPIC-06.md",
+      "bytes": 607,
+      "sha256": "500f81eaa3ca738aac92245fc4b247835fa8d99d92d0ed0d8034e12d04e10989"
+    },
+    {
+      "path": "10-epics/EPIC-07/ST-07-01.md",
+      "bytes": 2064,
+      "sha256": "c6fb1b3762121d84dc9f44305609a6878d77adad25c8a67ad67d0205a7908890"
+    },
+    {
+      "path": "10-epics/EPIC-07/ST-07-02.md",
+      "bytes": 2054,
+      "sha256": "0045a5b39687be4cf9471fb03316da9c76a9586ebf879191d510f9a3f61a92fb"
+    },
+    {
+      "path": "10-epics/EPIC-07/ST-07-03.md",
+      "bytes": 2062,
+      "sha256": "3f343d52842031ff4513bb23def21c3291129a7d00930e003078e93dee41e0c5"
+    },
+    {
+      "path": "10-epics/EPIC-07/ST-07-04.md",
+      "bytes": 2058,
+      "sha256": "a90c899914eb866a1254a75cc850b23eb86f56067116505e3733cd6ca7e9cbfa"
+    },
+    {
+      "path": "10-epics/EPIC-07.md",
+      "bytes": 622,
+      "sha256": "c557fc83f7039ff350c2df157014faf7e3b5fde07ce0632058f383dc6cd8a148"
+    },
+    {
+      "path": "10-epics/EPIC-08/ST-08-01.md",
+      "bytes": 2066,
+      "sha256": "66d8d84dc40c525022bff542a4c584d100eccb492947743654243cdc99a6f6f8"
+    },
+    {
+      "path": "10-epics/EPIC-08/ST-08-02.md",
+      "bytes": 2056,
+      "sha256": "1fb4b23938bee85bccc523972b4f2cd824e8bc6d5f8b319e3177ffae775d7015"
+    },
+    {
+      "path": "10-epics/EPIC-08/ST-08-03.md",
+      "bytes": 2030,
+      "sha256": "7df4f1ca11d7a510eadc87440edfc09f6c182c9a8493fe6202034b4db1184b5d"
+    },
+    {
+      "path": "10-epics/EPIC-08/ST-08-04.md",
+      "bytes": 2064,
+      "sha256": "4f7389541744934c609ef885687a0ceccdc4ee74e6b2988149021e87c1ed2f3d"
+    },
+    {
+      "path": "10-epics/EPIC-08.md",
+      "bytes": 611,
+      "sha256": "c975029fc0c6b4ab5231d1a89ac24e03d4e56313e587fb3cf8e2b8d259252b43"
+    },
+    {
+      "path": "10-epics/EPIC-09/ST-09-01.md",
+      "bytes": 2060,
+      "sha256": "15921389b7ac3ee39070aaf1fc26158d2ab0bac80a4ad7053d9f581f424a0356"
+    },
+    {
+      "path": "10-epics/EPIC-09/ST-09-02.md",
+      "bytes": 2078,
+      "sha256": "a4bed9d1fc10227fc60a470b306d2ef4b762c1a62c36f4ce4a544ec5a7216812"
+    },
+    {
+      "path": "10-epics/EPIC-09/ST-09-03.md",
+      "bytes": 2080,
+      "sha256": "31053f71923c8efa47fdd193054e21880c6b9050ecb76fee14a8f88539674fed"
+    },
+    {
+      "path": "10-epics/EPIC-09/ST-09-04.md",
+      "bytes": 2056,
+      "sha256": "5fe29f4abed0688fa6102b8e5a3a1e1ddb461921a9581e2afc0e6cc5139577a4"
+    },
+    {
+      "path": "10-epics/EPIC-09.md",
+      "bytes": 640,
+      "sha256": "003b6f85861e04db2bcb71d8fbd249188fffda97c0c12a5015e0465975e9ba8b"
+    },
+    {
+      "path": "10-epics/EPIC-10/ST-10-01.md",
+      "bytes": 2066,
+      "sha256": "120fd4fea8c332a708c186f1b0461d6a274f1b46907134e038103b6f24725ff6"
+    },
+    {
+      "path": "10-epics/EPIC-10/ST-10-02.md",
+      "bytes": 2064,
+      "sha256": "6ed82c25f3f16fbdee82234e76f74d753fbc717b4ff8a7c72bf15f900290c6bc"
+    },
+    {
+      "path": "10-epics/EPIC-10/ST-10-03.md",
+      "bytes": 2235,
+      "sha256": "967d733768c73cc7da3f032a54ed9b1fde63ffb18ac9f0e83add7b007cd29dfc"
+    },
+    {
+      "path": "10-epics/EPIC-10/ST-10-04.md",
+      "bytes": 2064,
+      "sha256": "7ea1658a564c2c04c5ca93ec1cdd1857539b00ddb5e960a0c847b7372e590403"
+    },
+    {
+      "path": "10-epics/EPIC-10.md",
+      "bytes": 619,
+      "sha256": "bca9d6c6d04621f90e9f738c9180bf80981c34db64a591a2f98f064910822619"
+    },
+    {
+      "path": "10-epics/EPIC-11/ST-11-01.md",
+      "bytes": 2060,
+      "sha256": "5e2d6bad533af1531f856c11ed93130bfa719ea5850f4469b355a3a98092c573"
+    },
+    {
+      "path": "10-epics/EPIC-11/ST-11-02.md",
+      "bytes": 2076,
+      "sha256": "264713e5fd183886e31a1864e29197622f89d993b0ea8d1be721b5673746f8c8"
+    },
+    {
+      "path": "10-epics/EPIC-11/ST-11-03.md",
+      "bytes": 2056,
+      "sha256": "c263f5c3366c975286b47152a26ca432eb28ef15b0e79ffffcf03d581513e300"
+    },
+    {
+      "path": "10-epics/EPIC-11/ST-11-04.md",
+      "bytes": 2072,
+      "sha256": "fa992ce0f40dc810005b8909319850b8261abf8d4441cb472be336b95c60ee6d"
+    },
+    {
+      "path": "10-epics/EPIC-11.md",
+      "bytes": 635,
+      "sha256": "47ef8fd655d6479dac93a2919f7f531f5fc1332f66617c922e9b4852f70ac93d"
+    },
+    {
+      "path": "10-epics/EPIC-12/ST-12-01.md",
+      "bytes": 2073,
+      "sha256": "a1bceb8e2c8559d402579c6f66b9c6e734f9d3fe83ec046065ec8bf6bd59e550"
+    },
+    {
+      "path": "10-epics/EPIC-12/ST-12-02.md",
+      "bytes": 2051,
+      "sha256": "190a1b7e0424fe0554ef1ef05ff160dd779774d3fd4d513983b69759def66af9"
+    },
+    {
+      "path": "10-epics/EPIC-12/ST-12-03.md",
+      "bytes": 2077,
+      "sha256": "843f8bf57dd7d43a08a7380e6fa11ecc4a669cda3aa88dc5ef1325f34880e598"
+    },
+    {
+      "path": "10-epics/EPIC-12/ST-12-04.md",
+      "bytes": 2063,
+      "sha256": "3a9d4dc6463fc3f48223aeb13ba27d8d49beeb50c3dfd578f299c0f0c8a493dd"
+    },
+    {
+      "path": "10-epics/EPIC-12.md",
+      "bytes": 635,
+      "sha256": "db4cd81d6c49954e716cb97944c9aa82083eef1b1b6e5ce33fc04b27f2ba0055"
+    },
+    {
+      "path": "90-migration-testing/00-strangler-plan.md",
+      "bytes": 374,
+      "sha256": "c431aae9b374d3d4bdb87d9b065774a22d46a7dd4a33557607c67aee5119ddf5"
+    },
+    {
+      "path": "90-migration-testing/01-golden-master.md",
+      "bytes": 405,
+      "sha256": "dbc29ca1525fb73dafac60984b1683c7c49ac941202ccca2b906106ff6f270ed"
+    },
+    {
+      "path": "90-migration-testing/02-data-migration.md",
+      "bytes": 560,
+      "sha256": "23ff672794a59b34324a7c54a48e18b0a18fa1830b3f713b059ca834bb209b71"
+    },
+    {
+      "path": "90-migration-testing/03-test-strategy.md",
+      "bytes": 394,
+      "sha256": "25645589d2631c597362b1f158d073a6a9b0f083cfd3b8ef2d1223b9142ea01a"
+    },
+    {
+      "path": "99-implementation/00-composer-and-framework.md",
+      "bytes": 409,
+      "sha256": "1ec89774aacf04296cb4216947cdeb882962b48fae2d2d4b52f96cdf4e6d394d"
+    },
+    {
+      "path": "99-implementation/01-database-schema-map.md",
+      "bytes": 708,
+      "sha256": "e73c4a04d108b9076ba7e2e9d8d6ec009ef55f800a29d2170802aeafdc6c266f"
+    },
+    {
+      "path": "99-implementation/02-coding-rules.md",
+      "bytes": 357,
+      "sha256": "8d64c55d75f65c11095246ce14f6d0bc2f2515dacb7e4b662b8d27b1acb5ecef"
+    },
+    {
+      "path": "99-implementation/03-optimization-guide.md",
+      "bytes": 929,
+      "sha256": "5027be29e13e83787ab7efc29d6ac3e1ddc3a0b629724c055a47aa5ec16c4df5"
+    },
+    {
+      "path": "99-implementation/04-implementation-sequence.md",
+      "bytes": 459,
+      "sha256": "c531dbc9b4f88e29ce271eb1f0349ed85f7c2b9d1c7c6991e73b53a04e7f17e2"
+    },
+    {
+      "path": "99-implementation/05-definition-of-done.md",
+      "bytes": 355,
+      "sha256": "76d1c73cc125fdb49d092aa4724f908ee1c3dbf1c78694eaff11e43c4c111111"
+    },
+    {
+      "path": "99-implementation/06-risk-register.md",
+      "bytes": 500,
+      "sha256": "0486e9c1aa30d9e797925b2cce6485aab38aca9f8721909af171d04f775b738c"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1921,
+      "sha256": "ff32b9d67750b76e7e1f663b4956a662693485095ece5b21414f1051c2fa958c"
+    }
+  ]
+}

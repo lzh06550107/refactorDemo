@@ -1,0 +1,8 @@
+{
+  "/index.php": "router/domain-resolver",
+  "/web/index.php": "admin",
+  "/app/index.php": "web",
+  "/api.php": "api/webhook",
+  "/payment/*": "api/payment-webhook",
+  "/install.php": "deployment-only"
+}
