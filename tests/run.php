@@ -10,6 +10,7 @@ $files = [
     __DIR__ . '/Contract/IamTenantAccountSchemaContractTest.php',
     __DIR__ . '/Contract/IamModulePlatformSchemaContractTest.php',
     __DIR__ . '/Contract/LegacyDatabaseReadOnlyContractTest.php',
+    __DIR__ . '/Contract/EntitlementQuotaSchemaContractTest.php',
     __DIR__ . '/Unit/Common/Context/RequestContextTest.php',
     __DIR__ . '/Unit/Common/Context/CorrelationIdFactoryTest.php',
     __DIR__ . '/Unit/Common/Security/SecretValueTest.php',
@@ -38,6 +39,12 @@ $files = [
     __DIR__ . '/Component/Module/RuntimeModuleServiceTest.php',
     __DIR__ . '/Component/Module/ModuleAuthorizationServiceTest.php',
     __DIR__ . '/GoldenMaster/LegacyModuleAdapterTest.php',
+    __DIR__ . '/Unit/Entitlement/TenantModuleEntitlementTest.php',
+    __DIR__ . '/Component/Entitlement/TenantModuleEntitlementServiceTest.php',
+    __DIR__ . '/Unit/Quota/AccountCreationQuotaPolicyTest.php',
+    __DIR__ . '/Unit/Quota/QuotaLedgerTest.php',
+    __DIR__ . '/Component/Quota/QuotaServiceIdempotencyTest.php',
+    __DIR__ . '/GoldenMaster/R20AccountQuotaSnapshotTest.php',
     __DIR__ . '/GoldenMaster/LegacyEntrypointMappingTest.php',
 ];
 
