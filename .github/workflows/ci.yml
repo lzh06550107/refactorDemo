@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+          coverage: none
+
+      - name: Validate Composer manifest
+        run: composer validate --strict
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Run offline contract suite
+        run: php tests/run.php
+
+      - name: Run PHPUnit bridge
+        run: php vendor/bin/phpunit
+
+      - name: Lint PHP
+        run: find app config tests -name '*.php' -print0 | xargs -0 -n1 php -l
+
+      - name: Verify ThinkPHP routes
+        run: php think route:list

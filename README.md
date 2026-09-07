@@ -1,49 +1,70 @@
 # WePlatform ThinkPHP Refactor
 
-WeEngine 2.7.4 R20 strangler refactor on ThinkPHP 8.
+Strangler-style refactor of WeEngine 2.7.4/R20 onto ThinkPHP 8, implemented incrementally from the supplied V4 design.
 
-## Current increments
+## Current implementation: R4
 
 ### R1 — Foundation Runtime
-
-- ThinkPHP multi-app foundation (`admin`, `web`, `api`).
-- Immutable `RequestContext`, correlation IDs, stable error envelope.
-- Audit/security primitives and legacy entrypoint Golden-Master mapping.
+- ThinkPHP multi-app skeleton (`admin`, `web`, `api`, `common`).
+- Immutable `RequestContext`, stable error envelope, audit/security foundations.
+- R20 entrypoint Golden Master mapping.
 
 ### R2 — IAM + Tenant + Account
-
-- `AdminUser` / server-side `AdminSession` with HMAC token hashing.
-- Tenant / membership / account domain boundaries.
-- Explicit R20 role precedence compatibility.
-- `LegacyAccountMapping` for `uniacid` / `acid` without using legacy IDs as new primary keys.
-- R2 MySQL migrations.
+- `AdminUser`, server-side `AdminSession`, Tenant/Account boundaries.
+- Explicit `LegacyAccountMapping` for `uniacid`/`acid`.
+- R20 account-type and role compatibility rules.
 
 ### R3 — IAM Authorization + Module Platform
+- Permission/ACL domain and R20 permission naming compatibility.
+- Module definition/support/account overlay runtime.
+- Binding router and legacy module adapter.
+- Module-platform schema foundations.
 
-- R20-compatible permission assignment semantics: role-default, explicit all, explicit list and frame wildcard.
-- Module registry definition, account-type support matrix and `uni_account_modules` overlay runtime.
-- Binding router separates new runtime routes from `LEGACY_DELEGATE` dynamic callbacks.
-- R20 `module_permission_fetch()` naming catalog plus server-side module action authorization.
-- Legacy `modules` / `uni_account_modules` snapshot adapter.
-- R3 IAM/module-platform MySQL schema and rollback.
+### R4 — R20 Read Runtime + Plugin Dependency
+- Directional `ModulePluginRelation`: a plugin is not runnable without its main module.
+- Read-only `LegacyDatabase`/`ThinkPhpLegacyDatabase`; R20 tables are never written by this slice.
+- Safe R20 serialized-value decoder with `allowed_classes=false`, including repair path.
+- `R20ModuleRuntimeRepository` reads `modules`, `modules_recycle`, `modules_plugin`, `uni_account_modules`, and `modules_bindings` into domain objects.
+- `R20ModulePermissionRepository` reads true R20 pipe-delimited `users_permission.permission` semantics.
+- `RuntimeModuleService` and `ModuleAuthorizationService` enforce runtime availability before authorization.
+- R20 binding compatibility now includes `page`, `webapp`, and `phoneapp`.
+- GitHub Actions CI provides Composer/PHPUnit/ThinkPHP boot verification that the local offline sandbox cannot provide.
 
-## Dependency baseline
+## Runtime rule order
 
-- PHP `^8.2`
-- `topthink/framework` `8.1.3`
-- `topthink/think-multi-app` `1.1.1`
+```text
+LegacyAccountMapping
+  -> module definition + account overlay
+  -> account type / recycle / enabled gate
+  -> plugin main-module gate
+  -> RuntimeModuleContext
+  -> binding route
 
-## Run in a Composer-enabled development environment
+Authorization:
+RuntimeModuleContext must exist
+  -> users_permission assignment
+  -> LegacyPermissionPolicy
+  -> allow / deny
+```
+
+A permission row can never resurrect an unavailable module.
+
+## Development verification
+
+Local offline gate:
 
 ```bash
-composer install
+php tests/run.php
+```
+
+Networked/CI gate:
+
+```bash
+composer validate --strict
+composer install --no-interaction --prefer-dist
 php tests/run.php
 php vendor/bin/phpunit
 php think route:list
 ```
 
-The offline runner currently contains the R1 + R2 + R3 contract/unit/Golden-Master entries. The sandbox used during the refactor has PHP but no usable Composer/networked dependency install, so ThinkPHP boot, MySQL migration execution, and Composer PHPUnit execution must still be verified in a normal development environment.
-
-## Migration strategy
-
-The project follows a Strangler approach. Confirmed R20 behavior is isolated in `Legacy*` adapters/policies; new domain/application code must not access `$_W` or `$_GPC`. Legacy dynamic module callbacks are delegated rather than executed inside the new runtime until their domains are migrated.
+See `docs/verification/` for phase-specific evidence and limitations.

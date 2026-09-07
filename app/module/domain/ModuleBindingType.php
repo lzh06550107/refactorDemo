@@ -15,4 +15,7 @@ enum ModuleBindingType: string
     case FUNCTION = 'function';
     case MINE = 'mine';
     case SYSTEM_WELCOME = 'system_welcome';
+    case PAGE = 'page';
+    case WEBAPP = 'webapp';
+    case PHONEAPP = 'phoneapp';
 }

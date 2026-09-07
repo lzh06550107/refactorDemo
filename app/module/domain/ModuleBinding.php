@@ -19,8 +19,11 @@ final readonly class ModuleBinding
         private ?string $parent = null,
         private int $displayOrder = 0,
     ) {
-        if (trim($moduleName) === '' || trim($do) === '' || trim($title) === '') {
-            throw new InvalidArgumentException('Module binding module, do and title must not be empty.');
+        if (trim($moduleName) === '' || trim($title) === '') {
+            throw new InvalidArgumentException('Module binding module and title must not be empty.');
+        }
+        if ($entryType !== ModuleBindingType::PAGE && trim($do) === '') {
+            throw new InvalidArgumentException('Module binding do must not be empty except for page bindings.');
         }
         if ($routePath === null && $legacyCall === null && !$multilevel) {
             throw new InvalidArgumentException('Routable binding must have a route path or legacy call.');
