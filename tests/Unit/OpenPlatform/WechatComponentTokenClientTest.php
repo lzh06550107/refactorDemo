@@ -32,11 +32,13 @@ expectSame([
     'component_appsecret' => 'app-secret-value',
     'component_verify_ticket' => 'ticket-value',
 ], $transport->requests[0]['payload'], 'component token request body is exact');
+expectSame(10, $transport->requests[0]['timeoutSeconds'], 'component token provider timeout is bounded to 10 seconds by default');
 
 foreach ([
     ['errcode' => 40001, 'errmsg' => 'secret leak provider body'],
     ['component_access_token' => '', 'expires_in' => 7200],
     ['component_access_token' => 'token', 'expires_in' => 0],
+    ['component_access_token' => 'token', 'expires_in' => '7200'],
 ] as $bad) {
     $transport->responses[] = $bad;
     try {
@@ -47,6 +49,16 @@ foreach ([
         expectSame(502, $e->httpStatus(), 'provider failure maps to 502');
         expectTrue(!str_contains($e->getMessage(), 'app-secret-value') && !str_contains($e->getMessage(), 'ticket-value') && !str_contains($e->getMessage(), 'secret leak provider body'), 'provider error message is sanitized');
     }
+}
+
+$transport->responses[] = new RuntimeException('transport body containing app-secret-value ticket-value');
+try {
+    $client->refresh($platform, 'app-secret-value', 'ticket-value');
+    throw new RuntimeException('transport failure must map to BAD_GATEWAY');
+} catch (AppException $e) {
+    expectSame(ErrorCode::BAD_GATEWAY, $e->errorCode(), 'transport failure maps to BAD_GATEWAY');
+    expectSame(502, $e->httpStatus(), 'transport failure maps to HTTP 502');
+    expectTrue(!str_contains($e->getMessage(), 'app-secret-value') && !str_contains($e->getMessage(), 'ticket-value'), 'transport exception is sanitized');
 }
 
 $cipher = new OpenSslOpenPlatformSecretCipher(['k1' => random_bytes(32), 'k0' => random_bytes(32)], 'k1');
@@ -64,4 +76,11 @@ try {
 } catch (AppException $e) {
     expectSame(ErrorCode::INTERNAL_ERROR, $e->errorCode(), 'cipher authentication failure is internal configuration/storage error');
     expectSame(500, $e->httpStatus(), 'cipher authentication failure maps to 500');
+}
+try {
+    $cipher->reveal($first['ciphertext'], 'missing-key-version');
+    throw new RuntimeException('unknown R8B key version must fail closed');
+} catch (AppException $e) {
+    expectSame(ErrorCode::INTERNAL_ERROR, $e->errorCode(), 'unknown cipher key version fails closed');
+    expectSame(500, $e->httpStatus(), 'unknown cipher key version maps to 500');
 }
