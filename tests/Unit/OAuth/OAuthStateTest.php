@@ -3,9 +3,8 @@
 declare(strict_types=1);
 
 use app\oauth\domain\OAuthState;
-use DateTimeImmutable;
 
-$issuedAt = new DateTimeImmutable('2026-09-08T10:00:00+08:00');
+$issuedAt = new \DateTimeImmutable('2026-09-08T10:00:00+08:00');
 $expiresAt = $issuedAt->modify('+10 minutes');
 $state = new OAuthState(
     'state-1',
