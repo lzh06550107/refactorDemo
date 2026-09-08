@@ -16,6 +16,8 @@ $files = [
     __DIR__ . '/Contract/ThinkPhpMemberOAuthPersistenceContractTest.php',
     __DIR__ . '/Contract/R7ArchitectureSecurityContractTest.php',
     __DIR__ . '/Contract/MiniAppIdentitySessionSchemaContractTest.php',
+    __DIR__ . '/Contract/ThinkPhpMiniAppPersistenceContractTest.php',
+    __DIR__ . '/Contract/R8AMiniAppArchitectureSecurityContractTest.php',
     __DIR__ . '/Unit/Common/Context/RequestContextTest.php',
     __DIR__ . '/Unit/Common/Context/CorrelationIdFactoryTest.php',
     __DIR__ . '/Unit/Common/Security/SecretValueTest.php',
