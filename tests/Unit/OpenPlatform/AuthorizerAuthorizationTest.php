@@ -20,7 +20,7 @@ $authorization = AuthorizerAuthorization::active(
 
 expectSame('platform-1', $authorization->componentPlatformId(), 'authorizer authorization is platform scoped');
 expectSame('wx-authorizer-1', $authorization->authorizerAppId(), 'authorizer AppId is explicit');
-expectTrue($authorization->active(), 'new authorization is active');
+expectTrue($authorization->isActive(), 'new authorization is active');
 expectSame($refreshHash, $authorization->refreshTokenHash(), 'only refresh token hash is exposed by domain metadata');
 expectSame(['17', '18'], $authorization->scopeSet(), 'safe provider scopes are normalized');
 expectSame(1, $authorization->version(), 'initial authorization version is one');
@@ -28,7 +28,7 @@ expectTrue($authorization->acceptsSourceTimestamp($now->modify('+1 second')), 'n
 expectTrue(!$authorization->acceptsSourceTimestamp($now->modify('-1 second')), 'older provider event is stale');
 
 $unauthorized = $authorization->withUnauthorized($now->modify('+10 seconds'));
-expectTrue(!$unauthorized->active(), 'unauthorized grant is inactive');
+expectTrue(!$unauthorized->isActive(), 'unauthorized grant is inactive');
 expectSame(null, $unauthorized->refreshTokenHash(), 'unauthorized grant exposes no usable refresh credential hash');
 expectSame($now->modify('+10 seconds')->getTimestamp(), $unauthorized->unauthorizedAt()?->getTimestamp(), 'unauthorized time is recorded');
 expectSame(2, $unauthorized->version(), 'authorization lifecycle mutation increments version');

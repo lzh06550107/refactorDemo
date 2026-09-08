@@ -73,7 +73,7 @@ final readonly class AuthorizerAuthorization
     public function componentPlatformId(): string { return $this->componentPlatformId; }
     public function authorizerAppId(): string { return $this->authorizerAppId; }
     public function status(): string { return $this->status; }
-    public function active(): bool { return $this->status === 'active'; }
+    public function isActive(): bool { return $this->status === 'active'; }
     public function refreshTokenHash(): ?string { return $this->refreshTokenHash; }
     /** @return list<string> */
     public function scopeSet(): array { return $this->scopeSet; }
