@@ -2,7 +2,7 @@
 
 Strangler-style refactor of WeEngine 2.7.4/R20 onto ThinkPHP 8, implemented incrementally from the supplied V4 design.
 
-## Current implementation: R8A
+## Current implementation: R8B
 
 ### R1 — Foundation Runtime
 - ThinkPHP multi-app skeleton (`admin`, `web`, `api`, `common`).
@@ -58,7 +58,18 @@ Strangler-style refactor of WeEngine 2.7.4/R20 onto ThinkPHP 8, implemented incr
 - WeChat `session_key` is protected at rest with AES-256-GCM using randomized 96-bit IVs, authentication tags, and explicit key versions.
 - Legacy encrypted-profile compatibility keeps `sha1(rawData + session_key)`, AES-128-CBC payload decryption, and `watermark.appid` validation.
 - R20 MiniApp provider snapshots are read-only and use account type 4/7 as the explicit manual/component mode fact; raw legacy secrets/tokens are never serialized.
-- OpenPlatform ticket/component-token/authorizer lifecycle remains deliberately deferred to R8B/R8C.
+
+### R8B — OpenPlatform Component Trust Chain
+- `ComponentPlatform` is operator/platform-scoped shared infrastructure; it intentionally has no `tenant_id`, while R8A Account bindings reference an explicit `component_platform_id`.
+- Encrypted WeChat component callbacks are accepted only after the 128 KiB body bound, hardened XML parsing, ±300-second freshness check, `msg_signature` verification, AES-256-CBC frame validation, and both framed/inner Component AppId checks.
+- Replay identity is `(component_platform_id, SHA-256(platform + timestamp + nonce))`; exact replay is semantic success while same replay identity/different encrypted payload is a conflict.
+- The current `component_verify_ticket` is versioned by signed source timestamp and stored only as AES-256-GCM ciphertext plus non-secret metadata.
+- Component access tokens are fetched only from the authenticated current ticket chain, use provider `expires_in`, and are encrypted at rest with explicit key versions.
+- Token refresh uses a platform-scoped 30-second database lease and holder/version/expiry compare-and-set; provider HTTP is never executed inside a database transaction.
+- A still-unexpired token remains a degraded fallback on provider failure; expired/missing state fails closed with stable 502/503 errors.
+- R8A component-mode MiniApp login consumes R8B only through `OpenPlatformComponentAccessTokenProvider`; verify tickets and Component AppSecrets never enter MiniApp code.
+- Historical fixed/global component-token cache state is deliberately not imported because its Component Platform scope is ambiguous.
+- R8C authorizer authorization, `pre_auth_code`, authorizer refresh/access tokens, and authorization lifecycle remain explicitly deferred.
 
 ## Runtime rule order
 
@@ -79,10 +90,21 @@ business Account + provider binding
 
 MiniApp login:
 Tenant + Account + MiniApp provider binding
-  -> jscode2session (outside DB transaction)
+  -> manual jscode2session OR R8B component access-token service
   -> provider-account-scoped ExternalIdentity
   -> opaque token + protected session_key
   -> atomic Member identity + MiniApp session + audit
+
+OpenPlatform component trust:
+explicit ComponentPlatform route id
+  -> bounded outer XML
+  -> freshness + msg_signature
+  -> WeChat AES frame + Component AppId checks
+  -> platform-scoped replay inbox + current verify ticket
+  -> short refresh lease
+  -> component token provider HTTP (outside DB transaction)
+  -> holder/version/expiry CAS
+  -> R8A ComponentAccessTokenProvider
 
 Webhook:
 raw request metadata
@@ -92,7 +114,7 @@ raw request metadata
   -> dispatch once
 ```
 
-Entitlement, runtime availability, and authorization are distinct gates. Provider identities are account-scoped, and neither OAuth nor MiniApp flows treat a bare `openid` as a global login credential.
+Entitlement, runtime availability, and authorization are distinct gates. Provider identities are account-scoped, while Component Platform credentials are operator-scoped shared infrastructure with explicit Account bindings.
 
 ## Development verification
 
