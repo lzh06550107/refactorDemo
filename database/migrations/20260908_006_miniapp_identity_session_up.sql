@@ -1,0 +1,40 @@
+CREATE TABLE `miniapp_provider_accounts` (
+  `account_id` varchar(64) NOT NULL,
+  `tenant_id` varchar(64) NOT NULL,
+  `provider_app_id` varchar(128) NOT NULL,
+  `connection_mode` varchar(32) NOT NULL,
+  `credential_ref` varchar(255) DEFAULT NULL,
+  `component_platform_id` varchar(64) DEFAULT NULL,
+  `enabled` tinyint(1) NOT NULL DEFAULT 1,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`account_id`),
+  UNIQUE KEY `uk_miniapp_provider_tenant_appid` (`tenant_id`,`provider_app_id`),
+  KEY `idx_miniapp_provider_tenant` (`tenant_id`),
+  CONSTRAINT `fk_miniapp_provider_tenant` FOREIGN KEY (`tenant_id`) REFERENCES `tenants` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_miniapp_provider_account` FOREIGN KEY (`account_id`) REFERENCES `accounts` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `miniapp_sessions` (
+  `id` varchar(64) NOT NULL,
+  `tenant_id` varchar(64) NOT NULL,
+  `account_id` varchar(64) NOT NULL,
+  `member_id` varchar(64) NOT NULL,
+  `external_identity_id` varchar(64) NOT NULL,
+  `token_hash` char(64) NOT NULL,
+  `session_key_ciphertext` text NOT NULL,
+  `session_key_key_version` varchar(64) NOT NULL,
+  `issued_at` datetime(6) NOT NULL,
+  `expires_at` datetime(6) NOT NULL,
+  `revoked_at` datetime(6) DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_miniapp_sessions_token_hash` (`token_hash`),
+  KEY `idx_miniapp_sessions_tenant_account` (`tenant_id`,`account_id`),
+  KEY `idx_miniapp_sessions_member` (`member_id`),
+  KEY `idx_miniapp_sessions_expiry` (`expires_at`),
+  CONSTRAINT `fk_miniapp_session_tenant` FOREIGN KEY (`tenant_id`) REFERENCES `tenants` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_miniapp_session_account` FOREIGN KEY (`account_id`) REFERENCES `accounts` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_miniapp_session_member` FOREIGN KEY (`member_id`) REFERENCES `members` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_miniapp_session_external_identity` FOREIGN KEY (`external_identity_id`) REFERENCES `external_identities` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
