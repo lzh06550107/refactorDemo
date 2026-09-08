@@ -15,6 +15,7 @@ $files = [
     __DIR__ . '/Contract/MemberOAuthWebhookSchemaContractTest.php',
     __DIR__ . '/Contract/ThinkPhpMemberOAuthPersistenceContractTest.php',
     __DIR__ . '/Contract/R7ArchitectureSecurityContractTest.php',
+    __DIR__ . '/Contract/MiniAppIdentitySessionSchemaContractTest.php',
     __DIR__ . '/Unit/Common/Context/RequestContextTest.php',
     __DIR__ . '/Unit/Common/Context/CorrelationIdFactoryTest.php',
     __DIR__ . '/Unit/Common/Security/SecretValueTest.php',
@@ -66,6 +67,8 @@ $files = [
     __DIR__ . '/Component/OAuth/OAuthOrchestratorTest.php',
     __DIR__ . '/Unit/Webhook/WechatSignatureVerifierTest.php',
     __DIR__ . '/Component/Webhook/WechatWebhookServiceTest.php',
+    __DIR__ . '/Unit/MiniApp/MiniAppProviderAccountTest.php',
+    __DIR__ . '/Unit/MiniApp/MiniAppSessionTest.php',
     __DIR__ . '/GoldenMaster/LegacyEntrypointMappingTest.php',
 ];
 
