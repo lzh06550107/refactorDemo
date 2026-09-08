@@ -18,15 +18,15 @@ $session = MiniAppSession::issue(
     $issuedAt,
 );
 
-assertSame('2026-09-08T05:30:00+00:00', $session->expiresAt()->format(DATE_ATOM));
-assertTrue($session->isActiveAt($issuedAt->modify('+1799 seconds')));
-assertTrue(!$session->isActiveAt($issuedAt->modify('+1800 seconds')));
-assertSame('ciphertext', $session->protectedSessionKey()->ciphertext());
-assertSame('key-v1', $session->protectedSessionKey()->keyVersion());
+expectSame('2026-09-08T05:30:00+00:00', $session->expiresAt()->format(DATE_ATOM));
+expectTrue($session->isActiveAt($issuedAt->modify('+1799 seconds')));
+expectTrue(!$session->isActiveAt($issuedAt->modify('+1800 seconds')));
+expectSame('ciphertext', $session->protectedSessionKey()->ciphertext());
+expectSame('key-v1', $session->protectedSessionKey()->keyVersion());
 
 $revoked = $session->revoke($issuedAt->modify('+60 seconds'));
-assertTrue(!$revoked->isActiveAt($issuedAt->modify('+61 seconds')));
-assertSame('2026-09-08T05:01:00+00:00', $revoked->revokedAt()?->format(DATE_ATOM));
+expectTrue(!$revoked->isActiveAt($issuedAt->modify('+61 seconds')));
+expectSame('2026-09-08T05:01:00+00:00', $revoked->revokedAt()?->format(DATE_ATOM));
 
 assertThrows(
     fn () => MiniAppSession::issue('session-2', 'tenant-1', 'account-1', 'member-1', 'external-1', 'raw-token', $protected, $issuedAt),
