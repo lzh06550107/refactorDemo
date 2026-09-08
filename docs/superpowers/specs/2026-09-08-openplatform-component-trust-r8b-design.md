@@ -1,6 +1,6 @@
 # R8B — WeChat OpenPlatform Component Trust Chain Design
 
-Status: approved architecture, written specification pending implementation  
+Status: approved architecture, written specification ready for review  
 Base: R8A `e7dd986ccad055005db6372168b8571b78131385`  
 Target branch: `refactor/openplatform-component-trust-r8b`
 
@@ -83,7 +83,7 @@ Tenant
 
 Rules:
 
-- `component_app_id` is globally unique among enabled Component Platforms in this deployment.
+- `component_app_id` is globally unique across all Component Platform rows in this deployment.
 - An R8A provider Account may reference only an existing enabled Component Platform.
 - OpenPlatform repositories never infer Tenant from a component token.
 - R8B exposes only the public Application API required to obtain a component token; R8A must not read OpenPlatform repositories directly.
@@ -124,6 +124,12 @@ app/openplatform/
 
 app/miniapp/infrastructure/
 └── OpenPlatformComponentAccessTokenProvider.php
+
+app/api/controller/V1/
+└── OpenPlatformTicketController.php
+
+app/api/route/app.php
+└── POST v1/openplatform/components/:componentPlatformId/ticket
 ```
 
 The MiniApp adapter implements the existing R8A contract:
@@ -202,8 +208,9 @@ The exact order is security-sensitive:
 14. require InfoType == component_verify_ticket
 15. extract ComponentVerifyTicket
 16. encrypt ticket for at-rest storage
-17. short transaction: inbox idempotency + latest-ticket compare/update + audit write
-18. return success
+17. short transaction: inbox idempotency + latest-ticket compare/update
+18. after commit, emit structured audit event
+19. return success
 ```
 
 No decrypted business field is trusted before steps 8–13 complete.
@@ -374,8 +381,10 @@ Default provider timeout is bounded; production implementation must not allow an
 Public behavior:
 
 ```text
-forPlatform(componentPlatformId, now)
+forPlatform(componentPlatformId, now = UTC-now)
 ```
+
+The `now` value is optional in the Application API so unit/component tests can provide deterministic time. Production callers normally omit it. The existing R8A provider adapter therefore keeps its one-argument interface unchanged.
 
 Conceptual flow:
 
@@ -411,6 +420,8 @@ short compare-and-set transaction
 store encrypted new token + expiry + version
         ↓
 clear lease
+        ↓
+after commit, emit structured audit event
         ↓
 return token
 ```
@@ -467,7 +478,7 @@ app/miniapp/infrastructure/OpenPlatformComponentAccessTokenProvider
 
 The adapter:
 
-1. calls R8B `ComponentAccessTokenService`;
+1. calls R8B `ComponentAccessTokenService` with the platform id and production/default time;
 2. converts the public R8B token result to R8A `app\miniapp\domain\ComponentAccessToken`;
 3. exposes only `componentAppId` and access-token value required by `jscode2session`;
 4. never exposes verify ticket or component appsecret to MiniApp code.
@@ -569,15 +580,16 @@ BEGIN
   resolve duplicate/conflict race
   compare sourceTimestamp/version
   update encrypted latest ticket if newer
-  write audit event
 COMMIT
 ```
+
+The existing `AuditLogger` is a structured logging port, not a transactional database resource. Audit emission therefore happens **after** the successful database commit. Durable replay/ticket state is represented by the Inbox/Ticket rows themselves. An audit logger failure must not roll back a valid ticket or turn an already-committed WeChat delivery into a retry loop; the logging failure is reported separately.
 
 No secret-provider lookup, XML parsing, AES decryption, or network call runs under this transaction.
 
 ### Token refresh
 
-Lease acquisition and token compare-and-set are separate short transactions around an out-of-transaction provider HTTP call.
+Lease acquisition and token compare-and-set are separate short transactions around an out-of-transaction provider HTTP call. Token-refresh audit emission occurs after the successful token commit.
 
 ## 21. Stable errors
 
@@ -610,7 +622,7 @@ Error messages are generic and never include secrets, ciphertext, raw XML, provi
 
 ## 22. Audit and observability
 
-Critical successful writes emit audit events through the existing `AuditLogger` port.
+Critical successful writes emit audit events through the existing `app\common\contract\AuditLogger` **after their database commit**.
 
 External ticket actor:
 
@@ -665,6 +677,7 @@ Ticket requests retain request/trace correlation IDs. Internal token refresh may
 8. Provider network failure cannot erase a still-usable token.
 9. Concurrent refreshes converge to one effective winner.
 10. R8A interacts with R8B only through public Application API / its provider adapter.
+11. API controller/route is transport glue only and does not access OpenPlatform repositories directly.
 
 ## 24. TDD / verification matrix
 
@@ -701,6 +714,7 @@ At minimum R8B must add executable coverage for:
 ### Integration / architecture
 
 - R8A `OpenPlatformComponentAccessTokenProvider` delegates to R8B service;
+- API route/controller maps the direct WeChat callback without Admin/Member auth dependency;
 - `_007` schema constraints/FKs/unique keys;
 - ThinkPHP persistence contract verifies platform-scoped queries and row locks/CAS;
 - architecture scan rejects ThinkPHP/legacy dependencies from Domain/Application;
