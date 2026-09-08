@@ -14,7 +14,7 @@ expectTrue(str_contains($eventSource, 'ErrorCode::CONFLICT'), 'same-timestamp co
 expectTrue(str_contains($eventSource, 'markUnauthorized'), 'unauthorized lifecycle event must use repository atomic unauthorized transition');
 
 $acceptPos = strpos($ingressSource, 'eventInbox->accept');
-$dispatchPos = strpos($ingressSource, 'authorizationEvents');
+$dispatchPos = strpos($ingressSource, 'authorizationEvents->handle');
 expectTrue($acceptPos !== false && $dispatchPos !== false && $acceptPos < $dispatchPos, 'authorizer lifecycle dispatch must occur only after authoritative replay inbox decision');
 expectTrue(
     str_contains($ingressSource, 'if (!$accepted)') || str_contains($ingressSource, 'if ($accepted === false)'),
