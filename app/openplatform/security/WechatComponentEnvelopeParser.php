@@ -29,18 +29,94 @@ final class WechatComponentEnvelopeParser
         return new ComponentTicketEnvelope($encrypted, $outerAppId === '' ? null : $outerAppId);
     }
 
-    /** @return array{appId:string,infoType:string,ticket:string} */
-    public function parseInnerTicket(string $xml): array
+    /**
+     * @return array{
+     *   appId:string,
+     *   infoType:string,
+     *   componentVerifyTicket:?string,
+     *   authorizerAppId:?string,
+     *   authorizationCode:?string,
+     *   authorizationCodeExpiredTime:?int,
+     *   preAuthCode:?string
+     * }
+     */
+    public function parseInnerEvent(string $xml): array
     {
         $document = $this->document($xml);
         $appId = $this->text($document, 'AppId');
         $infoType = $this->text($document, 'InfoType');
-        $ticket = $this->text($document, 'ComponentVerifyTicket');
-        if ($appId === null || $appId === '' || $infoType === null || $infoType === '' || $ticket === null || $ticket === '') {
-            $this->reject('Invalid OpenPlatform ticket XML payload.');
+        if ($appId === null || $appId === '' || $infoType === null || $infoType === '') {
+            $this->reject('Invalid OpenPlatform callback event XML payload.');
         }
 
-        return ['appId' => $appId, 'infoType' => $infoType, 'ticket' => $ticket];
+        $ticket = null;
+        $authorizerAppId = null;
+        $authorizationCode = null;
+        $authorizationCodeExpiredTime = null;
+        $preAuthCode = null;
+
+        switch ($infoType) {
+            case 'component_verify_ticket':
+                $ticket = $this->text($document, 'ComponentVerifyTicket');
+                if ($ticket === null || $ticket === '') {
+                    $this->reject('Invalid OpenPlatform ticket XML payload.');
+                }
+                break;
+
+            case 'authorized':
+            case 'updateauthorized':
+                $authorizerAppId = $this->text($document, 'AuthorizerAppid');
+                $authorizationCode = $this->text($document, 'AuthorizationCode');
+                $preAuthCode = $this->text($document, 'PreAuthCode');
+                $expired = $this->text($document, 'AuthorizationCodeExpiredTime');
+                if ($authorizerAppId === null || $authorizerAppId === '' || $authorizationCode === null || $authorizationCode === '') {
+                    $this->reject('Invalid OpenPlatform authorization event XML payload.');
+                }
+                if ($expired !== null && $expired !== '') {
+                    if (!preg_match('/^\d+$/', $expired)) {
+                        $this->reject('Invalid OpenPlatform authorization-code expiry.');
+                    }
+                    $authorizationCodeExpiredTime = (int) $expired;
+                }
+                if ($preAuthCode === '') {
+                    $preAuthCode = null;
+                }
+                break;
+
+            case 'unauthorized':
+                $authorizerAppId = $this->text($document, 'AuthorizerAppid');
+                if ($authorizerAppId === null || $authorizerAppId === '') {
+                    $this->reject('Invalid OpenPlatform unauthorized event XML payload.');
+                }
+                break;
+
+            default:
+                throw new AppException(ErrorCode::INVALID_ARGUMENT, 'Unsupported OpenPlatform callback InfoType.', 400);
+        }
+
+        return [
+            'appId' => $appId,
+            'infoType' => $infoType,
+            'componentVerifyTicket' => $ticket,
+            'authorizerAppId' => $authorizerAppId,
+            'authorizationCode' => $authorizationCode,
+            'authorizationCodeExpiredTime' => $authorizationCodeExpiredTime,
+            'preAuthCode' => $preAuthCode,
+        ];
+    }
+
+    /** @return array{appId:string,infoType:string,ticket:string} */
+    public function parseInnerTicket(string $xml): array
+    {
+        $event = $this->parseInnerEvent($xml);
+        if ($event['infoType'] !== 'component_verify_ticket' || $event['componentVerifyTicket'] === null) {
+            $this->reject('Invalid OpenPlatform ticket XML payload.');
+        }
+        return [
+            'appId' => $event['appId'],
+            'infoType' => $event['infoType'],
+            'ticket' => $event['componentVerifyTicket'],
+        ];
     }
 
     private function document(string $xml): DOMDocument

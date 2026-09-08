@@ -39,16 +39,8 @@ $credentials = new class($encodingKey) implements ComponentCredentialProvider {
         };
     }
 };
-$authenticator = new WechatComponentCallbackAuthenticator(
-    $platforms,
-    $credentials,
-    new WechatComponentSignatureVerifier(),
-    new WechatComponentEnvelopeParser(),
-    new WechatComponentMessageDecryptor(),
-    300,
-);
+$authenticator = new WechatComponentCallbackAuthenticator($platforms, $credentials, new WechatComponentSignatureVerifier(), new WechatComponentEnvelopeParser(), new WechatComponentMessageDecryptor(), 300);
 $eventInbox = new class implements ComponentEventInboxRepository {
-    /** @var array<string,string> */
     public array $payloads = [];
     public int $firstAccepts = 0;
     public function accept(string $componentPlatformId, string $replayKey, string $payloadHash, string $infoType, DateTimeImmutable $sourceTimestamp, DateTimeImmutable $receivedAt): bool
@@ -84,8 +76,7 @@ $audit = new class implements AuditLogger {
     public array $events = [];
     public function record(AuditEvent $event): void { $this->events[] = $event->toArray(); }
 };
-$ticketService = new ComponentTicketService($authenticator, $tickets, $audit);
-$service = new OpenPlatformEventService($authenticator, $eventInbox, $ticketService);
+$service = new OpenPlatformEventService($authenticator, $eventInbox, new ComponentTicketService($authenticator, $tickets, $audit));
 
 $encrypt = static function (string $xml, string $receiver, string $key): string {
     $frame = random_bytes(16) . pack('N', strlen($xml)) . $xml . $receiver;
@@ -100,20 +91,16 @@ $callback = static function (string $innerXml, int $timestamp, string $nonce) us
     $encrypted = $encrypt($innerXml, 'wx-component-1', $rawKey);
     $parts = ['verify-token', (string) $timestamp, $nonce, $encrypted];
     sort($parts, SORT_STRING);
-    return [
-        'raw' => '<xml><Encrypt><![CDATA[' . $encrypted . ']]></Encrypt></xml>',
-        'signature' => sha1(implode('', $parts)),
-    ];
+    return ['raw' => '<xml><Encrypt><![CDATA[' . $encrypted . ']]></Encrypt></xml>', 'signature' => sha1(implode('', $parts))];
 };
 
 $now = new DateTimeImmutable('2026-09-08T09:15:00Z');
 $ts = $now->getTimestamp();
-$authorizedXml = '<xml><AppId>wx-component-1</AppId><InfoType>authorized</InfoType><AuthorizerAppid>wx-authorizer-1</AuthorizerAppid><AuthorizationCode>auth-code-1</AuthorizationCode><PreAuthCode>pre-auth-1</PreAuthCode></xml>';
-$authorized = $callback($authorizedXml, $ts, 'nonce-authorized');
+$authorized = $callback('<xml><AppId>wx-component-1</AppId><InfoType>authorized</InfoType><AuthorizerAppid>wx-authorizer-1</AuthorizerAppid><AuthorizationCode>auth-code-1</AuthorizationCode><PreAuthCode>pre-auth-1</PreAuthCode></xml>', $ts, 'nonce-authorized');
 $service->ingest('platform-1', $authorized['raw'], (string) $ts, 'nonce-authorized', $authorized['signature'], $now, 'req-1', 'trace-1');
-expectSame(1, $eventInbox->firstAccepts, 'first authenticated event passes unified replay inbox');
+expectSame(1, $eventInbox->firstAccepts, 'first authenticated lifecycle event passes unified replay inbox');
 $service->ingest('platform-1', $authorized['raw'], (string) $ts, 'nonce-authorized', $authorized['signature'], $now, 'req-2', 'trace-2');
-expectSame(1, $eventInbox->firstAccepts, 'exact authenticated event replay is semantic duplicate');
+expectSame(1, $eventInbox->firstAccepts, 'exact authenticated lifecycle event replay is semantic duplicate');
 
 $conflict = $callback('<xml><AppId>wx-component-1</AppId><InfoType>authorized</InfoType><AuthorizerAppid>wx-authorizer-2</AuthorizerAppid><AuthorizationCode>auth-code-2</AuthorizationCode></xml>', $ts, 'nonce-authorized');
 try {
@@ -127,4 +114,4 @@ try {
 $ticket = $callback('<xml><AppId>wx-component-1</AppId><InfoType>component_verify_ticket</InfoType><ComponentVerifyTicket>ticket-through-events</ComponentVerifyTicket></xml>', $ts, 'nonce-ticket-events');
 $service->ingest('platform-1', $ticket['raw'], (string) $ts, 'nonce-ticket-events', $ticket['signature'], $now, 'req-4', 'trace-4');
 expectSame('ticket-through-events', $tickets->ticket?->ticket(), '/events dispatches authenticated ticket through existing ticket persistence');
-expectSame(2, $eventInbox->firstAccepts, 'ticket callback shares unified event replay inbox');
+expectSame(1, $eventInbox->firstAccepts, 'ticket replay remains authoritative in existing R8B ticket repository rather than double-writing generic inbox');

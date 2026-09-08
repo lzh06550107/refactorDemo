@@ -11,26 +11,63 @@ use app\common\error\ErrorCode;
 use app\openplatform\contract\ComponentCredentialProvider;
 use app\openplatform\contract\ComponentPlatformRepository;
 use app\openplatform\contract\ComponentTicketRepository;
+use app\openplatform\domain\AuthenticatedComponentEvent;
 use app\openplatform\domain\ComponentVerifyTicket;
+use app\openplatform\security\WechatComponentCallbackAuthenticator;
 use app\openplatform\security\WechatComponentEnvelopeParser;
 use app\openplatform\security\WechatComponentMessageDecryptor;
 use app\openplatform\security\WechatComponentSignatureVerifier;
 use DateTimeImmutable;
-use DateTimeZone;
+use InvalidArgumentException;
 use Throwable;
 
 final readonly class ComponentTicketService
 {
+    private WechatComponentCallbackAuthenticator $authenticator;
+    private ComponentTicketRepository $tickets;
+    private AuditLogger $audit;
+
     public function __construct(
-        private ComponentPlatformRepository $platforms,
-        private ComponentCredentialProvider $credentials,
-        private WechatComponentSignatureVerifier $signatureVerifier,
-        private WechatComponentEnvelopeParser $parser,
-        private WechatComponentMessageDecryptor $decryptor,
-        private ComponentTicketRepository $tickets,
-        private AuditLogger $audit,
-        private int $freshnessSeconds = 300,
+        WechatComponentCallbackAuthenticator|ComponentPlatformRepository $authenticatorOrPlatforms,
+        ComponentTicketRepository|ComponentCredentialProvider $ticketsOrCredentials,
+        AuditLogger|WechatComponentSignatureVerifier $auditOrVerifier,
+        ?WechatComponentEnvelopeParser $legacyParser = null,
+        ?WechatComponentMessageDecryptor $legacyDecryptor = null,
+        ?ComponentTicketRepository $legacyTickets = null,
+        ?AuditLogger $legacyAudit = null,
+        int $freshnessSeconds = 300,
     ) {
+        if ($authenticatorOrPlatforms instanceof WechatComponentCallbackAuthenticator) {
+            if (!$ticketsOrCredentials instanceof ComponentTicketRepository || !$auditOrVerifier instanceof AuditLogger) {
+                throw new InvalidArgumentException('Invalid unified ComponentTicketService dependencies.');
+            }
+            $this->authenticator = $authenticatorOrPlatforms;
+            $this->tickets = $ticketsOrCredentials;
+            $this->audit = $auditOrVerifier;
+            return;
+        }
+
+        if (
+            !$ticketsOrCredentials instanceof ComponentCredentialProvider
+            || !$auditOrVerifier instanceof WechatComponentSignatureVerifier
+            || $legacyParser === null
+            || $legacyDecryptor === null
+            || $legacyTickets === null
+            || $legacyAudit === null
+        ) {
+            throw new InvalidArgumentException('Invalid legacy ComponentTicketService dependencies.');
+        }
+
+        $this->authenticator = new WechatComponentCallbackAuthenticator(
+            $authenticatorOrPlatforms,
+            $ticketsOrCredentials,
+            $auditOrVerifier,
+            $legacyParser,
+            $legacyDecryptor,
+            $freshnessSeconds,
+        );
+        $this->tickets = $legacyTickets;
+        $this->audit = $legacyAudit;
     }
 
     public function ingest(
@@ -43,39 +80,37 @@ final readonly class ComponentTicketService
         string $requestId,
         string $traceId,
     ): void {
-        $platform = $this->platforms->findById($componentPlatformId);
-        if ($platform === null || !$platform->enabled()) {
-            throw new AppException(ErrorCode::NOT_FOUND, 'OpenPlatform component platform not found.', 404);
-        }
-
-        $envelope = $this->parser->parseOuter($rawBody);
-        $this->assertFresh($timestamp, $nonce, $now);
-        $verifyToken = $this->credentials->secretFor($platform->verifyTokenRef());
-        $this->signatureVerifier->verify($verifyToken, $timestamp, $nonce, $envelope->encryptedPayload(), $msgSignature, $now);
-
-        $replayKey = hash('sha256', $componentPlatformId . "\n" . $timestamp . "\n" . $nonce);
-        $payloadHash = hash('sha256', $envelope->encryptedPayload());
-
-        $encodingAesKey = $this->credentials->secretFor($platform->encodingAesKeyRef());
-        $innerXml = $this->decryptor->decrypt($envelope->encryptedPayload(), $encodingAesKey, $platform->componentAppId());
-        $inner = $this->parser->parseInnerTicket($innerXml);
-        if (!hash_equals($platform->componentAppId(), $inner['appId'])) {
-            throw new AppException(ErrorCode::FORBIDDEN, 'OpenPlatform inner AppId mismatch.', 403);
-        }
-        if ($inner['infoType'] !== 'component_verify_ticket') {
-            throw new AppException(ErrorCode::INVALID_ARGUMENT, 'Unsupported OpenPlatform callback InfoType.', 400);
-        }
-
-        $sourceTimestamp = (new DateTimeImmutable('@' . $timestamp))->setTimezone(new DateTimeZone('UTC'));
-        $ticket = new ComponentVerifyTicket(
+        $event = $this->authenticator->authenticate(
             $componentPlatformId,
-            $inner['ticket'],
-            hash('sha256', $inner['ticket']),
-            $sourceTimestamp,
+            $rawBody,
+            $timestamp,
+            $nonce,
+            $msgSignature,
             $now,
+        );
+        $this->acceptAuthenticatedEvent($event, $now, $requestId, $traceId);
+    }
+
+    public function acceptAuthenticatedEvent(
+        AuthenticatedComponentEvent $event,
+        DateTimeImmutable $receivedAt,
+        string $requestId,
+        string $traceId,
+    ): void {
+        $ticketValue = $event->componentVerifyTicket();
+        if ($event->infoType() !== 'component_verify_ticket' || $ticketValue === null || trim($ticketValue) === '') {
+            throw new AppException(ErrorCode::INVALID_ARGUMENT, 'Unsupported OpenPlatform callback InfoType for ticket route.', 400);
+        }
+
+        $ticket = new ComponentVerifyTicket(
+            $event->componentPlatformId(),
+            $ticketValue,
+            hash('sha256', $ticketValue),
+            $event->sourceTimestamp(),
+            $receivedAt,
             0,
         );
-        $result = $this->tickets->accept($ticket, $replayKey, $payloadHash);
+        $result = $this->tickets->accept($ticket, $event->replayKey(), $event->payloadHash());
 
         try {
             $this->audit->record(new AuditEvent(
@@ -87,23 +122,16 @@ final readonly class ComponentTicketService
                 $requestId,
                 $traceId,
                 [
-                    'component_platform_id' => $componentPlatformId,
-                    'component_app_id' => $platform->componentAppId(),
+                    'component_platform_id' => $event->componentPlatformId(),
+                    'component_app_id' => $event->componentAppId(),
                     'duplicate' => $result->duplicate(),
                     'ticket_version' => $result->ticketVersion(),
                     'outcome' => $result->stale() ? 'stale' : ($result->duplicate() ? 'duplicate' : 'accepted'),
                 ],
-                $now,
+                $receivedAt,
             ));
         } catch (Throwable) {
             // Audit transport failure must not roll back an already accepted provider callback.
-        }
-    }
-
-    private function assertFresh(string $timestamp, string $nonce, DateTimeImmutable $now): void
-    {
-        if (trim($nonce) === '' || !preg_match('/^\d+$/', $timestamp) || abs($now->getTimestamp() - (int) $timestamp) > $this->freshnessSeconds) {
-            throw new AppException(ErrorCode::UNAUTHORIZED, 'Invalid OpenPlatform callback authentication.', 401);
         }
     }
 }
