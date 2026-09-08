@@ -35,11 +35,17 @@ final readonly class WechatComponentTokenClient implements ComponentTokenClient
         $errcode = isset($response['errcode']) ? (int) $response['errcode'] : 0;
         $token = $response['component_access_token'] ?? null;
         $expiresIn = $response['expires_in'] ?? null;
-        if ($errcode !== 0 || !is_string($token) || trim($token) === '' || !is_int($expiresIn) && !ctype_digit((string) $expiresIn) || (int) $expiresIn <= 0) {
+        if (
+            $errcode !== 0
+            || !is_string($token)
+            || trim($token) === ''
+            || !is_int($expiresIn)
+            || $expiresIn <= 0
+        ) {
             $this->badGateway();
         }
 
-        return new ComponentTokenResponse($token, (int) $expiresIn);
+        return new ComponentTokenResponse($token, $expiresIn);
     }
 
     private function badGateway(): never
