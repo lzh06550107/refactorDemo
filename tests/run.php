@@ -57,6 +57,7 @@ $files = [
     __DIR__ . '/Unit/Theme/SafeThemeRendererTest.php',
     __DIR__ . '/GoldenMaster/R20ThemeStyleSnapshotTest.php',
     __DIR__ . '/Unit/Member/ExternalIdentityTest.php',
+    __DIR__ . '/GoldenMaster/R20MemberIdentitySnapshotTest.php',
     __DIR__ . '/GoldenMaster/LegacyEntrypointMappingTest.php',
 ];
 
