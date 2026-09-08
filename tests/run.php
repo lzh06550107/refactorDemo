@@ -78,6 +78,9 @@ $files = [
     __DIR__ . '/Component/MiniApp/MiniAppSessionServiceTest.php',
     __DIR__ . '/GoldenMaster/R20MiniAppProviderSnapshotTest.php',
     __DIR__ . '/Unit/OpenPlatform/ComponentPlatformTest.php',
+    __DIR__ . '/Unit/OpenPlatform/WechatComponentSignatureVerifierTest.php',
+    __DIR__ . '/Unit/OpenPlatform/WechatComponentEnvelopeParserTest.php',
+    __DIR__ . '/Unit/OpenPlatform/WechatComponentMessageDecryptorTest.php',
     __DIR__ . '/GoldenMaster/LegacyEntrypointMappingTest.php',
 ];
 
