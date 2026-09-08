@@ -1,1 +1,0 @@
-RED preparation complete.

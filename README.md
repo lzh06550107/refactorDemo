@@ -2,7 +2,7 @@
 
 Strangler-style refactor of WeEngine 2.7.4/R20 onto ThinkPHP 8, implemented incrementally from the supplied V4 design.
 
-## Current implementation: R7
+## Current implementation: R8A
 
 ### R1 — Foundation Runtime
 - ThinkPHP multi-app skeleton (`admin`, `web`, `api`, `common`).
@@ -48,7 +48,17 @@ Strangler-style refactor of WeEngine 2.7.4/R20 onto ThinkPHP 8, implemented incr
 - OAuth provider code exchange occurs outside DB locks; identity resolution and state finalization commit atomically under a locked state row.
 - WeChat webhook verification uses a 300-second freshness window and constant-time signature comparison before XML parsing.
 - Webhook Inbox deduplicates on `(provider_type, provider_account_id, provider_event_key)` and persists only the raw-body SHA-256; same-key/different-body replay is rejected.
-- R7 does not write legacy R20 tables and deliberately defers full MiniApp token chains, AES message decryption, reply processors, and payment flows.
+
+### R8A — MiniApp Identity + Secure Session
+- WeChat Mini Program `code -> jscode2session -> openid/unionid/session_key` is preserved for both manual and component-authorized modes.
+- MiniApp identities reuse R7 `ExternalIdentity` with `provider_account_id = internal Account.id`; the same openid cannot become a global identity across accounts.
+- Client-supplied `openid` is never accepted as authentication evidence; the weak R20 direct-openid session-restore path is intentionally removed.
+- Login exchange happens before the final DB transaction; Member/ExternalIdentity resolution, session insertion, and success audit commit atomically.
+- The client receives a 256-bit opaque MiniApp token; only its SHA-256 hash is persisted and the session TTL is exactly 1800 seconds.
+- WeChat `session_key` is protected at rest with AES-256-GCM using randomized 96-bit IVs, authentication tags, and explicit key versions.
+- Legacy encrypted-profile compatibility keeps `sha1(rawData + session_key)`, AES-128-CBC payload decryption, and `watermark.appid` validation.
+- R20 MiniApp provider snapshots are read-only and use account type 4/7 as the explicit manual/component mode fact; raw legacy secrets/tokens are never serialized.
+- OpenPlatform ticket/component-token/authorizer lifecycle remains deliberately deferred to R8B/R8C.
 
 ## Runtime rule order
 
@@ -67,6 +77,13 @@ business Account + provider binding
   -> provider-account-scoped ExternalIdentity
   -> atomic Member identity + state finalization
 
+MiniApp login:
+Tenant + Account + MiniApp provider binding
+  -> jscode2session (outside DB transaction)
+  -> provider-account-scoped ExternalIdentity
+  -> opaque token + protected session_key
+  -> atomic Member identity + MiniApp session + audit
+
 Webhook:
 raw request metadata
   -> signature + freshness verification
@@ -75,7 +92,7 @@ raw request metadata
   -> dispatch once
 ```
 
-Entitlement, runtime availability, and authorization are distinct gates. A permission row cannot resurrect an unavailable module, and an `openid` from one provider Account cannot identify a user under another provider Account.
+Entitlement, runtime availability, and authorization are distinct gates. Provider identities are account-scoped, and neither OAuth nor MiniApp flows treat a bare `openid` as a global login credential.
 
 ## Development verification
 
