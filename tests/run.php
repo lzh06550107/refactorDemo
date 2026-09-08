@@ -14,6 +14,7 @@ $files = [
     __DIR__ . '/Contract/SiteThemeSchemaContractTest.php',
     __DIR__ . '/Contract/MemberOAuthWebhookSchemaContractTest.php',
     __DIR__ . '/Contract/ThinkPhpMemberOAuthPersistenceContractTest.php',
+    __DIR__ . '/Contract/R7ArchitectureSecurityContractTest.php',
     __DIR__ . '/Unit/Common/Context/RequestContextTest.php',
     __DIR__ . '/Unit/Common/Context/CorrelationIdFactoryTest.php',
     __DIR__ . '/Unit/Common/Security/SecretValueTest.php',

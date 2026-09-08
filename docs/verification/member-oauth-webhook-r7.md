@@ -4,10 +4,11 @@
 
 - Base `main` before R7: `13da0f72fdbe4b7fa2062179d1ce1b359922be1b` (R6).
 - Final R7 implementation-code SHA before documentation: `e5e10e964d053247a22134f426654e55cc9a7c2b`.
-- R7 is a strict descendant of the R6 base; the GitHub compare result reports `ahead`, `behind_by=0`.
+- R7 is a strict descendant of the R6 base; GitHub compare reports `ahead` with `behind_by=0`.
 - Unified offline runner count at the final implementation-code SHA: **61 executable test files**.
+- Release-gate runner count after adding the architecture/security contract: **62 executable test files**.
 
-The documentation/release-gate commit is intentionally separate from the implementation-code SHA above. GitHub Actions remains the authoritative source for the PR and final `main` push run generated after this document is committed; embedding a commit's own SHA/run ID inside itself would require an endless self-referential commit chain.
+The documentation/release-gate commit is intentionally separate from the implementation-code SHA above. GitHub Actions is the authoritative source for PR and final `main` push runs generated after this document is committed; embedding a commit's own SHA/run ID inside itself would require a self-referential commit chain.
 
 ## TDD evidence
 
@@ -92,13 +93,29 @@ Webhook tests prove:
 - same event key + different body hash returns `CONFLICT` 409;
 - provider Account scope is preserved in the event key domain.
 
-## Architecture/security review gates
+### Release documentation gate
 
-Required release scans before `main` fast-forward:
+Documentation candidate CI run:
+`34187710580` — `completed / success`.
+
+It re-ran Composer validation/install, the 61-file offline suite, PHPUnit, PHP lint, and multi-app HTTP smoke after README and R7 migration/verification documentation were added.
+
+### Architecture/security release contract
+
+`tests/Contract/R7ArchitectureSecurityContractTest.php` is the executable release scan. It raises the unified runner to 62 files and enforces:
+
+1. R7 Member/OAuth/Webhook domain/application/security code cannot import ThinkPHP Facades/DB;
+2. those layers cannot depend on legacy `$_W` or `$_GPC` globals;
+3. R7 source/tests/release docs are scanned for common private-key, GitHub/AWS key, OpenAI-key, and assigned high-risk token/secret patterns;
+4. deterministic fixture literals such as `wechat-token` remain allowed because they are not production credentials.
+
+This contract must pass in the final PR candidate CI and again after the non-force `main` fast-forward.
+
+## Architecture/security review gates
 
 1. R7 domain/application code must not import ThinkPHP `Db`/Facade classes. Framework dependencies belong in `infrastructure` only.
 2. R7 domain/application code must not depend on legacy `$_W`/`$_GPC` globals.
-3. No real provider secret, access token, or raw OAuth code may be committed. Deterministic test literals such as `wechat-token` are fixtures only.
+3. No real provider secret, access token, or raw OAuth code may be committed.
 4. `LegacyDatabase` remains read-only and R7 must not write R20 member/fan tables.
 5. PR candidate CI must be green before a non-force `main` fast-forward.
 6. The resulting `main` push CI must be green before R7 is declared complete.
