@@ -70,6 +70,7 @@ $files = [
     __DIR__ . '/Unit/MiniApp/MiniAppProviderAccountTest.php',
     __DIR__ . '/Unit/MiniApp/MiniAppSessionTest.php',
     __DIR__ . '/Unit/MiniApp/WechatMiniAppCodeExchangeClientTest.php',
+    __DIR__ . '/Component/MiniApp/MiniAppLoginServiceTest.php',
     __DIR__ . '/GoldenMaster/R20MiniAppProviderSnapshotTest.php',
     __DIR__ . '/GoldenMaster/LegacyEntrypointMappingTest.php',
 ];
