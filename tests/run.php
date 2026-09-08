@@ -12,6 +12,7 @@ $files = [
     __DIR__ . '/Contract/LegacyDatabaseReadOnlyContractTest.php',
     __DIR__ . '/Contract/EntitlementQuotaSchemaContractTest.php',
     __DIR__ . '/Contract/SiteThemeSchemaContractTest.php',
+    __DIR__ . '/Contract/MemberOAuthWebhookSchemaContractTest.php',
     __DIR__ . '/Unit/Common/Context/RequestContextTest.php',
     __DIR__ . '/Unit/Common/Context/CorrelationIdFactoryTest.php',
     __DIR__ . '/Unit/Common/Security/SecretValueTest.php',
@@ -55,6 +56,7 @@ $files = [
     __DIR__ . '/Component/Theme/ThemeReleaseServiceTest.php',
     __DIR__ . '/Unit/Theme/SafeThemeRendererTest.php',
     __DIR__ . '/GoldenMaster/R20ThemeStyleSnapshotTest.php',
+    __DIR__ . '/Unit/Member/ExternalIdentityTest.php',
     __DIR__ . '/GoldenMaster/LegacyEntrypointMappingTest.php',
 ];
 
