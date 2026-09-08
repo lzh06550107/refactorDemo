@@ -285,17 +285,19 @@ Rejected:
 
 ### Callback
 
-1. Hash presented state.
-2. Lock OAuthState row.
-3. Reject missing / expired state.
-4. If already consumed:
-   - if a completed semantic result exists for this state, return the same result as idempotent callback replay;
-   - otherwise reject as replay/conflict.
-5. Exchange provider code through `OAuthProviderClient`.
-6. Require provider Account returned/used by the client to match state.
-7. Resolve/bind ExternalIdentity.
-8. Mark state consumed and store semantic result in the same transaction boundary where practical.
-9. Return business Account context + Member identity + allowlisted return URL.
+The provider code exchange is an external network operation and must not be performed while holding a database row lock. The callback therefore has a validation phase followed by one mandatory finalization transaction.
+
+1. Hash the presented state token and load the state context.
+2. Reject missing, malformed or expired state with `UNAUTHORIZED` / 401.
+3. If the state is already consumed and contains a complete semantic result, return that same result as an idempotent callback replay. If it is consumed without a complete result, reject with `UNAUTHORIZED` / 401.
+4. Exchange the provider code through `OAuthProviderClient` outside the database transaction.
+5. Require the provider Account used/returned by the client to match the state; mismatch is `FORBIDDEN` / 403.
+6. Begin the finalization database transaction and lock the OAuthState row by `nonceHash`.
+7. Revalidate state existence, expiry, provider/business context and consumed status under the lock. A concurrent completed callback returns its already-stored semantic result.
+8. Within this same transaction, resolve or create the Member/ExternalIdentity, write `resultMemberId` and `resultExternalIdentityId`, mark the state consumed, and commit once.
+9. Return business Account context + Member identity + the allowlisted return URL.
+
+**Hard atomicity invariant:** a successful Member/ExternalIdentity binding performed for an OAuth callback must never commit independently from that OAuthState's consumption and semantic result. State consumption without the corresponding identity result is likewise invalid. The repository/application boundary must provide one transaction that covers identity persistence plus state finalization.
 
 The provider openid is never written as a business Account openid when OAuth is borrowed.
 
@@ -442,18 +444,17 @@ Down migration drops in reverse FK order.
 
 ## 14. Error Semantics
 
-Use stable `AppException` / `ErrorCode` mapping already established by the project.
+Use the existing stable `AppException` / `ErrorCode` enum. R7 does not add a new global error taxonomy.
 
 Required outcomes:
 
-- missing identity/member: `NOT_FOUND` / 404 where lookup is explicitly requested.
+- explicit missing identity/member lookup: `NOT_FOUND` / 404.
 - cross-tenant identity collision: `CONFLICT` / 409.
-- OAuth state missing/expired/invalid: `UNAUTHORIZED` or `FORBIDDEN` according to existing ErrorCode availability; HTTP 401/403 must be stable in tests.
+- OAuth state missing, malformed, expired, consumed without a complete semantic result, or otherwise not consumable: `UNAUTHORIZED` / 401.
+- OAuth provider-account mismatch against an otherwise valid state: `FORBIDDEN` / 403.
 - return URL rejected: `INVALID_ARGUMENT` / 400.
-- webhook signature invalid/stale: `UNAUTHORIZED` / 401.
-- webhook event key reused with different payload: `CONFLICT` / 409.
-
-If a named ErrorCode is not currently present, implementation must use the nearest existing stable code rather than broadening R7 with an unrelated global error taxonomy refactor.
+- webhook signature invalid or timestamp outside the freshness window: `UNAUTHORIZED` / 401.
+- webhook event key reused with a different payload: `CONFLICT` / 409.
 
 ## 15. Audit Requirements
 
@@ -477,6 +478,7 @@ Audit payload must include RequestContext identifiers when a user-facing HTTP re
 6. No signature-only replay assumption: freshness + Inbox idempotency are separate controls.
 7. No cross-tenant identity rebinding.
 8. Provider secrets remain infrastructure values.
+9. OAuth identity persistence and state finalization are one atomic database transaction.
 
 ## 17. Test Matrix
 
@@ -496,7 +498,8 @@ R7 must add tests for at least:
 
 - duplicate identity callback converges to one Member.
 - cross-tenant identity binding rejected.
-- OAuth state consume uses row lock / conditional update semantics.
+- OAuth finalization locks state and atomically persists identity + state result/consumption.
+- concurrent callbacks converge on one completed OAuth semantic result.
 - duplicate webhook same key+payload returns duplicate without second dispatch.
 - same event key + different payload is conflict.
 
@@ -534,6 +537,7 @@ R7 is complete only when all are true:
 - Same openid string can coexist under different Provider Accounts.
 - Repeated callback does not duplicate Member/ExternalIdentity.
 - Borrowed OAuth never changes business Tenant/Account ownership.
+- OAuth identity binding and state consumption/result are committed atomically.
 - State tampering/expiry/replay cannot restore arbitrary session context.
 - Unsafe return URL is rejected.
 - Invalid/stale/replayed webhook cannot cause duplicate business dispatch.
