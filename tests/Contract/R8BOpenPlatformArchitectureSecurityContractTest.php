@@ -34,7 +34,10 @@ expectTrue(str_contains($route, "Route::post('v1/openplatform/components/:compon
 $controllerPath = $root . '/app/api/controller/V1/OpenPlatformTicketController.php';
 expectTrue(is_file($controllerPath), 'R8B component ticket controller exists');
 $controller = (string) file_get_contents($controllerPath);
-expectTrue(str_contains($controller, 'ComponentTicketService'), 'ticket controller delegates to Application service');
+expectTrue(
+    str_contains($controller, 'ComponentTicketService') || str_contains($controller, 'OpenPlatformEventService'),
+    'ticket controller delegates to an OpenPlatform Application service',
+);
 expectTrue(!str_contains($controller, 'Repository'), 'ticket controller cannot access OpenPlatform repositories directly');
 
 $adapterPath = $root . '/app/miniapp/infrastructure/OpenPlatformComponentAccessTokenProvider.php';

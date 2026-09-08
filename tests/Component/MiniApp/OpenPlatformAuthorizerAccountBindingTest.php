@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-$root = dirname(__DIR__, 2);
-$file = $root . '/app/miniapp/infrastructure/OpenPlatformAuthorizerAccountBinding.php';
-expectTrue(is_file($file), 'R8C MiniApp authorizer Account binding adapter must exist');
-$source = (string) file_get_contents($file);
+$root = dirname(__DIR__, 3);
+$adapterPath = $root . '/app/miniapp/infrastructure/OpenPlatformAuthorizerAccountBinding.php';
+expectTrue(is_file($adapterPath), 'R8C MiniApp authorizer Account binding adapter must exist');
+$source = (string) file_get_contents($adapterPath);
 
 expectTrue(str_contains($source, 'implements AuthorizerAccountBinding'), 'binding adapter implements OpenPlatform binding port');
 expectTrue(str_contains($source, 'Db::transaction'), 'binding adapter validates and writes in one short transaction');
