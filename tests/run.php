@@ -18,6 +18,7 @@ $files = [
     __DIR__ . '/Contract/MiniAppIdentitySessionSchemaContractTest.php',
     __DIR__ . '/Contract/ThinkPhpMiniAppPersistenceContractTest.php',
     __DIR__ . '/Contract/R8AMiniAppArchitectureSecurityContractTest.php',
+    __DIR__ . '/Contract/OpenPlatformComponentTrustSchemaContractTest.php',
     __DIR__ . '/Unit/Common/Context/RequestContextTest.php',
     __DIR__ . '/Unit/Common/Context/CorrelationIdFactoryTest.php',
     __DIR__ . '/Unit/Common/Security/SecretValueTest.php',
@@ -76,6 +77,7 @@ $files = [
     __DIR__ . '/Component/MiniApp/MiniAppLoginServiceTest.php',
     __DIR__ . '/Component/MiniApp/MiniAppSessionServiceTest.php',
     __DIR__ . '/GoldenMaster/R20MiniAppProviderSnapshotTest.php',
+    __DIR__ . '/Unit/OpenPlatform/ComponentPlatformTest.php',
     __DIR__ . '/GoldenMaster/LegacyEntrypointMappingTest.php',
 ];
 
