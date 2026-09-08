@@ -18,17 +18,18 @@ $session = MiniAppSession::issue(
     $issuedAt,
 );
 
-expectSame('2026-09-08T05:30:00+00:00', $session->expiresAt()->format(DATE_ATOM));
-expectTrue($session->isActiveAt($issuedAt->modify('+1799 seconds')));
-expectTrue(!$session->isActiveAt($issuedAt->modify('+1800 seconds')));
-expectSame('ciphertext', $session->protectedSessionKey()->ciphertext());
-expectSame('key-v1', $session->protectedSessionKey()->keyVersion());
+expectSame('2026-09-08T05:30:00+00:00', $session->expiresAt()->format(DATE_ATOM), 'session TTL is exactly 1800 seconds');
+expectTrue($session->isActiveAt($issuedAt->modify('+1799 seconds')), 'session active before expiry');
+expectTrue(!$session->isActiveAt($issuedAt->modify('+1800 seconds')), 'session inactive at expiry boundary');
+expectSame('ciphertext', $session->protectedSessionKey()->ciphertext(), 'session stores protected ciphertext');
+expectSame('key-v1', $session->protectedSessionKey()->keyVersion(), 'session stores key version');
 
 $revoked = $session->revoke($issuedAt->modify('+60 seconds'));
-expectTrue(!$revoked->isActiveAt($issuedAt->modify('+61 seconds')));
-expectSame('2026-09-08T05:01:00+00:00', $revoked->revokedAt()?->format(DATE_ATOM));
+expectTrue(!$revoked->isActiveAt($issuedAt->modify('+61 seconds')), 'revoked session is inactive');
+expectSame('2026-09-08T05:01:00+00:00', $revoked->revokedAt()?->format(DATE_ATOM), 'revocation timestamp preserved');
 
-assertThrows(
+expectThrows(
     fn () => MiniAppSession::issue('session-2', 'tenant-1', 'account-1', 'member-1', 'external-1', 'raw-token', $protected, $issuedAt),
     InvalidArgumentException::class,
+    'session requires SHA-256 token hash rather than raw token',
 );
