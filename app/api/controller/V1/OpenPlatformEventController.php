@@ -11,7 +11,7 @@ use DateTimeZone;
 use think\Request;
 use think\Response;
 
-final readonly class OpenPlatformTicketController
+final readonly class OpenPlatformEventController
 {
     public function __construct(
         private OpenPlatformEventService $service,
@@ -21,7 +21,7 @@ final readonly class OpenPlatformTicketController
 
     public function receive(string $componentPlatformId, Request $request): Response
     {
-        $this->service->ingestTicket(
+        $this->service->ingest(
             $componentPlatformId,
             $request->getInput(),
             (string) $request->get('timestamp', ''),

@@ -46,6 +46,33 @@ final readonly class AuthorizerAuthorization
     }
 
     /** @param list<string> $scopeSet */
+    public static function reconstitute(
+        string $componentPlatformId,
+        string $authorizerAppId,
+        string $status,
+        ?string $refreshTokenHash,
+        array $scopeSet,
+        DateTimeImmutable $providerUpdatedAt,
+        DateTimeImmutable $firstAuthorizedAt,
+        DateTimeImmutable $lastAuthorizedAt,
+        ?DateTimeImmutable $unauthorizedAt,
+        int $version,
+    ): self {
+        return new self(
+            $componentPlatformId,
+            $authorizerAppId,
+            $status,
+            $refreshTokenHash,
+            self::normalizeScopeSet($scopeSet),
+            $providerUpdatedAt,
+            $firstAuthorizedAt,
+            $lastAuthorizedAt,
+            $unauthorizedAt,
+            $version,
+        );
+    }
+
+    /** @param list<string> $scopeSet */
     public static function active(
         string $componentPlatformId,
         string $authorizerAppId,

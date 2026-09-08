@@ -38,7 +38,6 @@ final readonly class OpenPlatformEventService
         );
 
         if ($event->infoType() === 'component_verify_ticket') {
-            // R8B ticket repository remains the authoritative ticket replay/write gate.
             $this->ticketService->acceptAuthenticatedEvent($event, $now, $requestId, $traceId);
             return;
         }
@@ -58,5 +57,29 @@ final readonly class OpenPlatformEventService
         if ($this->authorizationEvents !== null) {
             $this->authorizationEvents->handle($event, $now, $requestId, $traceId);
         }
+    }
+
+    public function ingestTicket(
+        string $componentPlatformId,
+        string $rawBody,
+        string $timestamp,
+        string $nonce,
+        string $msgSignature,
+        DateTimeImmutable $now,
+        string $requestId,
+        string $traceId,
+    ): void {
+        // Compatibility endpoint remains ticket-only while its controller depends on the
+        // unified R8C ingress boundary instead of reaching ComponentTicketService directly.
+        $this->ticketService->ingest(
+            $componentPlatformId,
+            $rawBody,
+            $timestamp,
+            $nonce,
+            $msgSignature,
+            $now,
+            $requestId,
+            $traceId,
+        );
     }
 }

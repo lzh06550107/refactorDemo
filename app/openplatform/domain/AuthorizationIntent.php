@@ -56,6 +56,42 @@ final readonly class AuthorizationIntent
         }
     }
 
+    public static function reconstitute(
+        string $id,
+        string $componentPlatformId,
+        string $tenantId,
+        string $targetAccountId,
+        string $stateHash,
+        string $preAuthCodeHash,
+        string $requestedAuthType,
+        DateTimeImmutable $createdAt,
+        DateTimeImmutable $expiresAt,
+        DateTimeImmutable $providerPreAuthExpiresAt,
+        ?string $claimHolderId,
+        ?DateTimeImmutable $claimExpiresAt,
+        ?DateTimeImmutable $completedAt,
+        ?string $completedAuthorizerAppId,
+        int $version,
+    ): self {
+        return new self(
+            $id,
+            $componentPlatformId,
+            $tenantId,
+            $targetAccountId,
+            $stateHash,
+            $preAuthCodeHash,
+            $requestedAuthType,
+            $createdAt,
+            $expiresAt,
+            $providerPreAuthExpiresAt,
+            $claimHolderId,
+            $claimExpiresAt,
+            $completedAt,
+            $completedAuthorizerAppId,
+            $version,
+        );
+    }
+
     public static function pending(
         string $id,
         string $componentPlatformId,

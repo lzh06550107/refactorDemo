@@ -2,7 +2,7 @@
 
 Strangler-style refactor of WeEngine 2.7.4/R20 onto ThinkPHP 8, implemented incrementally from the supplied V4 design.
 
-## Current implementation: R8B
+## Current implementation: R8C
 
 ### R1 — Foundation Runtime
 - ThinkPHP multi-app skeleton (`admin`, `web`, `api`, `common`).
@@ -69,7 +69,18 @@ Strangler-style refactor of WeEngine 2.7.4/R20 onto ThinkPHP 8, implemented incr
 - A still-unexpired token remains a degraded fallback on provider failure; expired/missing state fails closed with stable 502/503 errors.
 - R8A component-mode MiniApp login consumes R8B only through `OpenPlatformComponentAccessTokenProvider`; verify tickets and Component AppSecrets never enter MiniApp code.
 - Historical fixed/global component-token cache state is deliberately not imported because its Component Platform scope is ambiguous.
-- R8C authorizer authorization, `pre_auth_code`, authorizer refresh/access tokens, and authorization lifecycle remain explicitly deferred.
+
+### R8C — OpenPlatform Authorizer Lifecycle
+- One authenticated `/events` ingress handles `component_verify_ticket`, `authorized`, `updateauthorized`, and `unauthorized`; the legacy `/ticket` route remains ticket-only and delegates through the R8C application boundary.
+- Authorization start generates a 32-byte opaque state and stores only SHA-256 state/pre-auth hashes; provider pre-auth expiry may shorten the 10-minute local intent lifetime.
+- Browser callback and authenticated `authorized` event arbitrate through the same 30-second `AuthorizationIntent` completion claim, so only one channel may exchange an authorization code.
+- Canonical authorizer identity is `(component_platform_id, authorizer_app_id)`; event-only authorization can update platform-level authorization without inventing Tenant/Account ownership.
+- Authorizer refresh/access tokens are AES-256-GCM protected at repository boundaries. Provider HTTP always executes outside database transactions.
+- Authorizer access-token refresh uses a 300-second skew, 30-second authorizer-specific lease, and holder + authorization-version + token-version CAS. Rotated refresh tokens commit atomically with the replacement access token.
+- Lifecycle ordering uses authenticated provider source timestamps; older events are stale no-ops, same-timestamp conflicting results fail closed, and exact transport replay never mutates twice.
+- `unauthorized` atomically clears protected refresh credential, cached authorizer access token, and refresh lease, causing token access to fail immediately until a newer authorization succeeds.
+- R8C binds an authorization only to an existing active WeChat Mini Program Account through `miniapp_provider_accounts`; it never creates a Tenant or Account.
+- Automatic Tenant/Account provisioning, broad authorizer metadata synchronization, code release/version management, and payments remain deferred to later slices.
 
 ## Runtime rule order
 
@@ -95,16 +106,17 @@ Tenant + Account + MiniApp provider binding
   -> opaque token + protected session_key
   -> atomic Member identity + MiniApp session + audit
 
-OpenPlatform component trust:
+OpenPlatform authorizer lifecycle:
 explicit ComponentPlatform route id
-  -> bounded outer XML
-  -> freshness + msg_signature
-  -> WeChat AES frame + Component AppId checks
-  -> platform-scoped replay inbox + current verify ticket
-  -> short refresh lease
-  -> component token provider HTTP (outside DB transaction)
-  -> holder/version/expiry CAS
-  -> R8A ComponentAccessTokenProvider
+  -> bounded authenticated encrypted callback / authorization intent
+  -> component_verify_ticket -> component_access_token
+  -> pre_auth_code + hashed local intent correlation
+  -> browser/event completion claim
+  -> provider query-auth outside DB transaction
+  -> platform-scoped AuthorizerAuthorization
+  -> existing Account binding when locally initiated
+  -> authorizer-specific refresh lease
+  -> holder/auth-version/token-version CAS
 
 Webhook:
 raw request metadata
@@ -114,7 +126,7 @@ raw request metadata
   -> dispatch once
 ```
 
-Entitlement, runtime availability, and authorization are distinct gates. Provider identities are account-scoped, while Component Platform credentials are operator-scoped shared infrastructure with explicit Account bindings.
+Entitlement, runtime availability, and authorization are distinct gates. Provider identities are account-scoped, while Component Platform and authorizer credentials are operator-scoped shared infrastructure with explicit Account bindings.
 
 ## Development verification
 
