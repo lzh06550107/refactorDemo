@@ -63,6 +63,8 @@ $files = [
     __DIR__ . '/Unit/OAuth/OAuthStateTest.php',
     __DIR__ . '/Component/Member/MemberIdentityServiceTest.php',
     __DIR__ . '/Component/OAuth/OAuthOrchestratorTest.php',
+    __DIR__ . '/Unit/Webhook/WechatSignatureVerifierTest.php',
+    __DIR__ . '/Component/Webhook/WechatWebhookServiceTest.php',
     __DIR__ . '/GoldenMaster/LegacyEntrypointMappingTest.php',
 ];
 
