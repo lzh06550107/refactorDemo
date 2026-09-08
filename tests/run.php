@@ -19,6 +19,8 @@ $files = [
     __DIR__ . '/Contract/ThinkPhpMiniAppPersistenceContractTest.php',
     __DIR__ . '/Contract/R8AMiniAppArchitectureSecurityContractTest.php',
     __DIR__ . '/Contract/OpenPlatformComponentTrustSchemaContractTest.php',
+    __DIR__ . '/Contract/ThinkPhpOpenPlatformPersistenceContractTest.php',
+    __DIR__ . '/Contract/R8BOpenPlatformArchitectureSecurityContractTest.php',
     __DIR__ . '/Unit/Common/Context/RequestContextTest.php',
     __DIR__ . '/Unit/Common/Context/CorrelationIdFactoryTest.php',
     __DIR__ . '/Unit/Common/Security/SecretValueTest.php',
@@ -81,6 +83,10 @@ $files = [
     __DIR__ . '/Unit/OpenPlatform/WechatComponentSignatureVerifierTest.php',
     __DIR__ . '/Unit/OpenPlatform/WechatComponentEnvelopeParserTest.php',
     __DIR__ . '/Unit/OpenPlatform/WechatComponentMessageDecryptorTest.php',
+    __DIR__ . '/Unit/OpenPlatform/WechatComponentTokenClientTest.php',
+    __DIR__ . '/Component/OpenPlatform/ComponentTicketServiceTest.php',
+    __DIR__ . '/Component/OpenPlatform/ComponentAccessTokenServiceTest.php',
+    __DIR__ . '/Component/MiniApp/OpenPlatformComponentAccessTokenProviderTest.php',
     __DIR__ . '/GoldenMaster/LegacyEntrypointMappingTest.php',
 ];
 
