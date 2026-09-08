@@ -58,6 +58,8 @@ $files = [
     __DIR__ . '/GoldenMaster/R20ThemeStyleSnapshotTest.php',
     __DIR__ . '/Unit/Member/ExternalIdentityTest.php',
     __DIR__ . '/GoldenMaster/R20MemberIdentitySnapshotTest.php',
+    __DIR__ . '/Unit/OAuth/ReturnUrlPolicyTest.php',
+    __DIR__ . '/Unit/OAuth/OAuthStateTest.php',
     __DIR__ . '/GoldenMaster/LegacyEntrypointMappingTest.php',
 ];
 
