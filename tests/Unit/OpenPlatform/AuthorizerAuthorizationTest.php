@@ -3,11 +3,8 @@
 declare(strict_types=1);
 
 use app\openplatform\domain\AuthorizerAuthorization;
-use DateTimeImmutable;
-use DateTimeZone;
 
-$utc = new DateTimeZone('UTC');
-$now = new DateTimeImmutable('2026-09-08T09:00:00Z', $utc);
+$now = new DateTimeImmutable('2026-09-08T09:00:00Z', new DateTimeZone('UTC'));
 $refreshHash = hash('sha256', 'refresh-token');
 
 $authorization = AuthorizerAuthorization::active(

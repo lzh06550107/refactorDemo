@@ -84,6 +84,7 @@ $files = [
     __DIR__ . '/Unit/OpenPlatform/ComponentPlatformTest.php',
     __DIR__ . '/Unit/OpenPlatform/AuthorizationIntentTest.php',
     __DIR__ . '/Unit/OpenPlatform/AuthorizerAuthorizationTest.php',
+    __DIR__ . '/Unit/OpenPlatform/AuthorizerLifecycleValueObjectsTest.php',
     __DIR__ . '/Unit/OpenPlatform/WechatComponentSignatureVerifierTest.php',
     __DIR__ . '/Unit/OpenPlatform/WechatComponentEnvelopeParserTest.php',
     __DIR__ . '/Unit/OpenPlatform/WechatComponentMessageDecryptorTest.php',
