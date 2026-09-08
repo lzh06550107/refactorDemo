@@ -100,6 +100,8 @@ $files = [
     __DIR__ . '/Component/OpenPlatform/AuthorizationCallbackServiceTest.php',
     __DIR__ . '/Component/OpenPlatform/AuthorizationEventServiceTest.php',
     __DIR__ . '/Component/OpenPlatform/OpenPlatformEventOrderingTest.php',
+    __DIR__ . '/Component/OpenPlatform/AuthorizerAccessTokenServiceTest.php',
+    __DIR__ . '/Component/OpenPlatform/AuthorizerAccessTokenIsolationTest.php',
     __DIR__ . '/Component/OpenPlatform/ComponentAccessTokenServiceTest.php',
     __DIR__ . '/Component/OpenPlatform/ComponentAccessTokenIsolationTest.php',
     __DIR__ . '/Component/MiniApp/OpenPlatformComponentAccessTokenProviderTest.php',
