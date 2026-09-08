@@ -119,6 +119,33 @@ $service->ingest('platform-1', $first['raw'], (string) $ts, 'nonce-1', $first['s
 expectSame(1, $tickets->ticket?->version(), 'exact replay is semantic duplicate without version bump');
 expectSame(2, count($audit->events), 'semantic duplicate remains successful and audited');
 
+// Same platform/timestamp/nonce derives the same replay identity. A fresh encrypted
+// payload under that replay identity must be rejected rather than accepted as duplicate.
+$replayConflict = $callback('ticket-replay-conflict', $ts, 'nonce-1');
+try {
+    $service->ingest('platform-1', $replayConflict['raw'], (string) $ts, 'nonce-1', $replayConflict['signature'], $now, 'req-replay-conflict', 'trace-replay-conflict');
+    throw new RuntimeException('same replay identity with different encrypted payload must fail');
+} catch (AppException $e) {
+    expectSame(ErrorCode::CONFLICT, $e->errorCode(), 'replay payload mismatch maps to CONFLICT');
+    expectSame(409, $e->httpStatus(), 'replay payload mismatch maps to HTTP 409');
+}
+expectSame('ticket-new', $tickets->ticket?->ticket(), 'replay payload conflict cannot mutate current ticket');
+expectSame(2, count($audit->events), 'replay payload conflict emits no success audit');
+
+// A different nonce avoids replay collision, but the signed source timestamp remains
+// equal to the current ticket. Different authenticated ticket content must still conflict.
+$sameTimestampConflict = $callback('ticket-same-timestamp-conflict', $ts, 'nonce-same-ts');
+try {
+    $service->ingest('platform-1', $sameTimestampConflict['raw'], (string) $ts, 'nonce-same-ts', $sameTimestampConflict['signature'], $now, 'req-same-ts', 'trace-same-ts');
+    throw new RuntimeException('same source timestamp with different ticket must fail');
+} catch (AppException $e) {
+    expectSame(ErrorCode::CONFLICT, $e->errorCode(), 'same-timestamp ticket mismatch maps to CONFLICT');
+    expectSame(409, $e->httpStatus(), 'same-timestamp ticket mismatch maps to HTTP 409');
+}
+expectSame('ticket-new', $tickets->ticket?->ticket(), 'same-timestamp conflict cannot overwrite current ticket');
+expectSame(1, $tickets->ticket?->version(), 'same-timestamp conflict cannot bump current ticket version');
+expectSame(2, count($audit->events), 'same-timestamp conflict emits no success audit');
+
 $older = $callback('ticket-old', $ts - 1, 'nonce-old');
 $service->ingest('platform-1', $older['raw'], (string) ($ts - 1), 'nonce-old', $older['signature'], $now, 'req-3', 'trace-3');
 expectSame('ticket-new', $tickets->ticket?->ticket(), 'older authenticated callback cannot overwrite current ticket');
