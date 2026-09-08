@@ -11,14 +11,13 @@ use app\webhook\domain\WechatWebhookEvent;
 use app\webhook\domain\WechatWebhookRequest;
 use app\webhook\domain\WebhookInboxResult;
 use app\webhook\security\WechatSignatureVerifier;
-use DateTimeImmutable;
 
 final class InMemoryWebhookInboxRepository implements WebhookInboxRepository
 {
     private array $rows = [];
     public int $markDispatchedCalls = 0;
 
-    public function receive(WechatWebhookEvent $event, DateTimeImmutable $receivedAt): WebhookInboxResult
+    public function receive(WechatWebhookEvent $event, \DateTimeImmutable $receivedAt): WebhookInboxResult
     {
         $key = $event->providerType() . '|' . $event->providerAccountId() . '|' . $event->providerEventKey();
         if (isset($this->rows[$key])) {
@@ -26,7 +25,7 @@ final class InMemoryWebhookInboxRepository implements WebhookInboxRepository
             if ($row['hash'] !== $event->rawBodyHash()) {
                 throw new AppException(ErrorCode::CONFLICT, 'Webhook replay payload conflicts with prior event.', 409);
             }
-            return WebhookInboxResult::duplicate($row['id']);
+            return WebhookInboxResult::replayed($row['id']);
         }
 
         $id = 'inbox-' . (count($this->rows) + 1);
@@ -34,7 +33,7 @@ final class InMemoryWebhookInboxRepository implements WebhookInboxRepository
         return WebhookInboxResult::accepted($id);
     }
 
-    public function markDispatched(string $inboxId, DateTimeImmutable $dispatchedAt): void
+    public function markDispatched(string $inboxId, \DateTimeImmutable $dispatchedAt): void
     {
         $this->markDispatchedCalls++;
         foreach ($this->rows as &$row) {
@@ -65,7 +64,7 @@ $signatureFor = static function (string $timestamp, string $nonce = 'nonce-123')
     return sha1(implode('', $parts));
 };
 
-$now = new DateTimeImmutable('@1788840000');
+$now = new \DateTimeImmutable('@1788840000');
 $timestamp = '1788840000';
 $xml = '<xml><ToUserName><![CDATA[gh_test]]></ToUserName><FromUserName><![CDATA[user-openid]]></FromUserName><CreateTime>1788840000</CreateTime><MsgType><![CDATA[text]]></MsgType><Content><![CDATA[hello]]></Content><MsgId>90001</MsgId></xml>';
 $repo = new InMemoryWebhookInboxRepository();

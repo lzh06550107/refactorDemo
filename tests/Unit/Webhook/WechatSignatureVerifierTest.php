@@ -5,10 +5,9 @@ declare(strict_types=1);
 use app\common\error\AppException;
 use app\common\error\ErrorCode;
 use app\webhook\security\WechatSignatureVerifier;
-use DateTimeImmutable;
 
 $verifier = new WechatSignatureVerifier();
-$now = new DateTimeImmutable('@1788840000');
+$now = new \DateTimeImmutable('@1788840000');
 
 $verifier->verify(
     'wechat-token',
