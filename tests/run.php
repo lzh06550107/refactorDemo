@@ -23,6 +23,9 @@ $files = [
     __DIR__ . '/Contract/ThinkPhpOpenPlatformPersistenceContractTest.php',
     __DIR__ . '/Contract/R8BOpenPlatformArchitectureSecurityContractTest.php',
     __DIR__ . '/Contract/R8BOpenPlatformReplayOrderingContractTest.php',
+    __DIR__ . '/Contract/ThinkPhpOpenPlatformAuthorizerPersistenceContractTest.php',
+    __DIR__ . '/Contract/R8COpenPlatformArchitectureSecurityContractTest.php',
+    __DIR__ . '/Contract/R8COpenPlatformSecretScanContractTest.php',
     __DIR__ . '/Unit/Common/Context/RequestContextTest.php',
     __DIR__ . '/Unit/Common/Context/CorrelationIdFactoryTest.php',
     __DIR__ . '/Unit/Common/Security/SecretValueTest.php',
@@ -105,6 +108,7 @@ $files = [
     __DIR__ . '/Component/OpenPlatform/ComponentAccessTokenServiceTest.php',
     __DIR__ . '/Component/OpenPlatform/ComponentAccessTokenIsolationTest.php',
     __DIR__ . '/Component/MiniApp/OpenPlatformComponentAccessTokenProviderTest.php',
+    __DIR__ . '/Component/MiniApp/OpenPlatformAuthorizerAccountBindingTest.php',
     __DIR__ . '/GoldenMaster/LegacyEntrypointMappingTest.php',
 ];
 
