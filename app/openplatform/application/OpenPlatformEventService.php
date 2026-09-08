@@ -14,6 +14,7 @@ final readonly class OpenPlatformEventService
         private WechatComponentCallbackAuthenticator $authenticator,
         private ComponentEventInboxRepository $eventInbox,
         private ComponentTicketService $ticketService,
+        private ?AuthorizationEventService $authorizationEvents = null,
     ) {
     }
 
@@ -37,14 +38,12 @@ final readonly class OpenPlatformEventService
         );
 
         if ($event->infoType() === 'component_verify_ticket') {
-            // R8B ComponentTicketRepository remains the authoritative replay/write gate
-            // for ticket events. This permits the generic inbox to reuse the same backing
-            // inbox table for lifecycle events without double-inserting the first ticket.
+            // R8B ticket repository remains the authoritative ticket replay/write gate.
             $this->ticketService->acceptAuthenticatedEvent($event, $now, $requestId, $traceId);
             return;
         }
 
-        $this->eventInbox->accept(
+        $accepted = $this->eventInbox->accept(
             $event->componentPlatformId(),
             $event->replayKey(),
             $event->payloadHash(),
@@ -52,8 +51,12 @@ final readonly class OpenPlatformEventService
             $event->sourceTimestamp(),
             $now,
         );
+        if (!$accepted) {
+            return;
+        }
 
-        // R8C Task 5 will attach authorizer lifecycle dispatch here. At this slice the
-        // authenticated, replay-gated event is deliberately accepted without mutation.
+        if ($this->authorizationEvents !== null) {
+            $this->authorizationEvents->handle($event, $now, $requestId, $traceId);
+        }
     }
 }

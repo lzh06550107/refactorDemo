@@ -42,6 +42,8 @@ final readonly class AuthorizationCompletionService
         DateTimeImmutable $now,
         string $requestId,
         string $traceId,
+        ?DateTimeImmutable $providerUpdatedAt = null,
+        ?string $expectedAuthorizerAppId = null,
     ): AuthorizerAuthorizationResult {
         if (trim($authorizationCode) === '') {
             $this->unauthorized();
@@ -84,14 +86,18 @@ final readonly class AuthorizationCompletionService
                 $componentToken->accessToken(),
                 $authorizationCode,
             );
+            if ($expectedAuthorizerAppId !== null && !hash_equals($expectedAuthorizerAppId, $provider->authorizerAppId())) {
+                $this->conflict();
+            }
         } catch (Throwable $e) {
             $this->releaseClaim($claimed->id(), $holderId);
             throw $e;
         }
 
+        $authorizationTimestamp = $providerUpdatedAt ?? $now;
         try {
             /** @var AuthorizerAuthorization $authorization */
-            $authorization = $this->transactions->run(function () use ($claimed, $holderId, $provider, $now): AuthorizerAuthorization {
+            $authorization = $this->transactions->run(function () use ($claimed, $holderId, $provider, $now, $authorizationTimestamp): AuthorizerAuthorization {
                 $lockedIntent = $this->intents->findByStateHash($claimed->stateHash());
                 if (
                     $lockedIntent === null
@@ -108,16 +114,19 @@ final readonly class AuthorizationCompletionService
                     $claimed->componentPlatformId(),
                     $provider->authorizerAppId(),
                 );
-                $firstAuthorizedAt = $existing?->firstAuthorizedAt() ?? $now;
+                if ($existing !== null && $authorizationTimestamp < $existing->providerUpdatedAt()) {
+                    $this->conflict();
+                }
+                $firstAuthorizedAt = $existing?->firstAuthorizedAt() ?? $authorizationTimestamp;
                 $nextVersion = ($existing?->version() ?? 0) + 1;
                 $authorization = AuthorizerAuthorization::active(
                     $claimed->componentPlatformId(),
                     $provider->authorizerAppId(),
                     hash('sha256', $provider->refreshToken()),
                     $provider->scopeSet(),
-                    $now,
+                    $authorizationTimestamp,
                     $firstAuthorizedAt,
-                    $now,
+                    $authorizationTimestamp,
                     $nextVersion,
                 );
 
@@ -158,13 +167,8 @@ final readonly class AuthorizationCompletionService
         return AuthorizerAuthorizationResult::completed($authorization->authorizerAppId());
     }
 
-    private function auditCompletion(
-        AuthorizationIntent $intent,
-        AuthorizerAuthorization $authorization,
-        string $requestId,
-        string $traceId,
-        DateTimeImmutable $now,
-    ): void {
+    private function auditCompletion(AuthorizationIntent $intent, AuthorizerAuthorization $authorization, string $requestId, string $traceId, DateTimeImmutable $now): void
+    {
         try {
             $this->audit->record(new AuditEvent(
                 'external:wechat-openplatform',
@@ -190,11 +194,8 @@ final readonly class AuthorizationCompletionService
 
     private function releaseClaim(string $intentId, string $holderId): void
     {
-        try {
-            $this->intents->releaseClaim($intentId, $holderId);
-        } catch (Throwable) {
-            // Claim expiry is the recovery mechanism; release failure cannot mask root cause.
-        }
+        try { $this->intents->releaseClaim($intentId, $holderId); }
+        catch (Throwable) { /* claim expiry is recovery */ }
     }
 
     private function unauthorized(): never
