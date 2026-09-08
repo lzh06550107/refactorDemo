@@ -60,6 +60,8 @@ $files = [
     __DIR__ . '/GoldenMaster/R20MemberIdentitySnapshotTest.php',
     __DIR__ . '/Unit/OAuth/ReturnUrlPolicyTest.php',
     __DIR__ . '/Unit/OAuth/OAuthStateTest.php',
+    __DIR__ . '/Component/Member/MemberIdentityServiceTest.php',
+    __DIR__ . '/Component/OAuth/OAuthOrchestratorTest.php',
     __DIR__ . '/GoldenMaster/LegacyEntrypointMappingTest.php',
 ];
 
