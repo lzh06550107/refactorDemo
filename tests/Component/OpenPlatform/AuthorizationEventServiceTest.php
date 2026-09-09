@@ -25,6 +25,7 @@ use app\openplatform\domain\AuthorizationIntentMode;
 use app\openplatform\domain\AuthorizerAccessToken;
 use app\openplatform\domain\AuthorizerAuthorization;
 use app\openplatform\domain\AuthorizerAuthorizationResponse;
+use app\openplatform\domain\AuthorizerInfoResponse;
 use app\openplatform\domain\AuthorizerRefreshResponse;
 use app\openplatform\domain\ComponentAccessToken;
 use app\openplatform\domain\ComponentPlatform;
@@ -96,6 +97,7 @@ $authorizerClient = new class implements AuthorizerClient {
     public function createPreAuthCode(string $componentAppId, string $componentAccessToken): PreAuthCodeResponse { throw new RuntimeException('not used'); }
     public function queryAuthorization(string $componentAppId, string $componentAccessToken, string $authorizationCode): AuthorizerAuthorizationResponse { $this->queryCalls++; return $this->response; }
     public function refreshAuthorizerToken(string $componentAppId, string $componentAccessToken, string $authorizerAppId, string $authorizerRefreshToken): AuthorizerRefreshResponse { throw new RuntimeException('not used'); }
+    public function getAuthorizerInfo(string $componentAppId, string $componentAccessToken, string $authorizerAppId): AuthorizerInfoResponse { throw new RuntimeException('R8C event lifecycle must not fetch authorizer metadata inline'); }
 };
 $authorizations = new class implements AuthorizerAuthorizationRepository {
     public array $rows = [];
