@@ -21,6 +21,7 @@ use app\openplatform\contract\ComponentTicketRepository;
 use app\openplatform\contract\ComponentTokenClient;
 use app\openplatform\contract\ComponentTokenRepository;
 use app\openplatform\domain\AuthorizationIntent;
+use app\openplatform\domain\AuthorizationIntentMode;
 use app\openplatform\domain\AuthorizerAccessToken;
 use app\openplatform\domain\AuthorizerAuthorization;
 use app\openplatform\domain\AuthorizerAuthorizationResponse;
@@ -38,6 +39,7 @@ $intent = AuthorizationIntent::pending(
     'intent-callback',
     'platform-1',
     'tenant-1',
+    AuthorizationIntentMode::BIND_EXISTING_ACCOUNT,
     'account-1',
     hash('sha256', 'opaque-browser-state'),
     hash('sha256', 'pre-callback'),
