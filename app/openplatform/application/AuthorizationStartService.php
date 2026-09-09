@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace app\openplatform\application;
 
 use app\openplatform\contract\AuthorizationIntentRepository;
+use app\openplatform\contract\AuthorizerAccountEligibility;
 use app\openplatform\contract\AuthorizerClient;
 use app\openplatform\domain\AuthorizationIntent;
+use app\openplatform\domain\AuthorizationIntentMode;
 use DateTimeImmutable;
 use InvalidArgumentException;
 
@@ -35,6 +37,7 @@ final readonly class AuthorizationStartService
         private ComponentAccessTokenService $componentTokens,
         private AuthorizerClient $authorizerClient,
         private AuthorizationIntentRepository $intents,
+        private AuthorizerAccountEligibility $eligibility,
         private string $callbackUri,
         private int $intentTtlSeconds = 600,
     ) {
@@ -52,15 +55,35 @@ final readonly class AuthorizationStartService
     public function start(
         string $componentPlatformId,
         string $tenantId,
-        string $targetAccountId,
+        AuthorizationIntentMode $mode,
+        ?string $targetAccountId,
         string $requestedAuthType,
         DateTimeImmutable $now,
     ): AuthorizationStartResult {
-        foreach ([$componentPlatformId, $tenantId, $targetAccountId, $requestedAuthType] as $value) {
+        foreach ([$componentPlatformId, $tenantId, $requestedAuthType] as $value) {
             if (trim($value) === '') {
                 throw new InvalidArgumentException('Authorization start identifiers must not be empty.');
             }
         }
+        if (
+            ($mode === AuthorizationIntentMode::BIND_EXISTING_ACCOUNT
+                && ($targetAccountId === null || trim($targetAccountId) === ''))
+            || ($mode === AuthorizationIntentMode::AUTO_PROVISION_ACCOUNT && $targetAccountId !== null)
+        ) {
+            throw new InvalidArgumentException('Authorization start mode and target Account are inconsistent.');
+        }
+
+        match ($mode) {
+            AuthorizationIntentMode::BIND_EXISTING_ACCOUNT => $this->eligibility->assertExistingAccountEligible(
+                $tenantId,
+                (string) $targetAccountId,
+                $componentPlatformId,
+            ),
+            AuthorizationIntentMode::AUTO_PROVISION_ACCOUNT => $this->eligibility->assertTenantEligible(
+                $tenantId,
+                $componentPlatformId,
+            ),
+        };
 
         $componentToken = $this->componentTokens->forPlatform($componentPlatformId, $now);
         $preAuth = $this->authorizerClient->createPreAuthCode(
@@ -77,6 +100,7 @@ final readonly class AuthorizationStartService
             bin2hex(random_bytes(16)),
             $componentPlatformId,
             $tenantId,
+            $mode,
             $targetAccountId,
             hash('sha256', $state),
             hash('sha256', $preAuth->preAuthCode()),
