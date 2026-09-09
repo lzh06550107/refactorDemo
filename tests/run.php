@@ -124,6 +124,8 @@ $files = [
     __DIR__ . '/Component/OpenPlatform/AuthorizerProvisioningQuotaTest.php',
     __DIR__ . '/Component/OpenPlatform/AuthorizerAccountFinalizerTest.php',
     __DIR__ . '/Component/OpenPlatform/AuthorizerProvisioningRecoveryTest.php',
+    __DIR__ . '/Component/OpenPlatform/AuthorizerReconnectLifecycleTest.php',
+    __DIR__ . '/Component/OpenPlatform/AuthorizerMetadataTypeConflictTest.php',
     __DIR__ . '/Component/OpenPlatform/ComponentAccessTokenServiceTest.php',
     __DIR__ . '/Component/OpenPlatform/ComponentAccessTokenIsolationTest.php',
     __DIR__ . '/Component/MiniApp/OpenPlatformComponentAccessTokenProviderTest.php',
