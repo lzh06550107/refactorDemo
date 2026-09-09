@@ -30,9 +30,14 @@ final readonly class OpenPlatformAuthorizationCallbackController
             $this->context->traceId(),
         );
 
-        return ApiResponse::success($this->context, [
+        $data = [
             'status' => $result->status(),
             'authorizer_app_id' => $result->authorizerAppId(),
-        ]);
+        ];
+        if ($result->provisioningId() !== null) {
+            $data['provisioning_id'] = $result->provisioningId();
+        }
+
+        return ApiResponse::success($this->context, $data);
     }
 }
