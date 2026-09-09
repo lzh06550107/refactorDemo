@@ -20,6 +20,7 @@ use app\openplatform\contract\ComponentTicketRepository;
 use app\openplatform\contract\ComponentTokenClient;
 use app\openplatform\contract\ComponentTokenRepository;
 use app\openplatform\domain\AuthorizationIntent;
+use app\openplatform\domain\AuthorizationIntentMode;
 use app\openplatform\domain\AuthorizerAccessToken;
 use app\openplatform\domain\AuthorizerAuthorization;
 use app\openplatform\domain\AuthorizerAuthorizationResponse;
@@ -40,6 +41,7 @@ $pending = static function (string $id = 'intent-1', ?DateTimeImmutable $created
         $id,
         'platform-1',
         'tenant-1',
+        AuthorizationIntentMode::BIND_EXISTING_ACCOUNT,
         'account-1',
         hash('sha256', 'state-' . $id),
         hash('sha256', 'pre-' . $id),
