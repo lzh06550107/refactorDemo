@@ -111,6 +111,7 @@ $files = [
     __DIR__ . '/Component/OpenPlatform/AuthorizationStartEligibilityTest.php',
     __DIR__ . '/Component/OpenPlatform/AuthorizationIntentClaimTest.php',
     __DIR__ . '/Component/OpenPlatform/AuthorizationCompletionServiceTest.php',
+    __DIR__ . '/Component/OpenPlatform/AuthorizationAutoProvisionCompletionTest.php',
     __DIR__ . '/Component/OpenPlatform/AuthorizationCallbackServiceTest.php',
     __DIR__ . '/Component/OpenPlatform/AuthorizationEventServiceTest.php',
     __DIR__ . '/Component/OpenPlatform/OpenPlatformEventOrderingTest.php',
