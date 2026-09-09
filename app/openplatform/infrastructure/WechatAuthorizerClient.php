@@ -9,8 +9,10 @@ use app\common\error\ErrorCode;
 use app\openplatform\contract\AuthorizerClient;
 use app\openplatform\contract\OpenPlatformHttpTransport;
 use app\openplatform\domain\AuthorizerAuthorizationResponse;
+use app\openplatform\domain\AuthorizerInfoResponse;
 use app\openplatform\domain\AuthorizerRefreshResponse;
 use app\openplatform\domain\PreAuthCodeResponse;
+use InvalidArgumentException;
 use Throwable;
 
 final readonly class WechatAuthorizerClient implements AuthorizerClient
@@ -18,6 +20,7 @@ final readonly class WechatAuthorizerClient implements AuthorizerClient
     private const CREATE_PRE_AUTH_ENDPOINT = 'https://api.weixin.qq.com/cgi-bin/component/api_create_preauthcode';
     private const QUERY_AUTH_ENDPOINT = 'https://api.weixin.qq.com/cgi-bin/component/api_query_auth';
     private const REFRESH_ENDPOINT = 'https://api.weixin.qq.com/cgi-bin/component/api_authorizer_token';
+    private const AUTHORIZER_INFO_ENDPOINT = 'https://api.weixin.qq.com/cgi-bin/component/api_get_authorizer_info';
 
     public function __construct(
         private OpenPlatformHttpTransport $transport,
@@ -129,6 +132,32 @@ final readonly class WechatAuthorizerClient implements AuthorizerClient
         }
 
         return new AuthorizerRefreshResponse($accessToken, $refreshToken, $expiresIn);
+    }
+
+    public function getAuthorizerInfo(
+        string $componentAppId,
+        string $componentAccessToken,
+        string $authorizerAppId,
+    ): AuthorizerInfoResponse {
+        $response = $this->post(
+            self::AUTHORIZER_INFO_ENDPOINT,
+            $componentAccessToken,
+            [
+                'component_appid' => $componentAppId,
+                'authorizer_appid' => $authorizerAppId,
+            ],
+        );
+
+        $info = $response['authorizer_info'] ?? null;
+        if (!is_array($info)) {
+            $this->badGateway();
+        }
+
+        try {
+            return AuthorizerInfoResponse::fromAuthorizerInfo($info);
+        } catch (InvalidArgumentException) {
+            $this->badGateway();
+        }
     }
 
     /** @param array<string,mixed> $payload @return array<string,mixed> */
