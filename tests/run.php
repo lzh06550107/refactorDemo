@@ -20,6 +20,7 @@ $files = [
     __DIR__ . '/Contract/R8AMiniAppArchitectureSecurityContractTest.php',
     __DIR__ . '/Contract/OpenPlatformComponentTrustSchemaContractTest.php',
     __DIR__ . '/Contract/OpenPlatformAuthorizerLifecycleSchemaContractTest.php',
+    __DIR__ . '/Contract/OpenPlatformAuthorizerProvisioningSchemaContractTest.php',
     __DIR__ . '/Contract/ThinkPhpOpenPlatformPersistenceContractTest.php',
     __DIR__ . '/Contract/R8BOpenPlatformArchitectureSecurityContractTest.php',
     __DIR__ . '/Contract/R8BOpenPlatformReplayOrderingContractTest.php',
