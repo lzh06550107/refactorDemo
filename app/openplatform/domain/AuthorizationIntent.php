@@ -13,7 +13,8 @@ final readonly class AuthorizationIntent
         private string $id,
         private string $componentPlatformId,
         private string $tenantId,
-        private string $targetAccountId,
+        private AuthorizationIntentMode $mode,
+        private ?string $targetAccountId,
         private string $stateHash,
         private string $preAuthCodeHash,
         private string $requestedAuthType,
@@ -30,12 +31,18 @@ final readonly class AuthorizationIntent
             'id' => $id,
             'componentPlatformId' => $componentPlatformId,
             'tenantId' => $tenantId,
-            'targetAccountId' => $targetAccountId,
             'requestedAuthType' => $requestedAuthType,
         ] as $name => $value) {
             if (trim($value) === '') {
                 throw new InvalidArgumentException($name . ' must not be empty.');
             }
+        }
+        if (
+            ($mode === AuthorizationIntentMode::BIND_EXISTING_ACCOUNT
+                && ($targetAccountId === null || trim($targetAccountId) === ''))
+            || ($mode === AuthorizationIntentMode::AUTO_PROVISION_ACCOUNT && $targetAccountId !== null)
+        ) {
+            throw new InvalidArgumentException('Authorization intent mode and target Account are inconsistent.');
         }
         foreach (['stateHash' => $stateHash, 'preAuthCodeHash' => $preAuthCodeHash] as $name => $hash) {
             if (!preg_match('/^[a-f0-9]{64}$/', $hash)) {
@@ -60,7 +67,8 @@ final readonly class AuthorizationIntent
         string $id,
         string $componentPlatformId,
         string $tenantId,
-        string $targetAccountId,
+        AuthorizationIntentMode $mode,
+        ?string $targetAccountId,
         string $stateHash,
         string $preAuthCodeHash,
         string $requestedAuthType,
@@ -77,6 +85,7 @@ final readonly class AuthorizationIntent
             $id,
             $componentPlatformId,
             $tenantId,
+            $mode,
             $targetAccountId,
             $stateHash,
             $preAuthCodeHash,
@@ -96,7 +105,8 @@ final readonly class AuthorizationIntent
         string $id,
         string $componentPlatformId,
         string $tenantId,
-        string $targetAccountId,
+        AuthorizationIntentMode $mode,
+        ?string $targetAccountId,
         string $stateHash,
         string $preAuthCodeHash,
         string $requestedAuthType,
@@ -108,6 +118,7 @@ final readonly class AuthorizationIntent
             $id,
             $componentPlatformId,
             $tenantId,
+            $mode,
             $targetAccountId,
             $stateHash,
             $preAuthCodeHash,
@@ -126,7 +137,8 @@ final readonly class AuthorizationIntent
     public function id(): string { return $this->id; }
     public function componentPlatformId(): string { return $this->componentPlatformId; }
     public function tenantId(): string { return $this->tenantId; }
-    public function targetAccountId(): string { return $this->targetAccountId; }
+    public function mode(): AuthorizationIntentMode { return $this->mode; }
+    public function targetAccountId(): ?string { return $this->targetAccountId; }
     public function stateHash(): string { return $this->stateHash; }
     public function preAuthCodeHash(): string { return $this->preAuthCodeHash; }
     public function requestedAuthType(): string { return $this->requestedAuthType; }
@@ -174,6 +186,7 @@ final readonly class AuthorizationIntent
             $this->id,
             $this->componentPlatformId,
             $this->tenantId,
+            $this->mode,
             $this->targetAccountId,
             $this->stateHash,
             $this->preAuthCodeHash,
@@ -198,6 +211,7 @@ final readonly class AuthorizationIntent
             $this->id,
             $this->componentPlatformId,
             $this->tenantId,
+            $this->mode,
             $this->targetAccountId,
             $this->stateHash,
             $this->preAuthCodeHash,
