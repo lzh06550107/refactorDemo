@@ -6,10 +6,13 @@ namespace app\openplatform\application;
 
 use app\common\error\AppException;
 use app\common\error\ErrorCode;
+use app\openplatform\contract\AuthorizerAccountFinalizer;
 use app\openplatform\contract\AuthorizerAuthorizationRepository;
+use app\openplatform\contract\AuthorizerMetadataRepository;
 use app\openplatform\contract\AuthorizerOwnershipRepository;
 use app\openplatform\contract\AuthorizerProvisioningRepository;
 use app\openplatform\contract\ProvisioningJobRepository;
+use app\openplatform\domain\AuthorizerMetadataRecord;
 use app\openplatform\domain\AuthorizerOwnershipResolution;
 use app\openplatform\domain\AuthorizerProvisioning;
 use app\openplatform\domain\AuthorizerProvisioningStatus;
@@ -30,6 +33,9 @@ final readonly class AuthorizerProvisioningWorker
         private AuthorizerOwnershipResolver $ownershipResolver,
         private AuthorizerOwnershipRepository $ownerships,
         private AuthorizerConnectionService $connections,
+        private ?AuthorizerProvisioningQuotaService $quota = null,
+        private ?AuthorizerAccountFinalizer $finalizer = null,
+        private ?AuthorizerMetadataRepository $metadata = null,
     ) {
     }
 
@@ -69,12 +75,13 @@ final readonly class AuthorizerProvisioningWorker
             return;
         }
 
+        $metadataRecord = null;
         if (in_array($provisioning->status(), [
             AuthorizerProvisioningStatus::PENDING_METADATA,
             AuthorizerProvisioningStatus::METADATA_FAILED,
         ], true)) {
             try {
-                $metadata = $this->metadataSync->sync(
+                $metadataRecord = $this->metadataSync->sync(
                     $provisioning->componentPlatformId(),
                     $provisioning->authorizerAppId(),
                     $now,
@@ -86,8 +93,8 @@ final readonly class AuthorizerProvisioningWorker
             }
 
             $next = $provisioning->withMetadata(
-                $metadata->accountType(),
-                $metadata->version(),
+                $metadataRecord->accountType(),
+                $metadataRecord->version(),
                 $now,
             );
             if (!$this->save($provisioning, $next, $provisioningId, $holderId, $now)) {
@@ -101,49 +108,139 @@ final readonly class AuthorizerProvisioningWorker
             }
         }
 
-        if ($provisioning->status() !== AuthorizerProvisioningStatus::METADATA_READY) {
-            if ($this->isTerminal($provisioning->status())) {
-                $this->jobs->complete($provisioningId, $holderId);
+        if ($provisioning->status() === AuthorizerProvisioningStatus::METADATA_READY) {
+            $ownership = $this->ownerships->current(
+                $provisioning->componentPlatformId(),
+                $provisioning->authorizerAppId(),
+            );
+            $resolution = $ownership === null
+                ? AuthorizerOwnershipResolution::UNOWNED
+                : $this->ownershipResolver->resolve(
+                    $provisioning->componentPlatformId(),
+                    $provisioning->authorizerAppId(),
+                    $provisioning->tenantId(),
+                    $ownership->accountId(),
+                );
+
+            if ($resolution === AuthorizerOwnershipResolution::SAME_OWNER && $ownership !== null) {
+                $this->connections->reconnect($ownership, $now);
+                $next = $provisioning->reconnected($ownership->accountId(), $now);
+                if ($this->save($provisioning, $next, $provisioningId, $holderId, $now)) {
+                    $this->jobs->complete($provisioningId, $holderId);
+                }
                 return;
             }
 
-            // Task 10 owns quota/finalization stages. Keep this job immediately eligible.
-            $this->jobs->release($provisioningId, $holderId, $now, null);
+            if ($resolution === AuthorizerOwnershipResolution::OTHER_OWNER) {
+                $next = $provisioning->bindingConflict('binding_conflict', $now);
+                if ($this->save($provisioning, $next, $provisioningId, $holderId, $now)) {
+                    $this->jobs->complete($provisioningId, $holderId);
+                }
+                return;
+            }
+
+            if (!$this->task10Ready()) {
+                // Backward-compatible Task 9 boundary: production wiring enables Task 10 explicitly.
+                $this->jobs->release($provisioningId, $holderId, $now, null);
+                return;
+            }
+
+            try {
+                $provisioning = $this->quota->ensureConsumed($provisioning, $now);
+            } catch (AppException $e) {
+                if ($e->errorCode() === ErrorCode::FORBIDDEN) {
+                    $latest = $this->provisionings->find($provisioningId) ?? $provisioning;
+                    $next = $latest->quotaBlocked('quota_insufficient', $now);
+                    if ($this->save($latest, $next, $provisioningId, $holderId, $now)) {
+                        $this->jobs->complete($provisioningId, $holderId);
+                    }
+                    return;
+                }
+                $this->handleQuotaFailure($provisioning, $provisioningId, $holderId, $job->attemptCount(), $now, $e);
+                return;
+            } catch (Throwable $e) {
+                $this->handleQuotaFailure($provisioning, $provisioningId, $holderId, $job->attemptCount(), $now, $e);
+                return;
+            }
+        }
+
+        if (in_array($provisioning->status(), [
+            AuthorizerProvisioningStatus::QUOTA_CONSUMED,
+            AuthorizerProvisioningStatus::PROVISION_FAILED,
+        ], true)) {
+            if (!$this->task10Ready()) {
+                $this->jobs->release($provisioningId, $holderId, $now, null);
+                return;
+            }
+            if ($provisioning->quotaReleaseEntryId() !== null) {
+                $this->jobs->dead(
+                    $provisioningId,
+                    $holderId,
+                    $provisioning->lastErrorCode() ?? AuthorizerProvisioningStatus::PROVISION_FAILED->value,
+                );
+                return;
+            }
+
+            $this->advanceFinalization(
+                $provisioning,
+                $metadataRecord,
+                $provisioningId,
+                $holderId,
+                $job->attemptCount(),
+                $now,
+            );
             return;
         }
 
-        $ownership = $this->ownerships->current(
+        if ($this->isTerminal($provisioning->status())) {
+            $this->jobs->complete($provisioningId, $holderId);
+            return;
+        }
+
+        $this->jobs->release($provisioningId, $holderId, $now, null);
+    }
+
+    private function advanceFinalization(
+        AuthorizerProvisioning $provisioning,
+        ?AuthorizerMetadataRecord $metadataRecord,
+        string $provisioningId,
+        string $holderId,
+        int $attemptCount,
+        DateTimeImmutable $now,
+    ): void {
+        $reconciledAccountId = $this->finalizer->reconcile($provisioning);
+        if ($reconciledAccountId !== null) {
+            $this->jobs->complete($provisioningId, $holderId);
+            return;
+        }
+
+        $metadataRecord ??= $this->metadata?->current(
             $provisioning->componentPlatformId(),
             $provisioning->authorizerAppId(),
         );
-        $resolution = $ownership === null
-            ? AuthorizerOwnershipResolution::UNOWNED
-            : $this->ownershipResolver->resolve(
-                $provisioning->componentPlatformId(),
-                $provisioning->authorizerAppId(),
-                $provisioning->tenantId(),
-                $ownership->accountId(),
+        if ($metadataRecord === null) {
+            $this->jobs->release(
+                $provisioningId,
+                $holderId,
+                $now->modify('+' . $this->retryDelaySeconds($attemptCount) . ' seconds'),
+                'METADATA_PROJECTION_MISSING',
             );
-
-        if ($resolution === AuthorizerOwnershipResolution::SAME_OWNER && $ownership !== null) {
-            $this->connections->reconnect($ownership, $now);
-            $next = $provisioning->reconnected($ownership->accountId(), $now);
-            if ($this->save($provisioning, $next, $provisioningId, $holderId, $now)) {
-                $this->jobs->complete($provisioningId, $holderId);
-            }
             return;
         }
 
-        if ($resolution === AuthorizerOwnershipResolution::OTHER_OWNER) {
-            $next = $provisioning->bindingConflict('binding_conflict', $now);
-            if ($this->save($provisioning, $next, $provisioningId, $holderId, $now)) {
-                $this->jobs->complete($provisioningId, $holderId);
-            }
-            return;
+        try {
+            $this->finalizer->provision($provisioning, $metadataRecord, $now);
+            $this->jobs->complete($provisioningId, $holderId);
+        } catch (Throwable $e) {
+            $this->handleFinalizationFailure(
+                $provisioning,
+                $provisioningId,
+                $holderId,
+                $attemptCount,
+                $now,
+                $e,
+            );
         }
-
-        // Unowned authorizers continue immediately into Task 10 quota/finalization work.
-        $this->jobs->release($provisioningId, $holderId, $now, null);
     }
 
     private function handleMetadataFailure(
@@ -164,13 +261,75 @@ final readonly class AuthorizerProvisioningWorker
             return;
         }
 
-        $delaySeconds = $this->retryDelaySeconds($attemptCount);
-        $this->jobs->release(
-            $provisioningId,
-            $holderId,
-            $now->modify('+' . $delaySeconds . ' seconds'),
-            $errorCode,
-        );
+        $this->releaseRetry($provisioningId, $holderId, $attemptCount, $now, $errorCode);
+    }
+
+    private function handleQuotaFailure(
+        AuthorizerProvisioning $provisioning,
+        string $provisioningId,
+        string $holderId,
+        int $attemptCount,
+        DateTimeImmutable $now,
+        Throwable $error,
+    ): void {
+        $errorCode = $this->errorCode($error);
+        if ($attemptCount >= self::MAX_AUTOMATIC_ATTEMPTS || !$this->quotaRetryable($error)) {
+            $latest = $this->provisionings->find($provisioningId) ?? $provisioning;
+            if ($latest->status() === AuthorizerProvisioningStatus::METADATA_READY) {
+                $next = $latest->quotaBlocked($errorCode, $now);
+                if ($this->save($latest, $next, $provisioningId, $holderId, $now)) {
+                    $this->jobs->dead($provisioningId, $holderId, $errorCode);
+                }
+                return;
+            }
+        }
+
+        $this->releaseRetry($provisioningId, $holderId, $attemptCount, $now, $errorCode);
+    }
+
+    private function handleFinalizationFailure(
+        AuthorizerProvisioning $provisioning,
+        string $provisioningId,
+        string $holderId,
+        int $attemptCount,
+        DateTimeImmutable $now,
+        Throwable $error,
+    ): void {
+        $errorCode = $this->errorCode($error);
+        if ($this->retryable($error) && $attemptCount < self::MAX_AUTOMATIC_ATTEMPTS) {
+            // Quota remains consumed; transient finalization failures are retried, never compensated here.
+            $this->releaseRetry($provisioningId, $holderId, $attemptCount, $now, $errorCode);
+            return;
+        }
+
+        // Reconcile durable Account/ownership/provider facts before any compensation decision.
+        $latest = $this->provisionings->find($provisioningId) ?? $provisioning;
+        $reconciledAccountId = $this->finalizer->reconcile($latest);
+        if ($reconciledAccountId !== null) {
+            $this->jobs->complete($provisioningId, $holderId);
+            return;
+        }
+
+        if ($latest->status() === AuthorizerProvisioningStatus::QUOTA_CONSUMED) {
+            $failed = $latest->provisionFailed($errorCode, $now);
+            if (!$this->save($latest, $failed, $provisioningId, $holderId, $now)) {
+                return;
+            }
+            $latest = $failed;
+        }
+
+        try {
+            $this->quota->ensureReleased($latest, $now);
+            $this->jobs->dead($provisioningId, $holderId, $errorCode);
+        } catch (Throwable $releaseError) {
+            $this->releaseRetry(
+                $provisioningId,
+                $holderId,
+                $attemptCount,
+                $now,
+                $this->errorCode($releaseError),
+            );
+        }
     }
 
     private function save(
@@ -191,6 +350,21 @@ final readonly class AuthorizerProvisioningWorker
             ErrorCode::CONFLICT->value,
         );
         return false;
+    }
+
+    private function releaseRetry(
+        string $provisioningId,
+        string $holderId,
+        int $attemptCount,
+        DateTimeImmutable $now,
+        string $errorCode,
+    ): void {
+        $this->jobs->release(
+            $provisioningId,
+            $holderId,
+            $now->modify('+' . $this->retryDelaySeconds($attemptCount) . ' seconds'),
+            $errorCode,
+        );
     }
 
     private function retryDelaySeconds(int $attemptCount): int
@@ -215,11 +389,30 @@ final readonly class AuthorizerProvisioningWorker
         ], true);
     }
 
+    private function quotaRetryable(Throwable $error): bool
+    {
+        if (!$error instanceof AppException) {
+            return true;
+        }
+
+        return in_array($error->errorCode(), [
+            ErrorCode::CONFLICT,
+            ErrorCode::BAD_GATEWAY,
+            ErrorCode::SERVICE_UNAVAILABLE,
+            ErrorCode::INTERNAL_ERROR,
+        ], true);
+    }
+
     private function errorCode(Throwable $error): string
     {
         return $error instanceof AppException
             ? $error->errorCode()->value
             : ErrorCode::INTERNAL_ERROR->value;
+    }
+
+    private function task10Ready(): bool
+    {
+        return $this->quota !== null && $this->finalizer !== null;
     }
 
     private function isTerminal(AuthorizerProvisioningStatus $status): bool
