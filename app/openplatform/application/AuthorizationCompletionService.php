@@ -13,9 +13,14 @@ use app\openplatform\contract\AuthorizationIntentRepository;
 use app\openplatform\contract\AuthorizerAccountBinding;
 use app\openplatform\contract\AuthorizerAuthorizationRepository;
 use app\openplatform\contract\AuthorizerClient;
+use app\openplatform\contract\AuthorizerProvisioningRepository;
+use app\openplatform\contract\ProvisioningJobRepository;
 use app\openplatform\domain\AuthorizationIntent;
+use app\openplatform\domain\AuthorizationIntentMode;
 use app\openplatform\domain\AuthorizerAuthorization;
 use app\openplatform\domain\AuthorizerAuthorizationResult;
+use app\openplatform\domain\AuthorizerProvisioning;
+use app\openplatform\domain\ProvisioningJob;
 use DateTimeImmutable;
 use Throwable;
 
@@ -30,6 +35,8 @@ final readonly class AuthorizationCompletionService
         private TransactionManager $transactions,
         private AuditLogger $audit,
         private int $claimSeconds = 30,
+        private ?AuthorizerProvisioningRepository $provisionings = null,
+        private ?ProvisioningJobRepository $provisioningJobs = null,
     ) {
         if ($claimSeconds <= 0) {
             throw new \InvalidArgumentException('Authorization completion claim TTL must be positive.');
@@ -54,10 +61,13 @@ final readonly class AuthorizationCompletionService
             $this->unauthorized();
         }
         if ($current->completed()) {
-            return AuthorizerAuthorizationResult::completed((string) $current->completedAuthorizerAppId());
+            return $this->completedResult($current);
         }
         if (!$current->validAt($now)) {
             $this->unauthorized();
+        }
+        if ($current->mode() === AuthorizationIntentMode::AUTO_PROVISION_ACCOUNT) {
+            $this->assertAutoProvisioningConfigured();
         }
 
         $holderId = bin2hex(random_bytes(16));
@@ -71,7 +81,7 @@ final readonly class AuthorizationCompletionService
         if ($claimed === null) {
             $latest = $this->intents->findByStateHash($intent->stateHash());
             if ($latest !== null && $latest->completed()) {
-                return AuthorizerAuthorizationResult::completed((string) $latest->completedAuthorizerAppId());
+                return $this->completedResult($latest);
             }
             if ($latest !== null && $latest->validAt($now)) {
                 return AuthorizerAuthorizationResult::processing();
@@ -96,8 +106,8 @@ final readonly class AuthorizationCompletionService
 
         $authorizationTimestamp = $providerUpdatedAt ?? $now;
         try {
-            /** @var AuthorizerAuthorization $authorization */
-            $authorization = $this->transactions->run(function () use ($claimed, $holderId, $provider, $now, $authorizationTimestamp): AuthorizerAuthorization {
+            /** @var array{0:AuthorizerAuthorization,1:?string} $completion */
+            $completion = $this->transactions->run(function () use ($claimed, $holderId, $provider, $now, $authorizationTimestamp): array {
                 $lockedIntent = $this->intents->findByStateHash($claimed->stateHash());
                 if (
                     $lockedIntent === null
@@ -139,12 +149,35 @@ final readonly class AuthorizationCompletionService
                     $this->conflict();
                 }
 
-                $this->binding->bindExistingAccount(
-                    $claimed->tenantId(),
-                    $claimed->targetAccountId(),
-                    $claimed->componentPlatformId(),
-                    $provider->authorizerAppId(),
-                );
+                $provisioningId = null;
+                if ($claimed->mode() === AuthorizationIntentMode::AUTO_PROVISION_ACCOUNT) {
+                    $this->assertAutoProvisioningConfigured();
+                    $provisioningId = $this->provisioningIdForIntent($claimed->id());
+                    if ($this->provisionings?->findBySourceIntent($claimed->id()) !== null) {
+                        $this->conflict();
+                    }
+                    $provisioning = AuthorizerProvisioning::pending(
+                        $provisioningId,
+                        $claimed->id(),
+                        $claimed->tenantId(),
+                        $claimed->componentPlatformId(),
+                        $provider->authorizerAppId(),
+                        $now,
+                    );
+                    $this->provisionings?->insert($provisioning);
+                    $this->provisioningJobs?->insert(ProvisioningJob::ready($provisioningId, $now, $now));
+                } else {
+                    $targetAccountId = $claimed->targetAccountId();
+                    if ($targetAccountId === null || $targetAccountId === '') {
+                        $this->conflict();
+                    }
+                    $this->binding->bindExistingAccount(
+                        $claimed->tenantId(),
+                        $targetAccountId,
+                        $claimed->componentPlatformId(),
+                        $provider->authorizerAppId(),
+                    );
+                }
 
                 if (!$this->intents->complete(
                     $claimed->id(),
@@ -156,20 +189,54 @@ final readonly class AuthorizationCompletionService
                     $this->conflict();
                 }
 
-                return $authorization;
+                return [$authorization, $provisioningId];
             });
         } catch (Throwable $e) {
             $this->releaseClaim($claimed->id(), $holderId);
             throw $e;
         }
 
-        $this->auditCompletion($claimed, $authorization, $requestId, $traceId, $now);
-        return AuthorizerAuthorizationResult::completed($authorization->authorizerAppId());
+        [$authorization, $provisioningId] = $completion;
+        $this->auditCompletion($claimed, $authorization, $requestId, $traceId, $now, $provisioningId);
+        return $provisioningId === null
+            ? AuthorizerAuthorizationResult::completed($authorization->authorizerAppId())
+            : AuthorizerAuthorizationResult::provisioning($authorization->authorizerAppId(), $provisioningId);
     }
 
-    private function auditCompletion(AuthorizationIntent $intent, AuthorizerAuthorization $authorization, string $requestId, string $traceId, DateTimeImmutable $now): void
+    private function completedResult(AuthorizationIntent $intent): AuthorizerAuthorizationResult
     {
+        $authorizerAppId = (string) $intent->completedAuthorizerAppId();
+        if ($intent->mode() !== AuthorizationIntentMode::AUTO_PROVISION_ACCOUNT) {
+            return AuthorizerAuthorizationResult::completed($authorizerAppId);
+        }
+
+        $this->assertAutoProvisioningConfigured();
+        $provisioning = $this->provisionings?->findBySourceIntent($intent->id());
+        if ($provisioning === null) {
+            $this->conflict();
+        }
+        return AuthorizerAuthorizationResult::provisioning($authorizerAppId, $provisioning->id());
+    }
+
+    private function auditCompletion(
+        AuthorizationIntent $intent,
+        AuthorizerAuthorization $authorization,
+        string $requestId,
+        string $traceId,
+        DateTimeImmutable $now,
+        ?string $provisioningId,
+    ): void {
         try {
+            $metadata = [
+                'component_platform_id' => $authorization->componentPlatformId(),
+                'authorizer_app_id' => $authorization->authorizerAppId(),
+                'authorization_version' => $authorization->version(),
+                'scope_count' => count($authorization->scopeSet()),
+                'outcome' => $provisioningId === null ? 'completed' : 'provisioning',
+            ];
+            if ($provisioningId !== null) {
+                $metadata['provisioning_id'] = $provisioningId;
+            }
             $this->audit->record(new AuditEvent(
                 'external:wechat-openplatform',
                 $intent->tenantId(),
@@ -178,18 +245,28 @@ final readonly class AuthorizationCompletionService
                 'success',
                 $requestId,
                 $traceId,
-                [
-                    'component_platform_id' => $authorization->componentPlatformId(),
-                    'authorizer_app_id' => $authorization->authorizerAppId(),
-                    'authorization_version' => $authorization->version(),
-                    'scope_count' => count($authorization->scopeSet()),
-                    'outcome' => 'completed',
-                ],
+                $metadata,
                 $now,
             ));
         } catch (Throwable) {
             // Post-commit audit failure must not undo a completed authorization.
         }
+    }
+
+    private function assertAutoProvisioningConfigured(): void
+    {
+        if ($this->provisionings === null || $this->provisioningJobs === null) {
+            throw new AppException(
+                ErrorCode::SERVICE_UNAVAILABLE,
+                'OpenPlatform auto provisioning persistence is not configured.',
+                503,
+            );
+        }
+    }
+
+    private function provisioningIdForIntent(string $intentId): string
+    {
+        return hash('sha256', 'openplatform-provisioning:' . $intentId);
     }
 
     private function releaseClaim(string $intentId, string $holderId): void
