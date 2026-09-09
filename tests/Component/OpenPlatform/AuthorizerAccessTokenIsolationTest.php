@@ -19,6 +19,7 @@ use app\openplatform\contract\ComponentTokenRepository;
 use app\openplatform\domain\AuthorizerAccessToken;
 use app\openplatform\domain\AuthorizerAuthorization;
 use app\openplatform\domain\AuthorizerAuthorizationResponse;
+use app\openplatform\domain\AuthorizerInfoResponse;
 use app\openplatform\domain\AuthorizerRefreshResponse;
 use app\openplatform\domain\AuthorizerTokenRefreshLease;
 use app\openplatform\domain\ComponentAccessToken;
@@ -83,7 +84,13 @@ $authorizations = new class($now) implements AuthorizerAuthorizationCredentialRe
     public function compareAndSetRefresh(AuthorizerAuthorization $authorization, AuthorizerAccessToken $token, string $refreshToken, string $holderId, int $expectedAuthorizationVersion, int $expectedTokenVersion, DateTimeImmutable $now): bool { return false; }
 };
 $leases = new class implements AuthorizerRefreshLeaseRepository { public int $calls = 0; public function tryAcquire(string $componentPlatformId, string $authorizerAppId, string $holderId, DateTimeImmutable $now, int $leaseSeconds): ?AuthorizerTokenRefreshLease { $this->calls++; return null; } public function release(string $componentPlatformId, string $authorizerAppId, string $holderId): void {} };
-$provider = new class implements AuthorizerClient { public int $refreshCalls = 0; public function createPreAuthCode(string $componentAppId, string $componentAccessToken): PreAuthCodeResponse { throw new RuntimeException('not used'); } public function queryAuthorization(string $componentAppId, string $componentAccessToken, string $authorizationCode): AuthorizerAuthorizationResponse { throw new RuntimeException('not used'); } public function refreshAuthorizerToken(string $componentAppId, string $componentAccessToken, string $authorizerAppId, string $authorizerRefreshToken): AuthorizerRefreshResponse { $this->refreshCalls++; throw new RuntimeException('fresh isolation tokens must not refresh'); } };
+$provider = new class implements AuthorizerClient {
+    public int $refreshCalls = 0;
+    public function createPreAuthCode(string $componentAppId, string $componentAccessToken): PreAuthCodeResponse { throw new RuntimeException('not used'); }
+    public function queryAuthorization(string $componentAppId, string $componentAccessToken, string $authorizationCode): AuthorizerAuthorizationResponse { throw new RuntimeException('not used'); }
+    public function refreshAuthorizerToken(string $componentAppId, string $componentAccessToken, string $authorizerAppId, string $authorizerRefreshToken): AuthorizerRefreshResponse { $this->refreshCalls++; throw new RuntimeException('fresh isolation tokens must not refresh'); }
+    public function getAuthorizerInfo(string $componentAppId, string $componentAccessToken, string $authorizerAppId): AuthorizerInfoResponse { throw new RuntimeException('isolation token reads must not fetch authorizer metadata'); }
+};
 $service = new AuthorizerAccessTokenService($platforms, $authorizations, $tokenRepo, $leases, $componentTokens, $provider, $audit, 300, 30);
 
 expectSame('A-shared-token', $service->forAuthorizer('platform-A', 'wx-shared', $now)->accessToken(), 'same authorizer AppId on platform A resolves only platform A token');
