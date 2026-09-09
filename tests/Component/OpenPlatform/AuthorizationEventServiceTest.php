@@ -21,6 +21,7 @@ use app\openplatform\contract\ComponentTokenClient;
 use app\openplatform\contract\ComponentTokenRepository;
 use app\openplatform\domain\AuthenticatedComponentEvent;
 use app\openplatform\domain\AuthorizationIntent;
+use app\openplatform\domain\AuthorizationIntentMode;
 use app\openplatform\domain\AuthorizerAccessToken;
 use app\openplatform\domain\AuthorizerAuthorization;
 use app\openplatform\domain\AuthorizerAuthorizationResponse;
@@ -38,7 +39,7 @@ $source = $now->modify('-10 seconds');
 $statePlain = 'event-correlated-state';
 $preAuthPlain = 'event-correlated-pre-auth';
 $intent = AuthorizationIntent::pending(
-    'intent-event-1', 'platform-1', 'tenant-1', 'account-1',
+    'intent-event-1', 'platform-1', 'tenant-1', AuthorizationIntentMode::BIND_EXISTING_ACCOUNT, 'account-1',
     hash('sha256', $statePlain), hash('sha256', $preAuthPlain), '1',
     $now->modify('-60 seconds'), $now->modify('+540 seconds'), $now->modify('+240 seconds'),
 );
