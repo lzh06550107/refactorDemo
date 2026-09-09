@@ -24,6 +24,7 @@ use app\openplatform\domain\AuthorizationIntentMode;
 use app\openplatform\domain\AuthorizerAccessToken;
 use app\openplatform\domain\AuthorizerAuthorization;
 use app\openplatform\domain\AuthorizerAuthorizationResponse;
+use app\openplatform\domain\AuthorizerInfoResponse;
 use app\openplatform\domain\AuthorizerRefreshResponse;
 use app\openplatform\domain\ComponentAccessToken;
 use app\openplatform\domain\ComponentPlatform;
@@ -153,6 +154,7 @@ $authorizerClient = new class($transactionState) implements AuthorizerClient {
         return $this->response;
     }
     public function refreshAuthorizerToken(string $componentAppId, string $componentAccessToken, string $authorizerAppId, string $authorizerRefreshToken): AuthorizerRefreshResponse { throw new RuntimeException('completion must not refresh authorizer token'); }
+    public function getAuthorizerInfo(string $componentAppId, string $componentAccessToken, string $authorizerAppId): AuthorizerInfoResponse { throw new RuntimeException('completion must not fetch authorizer metadata'); }
 };
 
 $authorizations = new class implements AuthorizerAuthorizationRepository {
