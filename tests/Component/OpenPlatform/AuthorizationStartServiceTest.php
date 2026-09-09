@@ -19,6 +19,7 @@ use app\openplatform\contract\ComponentTokenRepository;
 use app\openplatform\domain\AuthorizationIntent;
 use app\openplatform\domain\AuthorizationIntentMode;
 use app\openplatform\domain\AuthorizerAuthorizationResponse;
+use app\openplatform\domain\AuthorizerInfoResponse;
 use app\openplatform\domain\AuthorizerRefreshResponse;
 use app\openplatform\domain\ComponentAccessToken;
 use app\openplatform\domain\ComponentPlatform;
@@ -79,6 +80,7 @@ $authorizerClient = new class($sequence) implements AuthorizerClient {
     }
     public function queryAuthorization(string $componentAppId, string $componentAccessToken, string $authorizationCode): AuthorizerAuthorizationResponse { throw new RuntimeException('start flow must not query authorization'); }
     public function refreshAuthorizerToken(string $componentAppId, string $componentAccessToken, string $authorizerAppId, string $authorizerRefreshToken): AuthorizerRefreshResponse { throw new RuntimeException('start flow must not refresh authorizer token'); }
+    public function getAuthorizerInfo(string $componentAppId, string $componentAccessToken, string $authorizerAppId): AuthorizerInfoResponse { throw new RuntimeException('start flow must not fetch authorizer metadata'); }
 };
 $intents = new class($sequence) implements AuthorizationIntentRepository {
     public ?AuthorizationIntent $inserted = null;
