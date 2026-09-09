@@ -30,10 +30,11 @@ Out of scope:
 - payment APIs;
 - broad unrelated Official Account business APIs;
 - automatically cancelling WeChat authorization when a local Account is deleted;
+- a provisioning cancellation API/state;
 - Redis, RabbitMQ, Kafka, or another external queue for provisioning;
 - a provider-wide identity refactor replacing the existing R7 `Account.id` provider-account boundary.
 
-## 2. Design Goals and Invariants
+## 2. Design Goals and Hard Invariants
 
 R8D separates four different facts:
 
@@ -55,6 +56,7 @@ Hard invariants:
 - Retry/crash recovery must never create more than one Account, one ownership row, or one semantic quota consumption.
 - `Account.name` is Tenant-owned master data. Provider nickname may initialize the name during first provisioning but later metadata refreshes never overwrite the local Account name.
 - Existing R8C completion/event arbitration and authorizer token rules remain authoritative.
+- For an auto-provisioning attempt, `account_type` is nullable only before trusted metadata classification. Once the attempt reaches `METADATA_READY`, its selected AccountType is immutable; any later trusted type change becomes `METADATA_TYPE_CONFLICT` and must never cause a second quota-resource consumption or automatic Account-type mutation.
 
 ## 3. Selected Architecture
 
@@ -141,10 +143,14 @@ Introduce a narrow `AuthorizerAccountEligibility` port rather than changing the 
 
 Before `createPreAuthCode()`:
 
-- `BIND_EXISTING_ACCOUNT`: validate Tenant active, Account belongs to Tenant, Account is eligible/active, account type is supported, Component Platform enabled.
+- `BIND_EXISTING_ACCOUNT`: validate Tenant active, Account belongs to Tenant, Account is eligible/active, AccountType is supported, Component Platform enabled.
 - `AUTO_PROVISION_ACCOUNT`: validate Tenant active and Component Platform enabled.
 
 Any invalid local Tenant/Account condition must produce zero provider pre-auth calls.
+
+For auto-created Accounts, AccountType is determined only by trusted provider metadata. `requestedAuthType` is a provider authorization-page/request parameter and never the internal AccountType source.
+
+For an existing Account, its local `Account.type` is already established internal master data and is not derived from `requestedAuthType`. Later trusted metadata must never silently mutate that Account type; an observed mismatch is a manual-review/type-conflict condition.
 
 ## 5. Trusted Authorizer Metadata
 
@@ -157,7 +163,7 @@ Classification rule:
 
 `service_type_info` and `verify_type_info` are metadata only and are not used as the primary AccountType discriminator.
 
-If classification is not trustworthy, provisioning does not create an Account and does not consume quota.
+If classification is not trustworthy, auto provisioning does not create an Account and does not consume quota.
 
 ### 5.1 Current Projection
 
@@ -293,7 +299,7 @@ Fields:
 - `tenant_id`
 - `component_platform_id`
 - `authorizer_app_id`
-- `account_type` nullable until metadata ready
+- `account_type` nullable until metadata ready, then immutable for this provisioning attempt
 - `status`
 - `metadata_version`
 - `quota_resource_key`
@@ -328,7 +334,6 @@ Approved business states:
 - `METADATA_TYPE_CONFLICT`
 - `PROVISION_FAILED`
 - `AUTHORIZATION_INACTIVE`
-- `CANCELLED`
 
 `retry_wait` is not a business status; retry timing belongs to the durable job.
 
@@ -346,7 +351,7 @@ PENDING_METADATA
                             -> PROVISIONED
 ```
 
-After an Account is provisioned, a later metadata classification that changes its trusted AccountType does not mutate `Account.type` and does not create a second Account. It becomes `METADATA_TYPE_CONFLICT` for manual review.
+Once `account_type` is set at `METADATA_READY`, later metadata may update the platform-level metadata projection but cannot change the provisioning attempt's type. A type mismatch before Account finalization becomes `METADATA_TYPE_CONFLICT`; after Account creation it likewise never mutates `Account.type` or causes a second Account/quota-resource charge.
 
 ## 10. Durable Provisioning Job
 
@@ -398,10 +403,10 @@ Within the R8C completion transaction:
 - if unowned, establish ownership to the explicit target Account;
 - if already owned by that Account, treat as idempotent/reconnect;
 - if owned elsewhere, return conflict;
-- bind/enable the provider configuration;
+- bind/enable the provider configuration appropriate to the existing Account's local `Account.type`;
 - complete AuthorizationIntent.
 
-This remains synchronous and does not use the provisioning worker.
+This remains synchronous and does not use the provisioning worker. The flow never derives the existing Account's type from `requestedAuthType`. Independent metadata synchronization subsequently verifies/records the trusted provider type; a mismatch is surfaced for manual review and must never silently mutate the Account type or move ownership.
 
 ### 11.2 Auto Provision Mode
 
@@ -423,11 +428,11 @@ For a claimed job:
 1. Reload current provisioning and current `AuthorizerAuthorization` from storage.
 2. If authorization is inactive, transition to `AUTHORIZATION_INACTIVE` without consuming quota.
 3. Synchronize trusted metadata if required.
-4. Detect AccountType and update provisioning metadata version/type.
+4. Detect AccountType. If provisioning has no AccountType yet, persist it and `metadata_version` while moving to `METADATA_READY`; if a previously frozen AccountType conflicts with newer trusted metadata, move to `METADATA_TYPE_CONFLICT` and stop before any new quota operation.
 5. Resolve canonical ownership.
 6. Same owner: reconnect existing provider binding, set `RECONNECTED`, no quota.
 7. Other owner: set `BINDING_CONFLICT`, no Account creation, no quota consumption.
-8. Unowned: consume `QuotaResource::accountCreate(AccountType)` with deterministic idempotency key.
+8. Unowned: consume `QuotaResource::accountCreate(frozen AccountType)` with deterministic idempotency key.
 9. Record the quota consume entry id and move to `QUOTA_CONSUMED`.
 10. Atomically create Account + provider binding + ownership and finalize `PROVISIONED`.
 
@@ -443,6 +448,8 @@ Deterministic consume key:
 openplatform-provision:<componentPlatformId>:<authorizerAppId>:<tenantId>
 ```
 
+The frozen provisioning AccountType selects the resource `account_create:<type>`. Once quota processing starts, a later metadata type change never switches the provisioning attempt to a different quota resource.
+
 `availability()` may be used as an advisory UI/pre-check only. `QuotaService.consume()` is authoritative.
 
 Because the quota repository already owns its own transaction semantics, R8D does not depend on nested ThinkPHP transactions to atomically combine quota and Account creation.
@@ -456,7 +463,7 @@ Internal Saga:
 Retry behavior:
 
 - if `quota_consume_entry_id` already exists, never consume again;
-- if a crash occurs after quota consume but before the entry id is persisted, recover the same ledger entry by deterministic idempotency key;
+- if a crash occurs after quota consume but before the entry id is persisted, recover the same ledger entry by deterministic idempotency key and the frozen resource key;
 - transient finalization failure does not release quota; the workflow keeps retrying;
 - a terminal failure may release quota only after it is proven that no Account was committed for this provisioning.
 
@@ -477,7 +484,7 @@ BEGIN
   lock provisioning
   lock/check canonical ownership
   re-check authorization ACTIVE
-  re-check provisioning version
+  re-check provisioning version and frozen AccountType
   INSERT Account
   INSERT subtype provider binding
   INSERT authorizer_account_ownerships
@@ -619,7 +626,11 @@ Requires `openplatform.authorizer.retry_provision`. Returns 202 when retry is ac
 
 `POST /api/v1/openplatform/components/{platform}/authorizers/{appid}/metadata/refresh`
 
-Requires `openplatform.authorizer.refresh_metadata`. It refreshes metadata only; it never creates an Account, consumes quota, or claims ownership.
+Requires `openplatform.authorizer.refresh_metadata`.
+
+Tenant-admin scoping rule: the current Tenant may refresh an authorizer only when either (a) `authorizer_account_ownerships` maps it to the current Tenant, or (b) the current Tenant has a non-terminal provisioning for that same canonical authorizer. Otherwise return tenant-scoped 404. This prevents AppId-based cross-Tenant enumeration/provider calls.
+
+The endpoint refreshes metadata only; it never creates an Account, consumes quota, or claims ownership. Platform-level unbound metadata reconciliation may still occur from trusted provider ingress/internal reconciliation, not through an arbitrary Tenant admin request.
 
 ### 18.6 Provider Events
 
@@ -641,8 +652,8 @@ Required combinations:
 - start existing binding: `start + bind`;
 - start auto provisioning: `start + provision`;
 - query: `read`;
-- manual metadata refresh: `refresh_metadata`;
-- manual retry: `retry_provision`.
+- manual metadata refresh: `refresh_metadata` plus the Tenant-resource scope in 18.5;
+- manual retry: `retry_provision` plus ownership of the provisioning resource in the current Tenant.
 
 Do not hard-code `Principal.type == admin`; `Principal` is identity, while authorization belongs to the existing IAM/ACL layer.
 
@@ -712,7 +723,7 @@ Cover:
 - metadata classification and semantic hash normalization;
 - metadata A -> B -> A history;
 - valid/invalid provisioning state transitions;
-- metadata type conflict after Account creation;
+- AccountType freeze after `METADATA_READY` and metadata type conflict before/after quota;
 - Account local-name preservation.
 
 ### 22.2 Application/Component Tests
@@ -725,12 +736,14 @@ Cover:
 - metadata provider failures do not change authorization to unauthorized;
 - same-owner reconnect vs cross-owner conflict;
 - quota consume exactly once; reconnect consumes zero;
+- type change after `METADATA_READY` never switches quota resource or creates a second consume;
 - terminal compensation releases exactly once only when no Account exists;
 - `unauthorized` keeps Account/ownership/quota and disables provider binding;
 - event-only authorized without ownership never provisions;
 - event-only authorized with ownership reconnects without quota;
 - Account SUSPENDED/DELETED reconnect behavior;
-- Tenant-scoped HTTP read/retry/refresh and cross-Tenant 404.
+- Tenant-scoped HTTP read/retry/refresh and cross-Tenant 404;
+- metadata refresh AppId for another Tenant results in 404 and zero provider metadata calls.
 
 ### 22.3 Worker Concurrency and Crash Recovery
 
@@ -787,7 +800,7 @@ Inject sentinel plaintext values for state, pre-auth code, authorization code, r
 |---|---|---|---|---|---|
 | metadata timeout | ACTIVE | incomplete | none | none | retry |
 | malformed/unclassifiable metadata | ACTIVE | failed/retained | none | none | METADATA_FAILED |
-| type changed after provision | ACTIVE | updated/flagged | none new | unchanged | METADATA_TYPE_CONFLICT |
+| type changed after `METADATA_READY` | ACTIVE | updated/flagged | no new resource/consume | unchanged | METADATA_TYPE_CONFLICT |
 | quota exhausted | ACTIVE | ready | not consumed | none | QUOTA_BLOCKED |
 | other Tenant/Account owns | ACTIVE | ready | none | none | BINDING_CONFLICT |
 | transient DB failure after quota | ACTIVE | ready | consumed | none | retry |
@@ -826,14 +839,14 @@ R8D is complete only when all of the following are true:
 - successful WeChat authorization remains compatible with R8C;
 - trusted metadata classification works for Official Account and Mini Program;
 - both account types can auto-provision under an existing Tenant;
-- quota is enforced exactly once for first creation;
+- quota is enforced exactly once for first creation and AccountType changes cannot switch quota resource after `METADATA_READY`;
 - canonical authorizer ownership is globally exclusive;
 - reconnect uses the same Account with no second quota charge;
 - `unauthorized` retains the Account and ownership while disabling connection;
 - metadata sync is versioned and never overwrites Tenant-owned Account name;
 - metadata type conflict is blocked from automatic Account-type mutation;
 - durable worker concurrency and crash recovery preserve idempotency;
-- IAM and Tenant isolation are enforced;
+- IAM and Tenant isolation are enforced, including metadata-refresh anti-enumeration;
 - secrets never leak into logs/audit/jobs/normalized metadata;
 - R1-R8C regression remains green, including R7 OAuth/Webhook, R8A MiniApp login, R8B ComponentPlatform, and R8C authorizer lifecycle;
 - all required CI and release gates pass.
