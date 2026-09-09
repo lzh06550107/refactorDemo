@@ -6,6 +6,7 @@ namespace app\openplatform\infrastructure;
 
 use app\openplatform\contract\AuthorizationIntentRepository;
 use app\openplatform\domain\AuthorizationIntent;
+use app\openplatform\domain\AuthorizationIntentMode;
 use DateTimeImmutable;
 use DateTimeZone;
 use think\facade\Db;
@@ -18,6 +19,7 @@ final class ThinkPhpAuthorizationIntentRepository implements AuthorizationIntent
             'id' => $intent->id(),
             'component_platform_id' => $intent->componentPlatformId(),
             'tenant_id' => $intent->tenantId(),
+            'intent_mode' => $intent->mode()->value,
             'target_account_id' => $intent->targetAccountId(),
             'state_hash' => $intent->stateHash(),
             'pre_auth_code_hash' => $intent->preAuthCodeHash(),
@@ -145,7 +147,8 @@ final class ThinkPhpAuthorizationIntentRepository implements AuthorizationIntent
             (string) $row['id'],
             (string) $row['component_platform_id'],
             (string) $row['tenant_id'],
-            (string) $row['target_account_id'],
+            AuthorizationIntentMode::from((string) $row['intent_mode']),
+            $this->nullableString($row['target_account_id'] ?? null),
             (string) $row['state_hash'],
             (string) $row['pre_auth_code_hash'],
             (string) $row['requested_auth_type'],
