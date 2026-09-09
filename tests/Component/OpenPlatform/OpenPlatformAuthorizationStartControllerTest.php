@@ -10,7 +10,7 @@ $source = (string) file_get_contents($file);
 expectTrue(str_contains($source, 'AuthorizationIntentMode'), 'controller parses an explicit authorization intent mode');
 expectTrue(str_contains($source, 'OpenPlatformAdminGuard'), 'controller uses the trusted admin permission guard');
 expectTrue(str_contains($source, '$this->context->tenantId()'), 'controller sources Tenant from trusted RequestContext');
-expectTrue(!str_contains($source, "(string) $request->param('tenant_id', '')"), 'controller never sources Tenant ownership from request body');
+expectTrue(!str_contains($source, "(string) \$request->param('tenant_id', '')"), 'controller never sources Tenant ownership from request body');
 expectTrue(str_contains($source, "request->param('tenantId'"), 'camelCase Tenant assertion remains compatible');
 expectTrue(str_contains($source, "request->param('tenant_id'"), 'snake_case Tenant assertion remains compatible');
 expectTrue(str_contains($source, 'OpenPlatformPermission::START'), 'start permission is required');
