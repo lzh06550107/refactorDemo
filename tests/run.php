@@ -120,6 +120,7 @@ $files = [
     __DIR__ . '/Component/OpenPlatform/AuthorizerMetadataSyncServiceTest.php',
     __DIR__ . '/Component/OpenPlatform/AuthorizerOwnershipResolverTest.php',
     __DIR__ . '/Component/OpenPlatform/ProvisioningJobClaimTest.php',
+    __DIR__ . '/Component/OpenPlatform/AuthorizerProvisioningWorkerTest.php',
     __DIR__ . '/Component/OpenPlatform/ComponentAccessTokenServiceTest.php',
     __DIR__ . '/Component/OpenPlatform/ComponentAccessTokenIsolationTest.php',
     __DIR__ . '/Component/MiniApp/OpenPlatformComponentAccessTokenProviderTest.php',
