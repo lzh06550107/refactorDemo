@@ -11,8 +11,11 @@ use app\common\error\ErrorCode;
 use app\openplatform\contract\AuthorizationIntentRepository;
 use app\openplatform\contract\AuthorizerAuthorizationRepository;
 use app\openplatform\contract\AuthorizerClient;
+use app\openplatform\contract\AuthorizerOwnershipRepository;
 use app\openplatform\domain\AuthenticatedComponentEvent;
+use app\openplatform\domain\AuthorizerAccountOwnership;
 use app\openplatform\domain\AuthorizerAuthorization;
+use app\openplatform\domain\AuthorizerMetadataRecord;
 use DateTimeImmutable;
 use Throwable;
 
@@ -25,6 +28,9 @@ final readonly class AuthorizationEventService
         private AuthorizerClient $authorizerClient,
         private AuthorizerAuthorizationRepository $authorizations,
         private AuditLogger $audit,
+        private ?AuthorizerOwnershipRepository $ownerships = null,
+        private ?AuthorizerConnectionService $connections = null,
+        private ?AuthorizerMetadataSyncService $metadataSync = null,
     ) {
     }
 
@@ -88,6 +94,8 @@ final readonly class AuthorizationEventService
             }
             if ($event->sourceTimestamp() == $current->providerUpdatedAt()) {
                 if ($this->sameActiveResult($current, $provider->refreshToken(), $provider->scopeSet())) {
+                    // Replaying the same authoritative event may repair a projection that failed previously.
+                    $this->projectActive($event, $now, $requestId, $traceId);
                     return;
                 }
                 $this->conflict();
@@ -115,11 +123,14 @@ final readonly class AuthorizationEventService
                 return;
             }
             if ($latest !== null && $latest->providerUpdatedAt() == $event->sourceTimestamp() && $this->sameActiveResult($latest, $provider->refreshToken(), $provider->scopeSet())) {
+                $this->projectActive($event, $now, $requestId, $traceId);
                 return;
             }
             $this->conflict();
         }
 
+        // Provider authorization truth is committed before any recoverable local projection work.
+        $this->projectActive($event, $now, $requestId, $traceId);
         $this->auditLifecycle($event, $authorization, $requestId, $traceId, $now, 'active');
     }
 
@@ -132,6 +143,7 @@ final readonly class AuthorizationEventService
         }
         if ($event->sourceTimestamp() == $current->providerUpdatedAt()) {
             if (!$current->isActive()) {
+                $this->projectDisconnected($event, $now, $requestId, $traceId);
                 return;
             }
             $this->conflict();
@@ -148,15 +160,80 @@ final readonly class AuthorizationEventService
                 return;
             }
             if ($latest->providerUpdatedAt() == $event->sourceTimestamp() && !$latest->isActive()) {
+                $this->projectDisconnected($event, $now, $requestId, $traceId);
                 return;
             }
             $this->conflict();
         }
 
+        // Remote unauthorized never deletes Account/ownership/metadata/quota; only connection is disabled.
+        $this->projectDisconnected($event, $now, $requestId, $traceId);
         $latest = $this->authorizations->current($event->componentPlatformId(), $authorizerAppId);
         if ($latest !== null) {
             $this->auditLifecycle($event, $latest, $requestId, $traceId, $now, 'unauthorized');
         }
+    }
+
+    private function projectActive(AuthenticatedComponentEvent $event, DateTimeImmutable $now, string $requestId, string $traceId): void
+    {
+        $metadata = null;
+        if ($this->metadataSync !== null) {
+            try {
+                $metadata = $this->metadataSync->sync(
+                    $event->componentPlatformId(),
+                    (string) $event->authorizerAppId(),
+                    $now,
+                    'authorizer_lifecycle_event',
+                );
+            } catch (Throwable $e) {
+                $this->auditProjectionFailure($event, $requestId, $traceId, $now, 'metadata', $e);
+            }
+        }
+
+        if ($this->ownerships === null || $this->connections === null) {
+            return;
+        }
+        $ownership = $this->ownerships->current(
+            $event->componentPlatformId(),
+            (string) $event->authorizerAppId(),
+        );
+        if ($ownership === null) {
+            // Event-only authorization remains platform-level; never infer Tenant or create Account/quota.
+            return;
+        }
+        if ($metadata !== null && !$this->compatibleType($ownership, $metadata)) {
+            $this->auditProjectionTypeConflict($event, $ownership, $metadata, $requestId, $traceId, $now);
+            return;
+        }
+
+        try {
+            $this->connections->reconnect($ownership, $now);
+        } catch (Throwable $e) {
+            // Deleted/missing Account or projection failure needs manual/retry handling, not auth rollback.
+            $this->auditProjectionFailure($event, $requestId, $traceId, $now, 'reconnect', $e, $ownership);
+        }
+    }
+
+    private function projectDisconnected(AuthenticatedComponentEvent $event, DateTimeImmutable $now, string $requestId, string $traceId): void
+    {
+        if ($this->connections === null) {
+            return;
+        }
+        try {
+            $this->connections->disconnect(
+                $event->componentPlatformId(),
+                (string) $event->authorizerAppId(),
+                $now,
+            );
+        } catch (Throwable $e) {
+            // AuthorizerAuthorization remains authoritative even if the projection update is retried later.
+            $this->auditProjectionFailure($event, $requestId, $traceId, $now, 'disconnect', $e);
+        }
+    }
+
+    private function compatibleType(AuthorizerAccountOwnership $ownership, AuthorizerMetadataRecord $metadata): bool
+    {
+        return $ownership->accountType() === $metadata->accountType();
     }
 
     /** @param list<string> $scopeSet */
@@ -191,6 +268,64 @@ final readonly class AuthorizationEventService
             ));
         } catch (Throwable) {
             // Provider event state is authoritative; audit failure must not undo it.
+        }
+    }
+
+    private function auditProjectionFailure(
+        AuthenticatedComponentEvent $event,
+        string $requestId,
+        string $traceId,
+        DateTimeImmutable $now,
+        string $stage,
+        Throwable $error,
+        ?AuthorizerAccountOwnership $ownership = null,
+    ): void {
+        try {
+            $this->audit->record(new AuditEvent(
+                'external:wechat-openplatform',
+                $ownership?->tenantId(),
+                $ownership?->accountId(),
+                'openplatform.authorizer.projection.' . $stage,
+                'failure',
+                $requestId,
+                $traceId,
+                [
+                    'component_platform_id' => $event->componentPlatformId(),
+                    'authorizer_app_id' => (string) $event->authorizerAppId(),
+                    'error_class' => $error::class,
+                ],
+                $now,
+            ));
+        } catch (Throwable) {
+        }
+    }
+
+    private function auditProjectionTypeConflict(
+        AuthenticatedComponentEvent $event,
+        AuthorizerAccountOwnership $ownership,
+        AuthorizerMetadataRecord $metadata,
+        string $requestId,
+        string $traceId,
+        DateTimeImmutable $now,
+    ): void {
+        try {
+            $this->audit->record(new AuditEvent(
+                'external:wechat-openplatform',
+                $ownership->tenantId(),
+                $ownership->accountId(),
+                'openplatform.authorizer.projection.metadata_type_conflict',
+                'failure',
+                $requestId,
+                $traceId,
+                [
+                    'component_platform_id' => $event->componentPlatformId(),
+                    'authorizer_app_id' => (string) $event->authorizerAppId(),
+                    'ownership_account_type' => $ownership->accountType()->value,
+                    'metadata_account_type' => $metadata->accountType()->value,
+                ],
+                $now,
+            ));
+        } catch (Throwable) {
         }
     }
 
