@@ -21,6 +21,7 @@ use app\openplatform\contract\ComponentTokenRepository;
 use app\openplatform\domain\AuthorizerAccessToken;
 use app\openplatform\domain\AuthorizerAuthorization;
 use app\openplatform\domain\AuthorizerAuthorizationResponse;
+use app\openplatform\domain\AuthorizerInfoResponse;
 use app\openplatform\domain\AuthorizerRefreshResponse;
 use app\openplatform\domain\AuthorizerTokenRefreshLease;
 use app\openplatform\domain\ComponentAccessToken;
@@ -123,6 +124,7 @@ $provider = new class implements AuthorizerClient {
         if ($this->throwRefresh) { throw new AppException(ErrorCode::BAD_GATEWAY, 'sanitized authorizer refresh failure', 502); }
         return $this->response;
     }
+    public function getAuthorizerInfo(string $componentAppId, string $componentAccessToken, string $authorizerAppId): AuthorizerInfoResponse { throw new RuntimeException('token refresh must not fetch authorizer metadata'); }
 };
 $service = new AuthorizerAccessTokenService($platforms, $authorizations, $tokenRepo, $leaseRepo, $componentTokens, $provider, $audit, 300, 30);
 
