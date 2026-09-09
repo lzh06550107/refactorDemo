@@ -113,6 +113,28 @@ final readonly class AuthorizerProvisioningWorker
                 $provisioning->componentPlatformId(),
                 $provisioning->authorizerAppId(),
             );
+
+            if (
+                $ownership !== null
+                && $provisioning->accountType() !== null
+                && $ownership->accountType() !== $provisioning->accountType()
+            ) {
+                // Historical local ownership type is immutable. Surface the trusted provider mismatch
+                // before reconnect, quota consumption, Account creation, or ownership movement.
+                $next = $provisioning->withMetadata(
+                    $ownership->accountType(),
+                    $provisioning->metadataVersion() ?? 1,
+                    $now,
+                );
+                if ($next->status() !== AuthorizerProvisioningStatus::METADATA_TYPE_CONFLICT) {
+                    throw new \LogicException('Ownership type mismatch must produce metadata type conflict.');
+                }
+                if ($this->save($provisioning, $next, $provisioningId, $holderId, $now)) {
+                    $this->jobs->complete($provisioningId, $holderId);
+                }
+                return;
+            }
+
             $resolution = $ownership === null
                 ? AuthorizerOwnershipResolution::UNOWNED
                 : $this->ownershipResolver->resolve(
