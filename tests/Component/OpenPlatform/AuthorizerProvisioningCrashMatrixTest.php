@@ -40,7 +40,7 @@ expectTrue(
     'quota consume uses deterministic semantic idempotency key',
 );
 expectTrue(
-    str_contains($quota, "'openplatform-provision-release:' . $current->id()"),
+    str_contains($quota, "'openplatform-provision-release:' . \$current->id()"),
     'quota compensation uses deterministic release idempotency key',
 );
 
@@ -60,14 +60,14 @@ expectTrue(
 expectTrue(str_contains($finalizer, 'Db::transaction('), 'Account finalization is enclosed in one DB transaction');
 $accountInsert = strpos($finalizer, "Db::table('accounts')->insert(");
 $ownershipInsert = strpos($finalizer, "Db::table('authorizer_account_ownerships')->insert(");
-$markProvisioned = strpos($finalizer, '$this->markProvisioned(');
+$markProvisioned = $ownershipInsert === false ? false : strpos($finalizer, '$this->markProvisioned(', $ownershipInsert);
 expectTrue(
     $accountInsert !== false && $ownershipInsert !== false && $markProvisioned !== false
     && $accountInsert < $ownershipInsert && $ownershipInsert < $markProvisioned,
     'Account and canonical ownership are durable before provisioning is finalized',
 );
 expectTrue(
-    str_contains($finalizer, "->where('id', $provisioning->id())") && str_contains($finalizer, '->lock(true)'),
+    str_contains($finalizer, "->where('id', \$provisioning->id())") && str_contains($finalizer, '->lock(true)'),
     'finalizer locks provisioning/canonical facts to prevent duplicate Account creation',
 );
 
@@ -75,4 +75,17 @@ expectTrue(
     str_contains($worker, 'if (!$this->task10Ready())')
     && str_contains($worker, '$this->quota !== null && $this->finalizer !== null'),
     'worker retains explicit Task10 readiness invariant while production DI supplies both dependencies',
+);
+
+$provisioningRead = strpos($worker, '$provisioning = $this->provisionings->find($provisioningId);');
+$terminalRecovery = $provisioningRead === false
+    ? false
+    : strpos($worker, 'if ($this->isTerminal($provisioning->status())) {', $provisioningRead);
+$authorizationRead = $provisioningRead === false
+    ? false
+    : strpos($worker, '$authorization = $this->authorizations->current(', $provisioningRead);
+expectTrue(
+    $provisioningRead !== false && $terminalRecovery !== false && $authorizationRead !== false
+    && $provisioningRead < $terminalRecovery && $terminalRecovery < $authorizationRead,
+    'already-terminal provisioning completes a recovered job before provider authorization can regress durable outcome',
 );

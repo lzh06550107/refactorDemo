@@ -63,6 +63,11 @@ final readonly class AuthorizerProvisioningWorker
             return;
         }
 
+        if ($this->isTerminal($provisioning->status())) {
+            $this->jobs->complete($provisioningId, $holderId);
+            return;
+        }
+
         $authorization = $this->authorizations->current(
             $provisioning->componentPlatformId(),
             $provisioning->authorizerAppId(),
@@ -211,11 +216,6 @@ final readonly class AuthorizerProvisioningWorker
                 $job->attemptCount(),
                 $now,
             );
-            return;
-        }
-
-        if ($this->isTerminal($provisioning->status())) {
-            $this->jobs->complete($provisioningId, $holderId);
             return;
         }
 
