@@ -89,7 +89,6 @@ function acceptanceHarnessContractTest(string $root): void
     acceptanceAssert(str_contains($recoverySource, 'Terminal recovery must not consume or release quota again.'), 'terminal crash recovery asserts quota idempotency');
     acceptanceAssert(str_contains($recoverySource, 'Reconnect must not create a second Account.'), 'reconnect asserts Account reuse');
     acceptanceAssert(str_contains($recoverySource, 'Reconnect must not consume quota.'), 'reconnect asserts no duplicate quota consumption');
-
     acceptanceAssert(str_contains($retrySource, "'/api/v1/openplatform/provisionings/'"), 'retry acceptance calls the real protected provisioning retry HTTP route');
     acceptanceAssert(str_contains($retrySource, "'openplatform.authorizer.retry_provision'"), 'retry acceptance grants the production retry permission');
     acceptanceAssert(str_contains($retrySource, "'quota_blocked'"), 'retry acceptance starts from a retryable quota-blocked state');
