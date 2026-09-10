@@ -2,7 +2,7 @@
 
 Strangler-style refactor of WeEngine 2.7.4/R20 onto ThinkPHP 8, implemented incrementally from the supplied V4 design.
 
-## Current implementation: R8C
+## Current implementation: R8D — V1 deployment candidate
 
 ### R1 — Foundation Runtime
 - ThinkPHP multi-app skeleton (`admin`, `web`, `api`, `common`).
@@ -82,6 +82,14 @@ Strangler-style refactor of WeEngine 2.7.4/R20 onto ThinkPHP 8, implemented incr
 - R8C binds an authorization only to an existing active WeChat Mini Program Account through `miniapp_provider_accounts`; it never creates a Tenant or Account.
 - Automatic Tenant/Account provisioning, broad authorizer metadata synchronization, code release/version management, and payments remain deferred to later slices.
 
+### R8D — OpenPlatform Authorizer Provisioning
+- Authorization intents explicitly choose existing-account binding or automatic provisioning; Tenant identity remains trusted server-side context.
+- Trusted authorizer metadata is normalized, versioned, and classified as Official Account or Mini Program before quota/account creation.
+- Canonical `(component_platform_id, authorizer_app_id)` ownership is globally exclusive; reconnect reuses the existing Account and consumes no second quota unit.
+- Automatic provisioning uses a durable MySQL-backed job with 60-second claim leases, bounded retries, crash recovery, quota compensation, and Account/ownership reconciliation.
+- Provisioning audit events use strict actor/action contracts and metadata allowlists; provider secrets, authorization codes, tokens, callback plaintext, and cipher material are excluded.
+- The deployment worker discovers due `ready` jobs and expired claims without locking; `tryClaim()` remains the concurrency authority.
+
 ## Runtime rule order
 
 ```text
@@ -149,3 +157,41 @@ find app config tests -name '*.php' -print0 | xargs -0 -n1 php -l
 GitHub Actions also boots ThinkPHP and smoke-tests `/health`, `/admin/health`, and `/api/v1/health`.
 
 See `docs/migration/` for R20 compatibility boundaries and `docs/verification/` for phase-specific evidence.
+
+
+## R8D provisioning worker deployment
+
+Run one batch during deployment verification:
+
+```bash
+php think openplatform:provisioning-worker --once --limit=100
+```
+
+Run continuously under a process supervisor:
+
+```bash
+php think openplatform:provisioning-worker --limit=100 --sleep=2
+```
+
+For production, supervise the command with systemd (or an equivalent process manager). Example unit:
+
+```ini
+[Unit]
+Description=WePlatform OpenPlatform provisioning worker
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/var/www/weplatform
+ExecStart=/usr/bin/php /var/www/weplatform/think openplatform:provisioning-worker --limit=100 --sleep=2
+Restart=always
+RestartSec=3
+User=www-data
+Group=www-data
+
+[Install]
+WantedBy=multi-user.target
+```
+
+The discovery query is intentionally non-locking. Multiple worker processes may discover the same candidate, but only the existing 60-second `tryClaim()` lease/CAS path may execute it. A single job exception is isolated to that batch item and does not terminate the daemon; command output reports `discovered/handled/failed` invocation counts (not durable provisioning status), never exception plaintext or provider secrets.
