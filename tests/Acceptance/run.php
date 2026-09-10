@@ -8,6 +8,7 @@ require __DIR__ . '/AcceptanceHarnessContractTest.php';
 require __DIR__ . '/FreshDatabaseMigrationTest.php';
 require __DIR__ . '/IamRuntimeTest.php';
 require __DIR__ . '/QuotaRuntimeTest.php';
+require __DIR__ . '/WorkerRuntimeTest.php';
 
 function acceptanceApplyThinkPhpEnvironment(AcceptanceConfig $config): void
 {
@@ -23,6 +24,9 @@ function acceptanceApplyThinkPhpEnvironment(AcceptanceConfig $config): void
         'DATABASE_HOSTPORT' => (string) $config->port,
         'DATABASE_CHARSET' => 'utf8mb4',
         'WEPLATFORM_ADMIN_SESSION_PEPPER' => $config->pepper,
+        'WEPLATFORM_OPENPLATFORM_SECRET_KEY_VERSION' => 'acceptance-v1',
+        'WEPLATFORM_OPENPLATFORM_SECRET_KEY_BASE64' => 'Motnd6Xon2P68JACN38JeDOsNtK3NYGLShIqy1rYsOY=',
+        'WEPLATFORM_OPENPLATFORM_CREDENTIAL_SECRETS_JSON' => '{"acceptance-secret-ref":"acceptance-dummy-secret"}',
     ];
     foreach ($values as $name => $value) {
         $_ENV[$name] = $value;
@@ -44,6 +48,9 @@ try {
 
     acceptanceFreshDatabaseMigrationTest($runtime);
     fwrite(STDOUT, "[PASS] FreshDatabaseMigrationTest\n");
+
+    acceptanceWorkerRuntimeTest($runtime);
+    fwrite(STDOUT, "[PASS] WorkerRuntimeTest\n");
 
     acceptanceQuotaRuntimeTest($runtime);
     fwrite(STDOUT, "[PASS] QuotaRuntimeTest\n");
