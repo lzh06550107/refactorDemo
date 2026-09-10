@@ -5,7 +5,7 @@ CREATE TABLE `sites` (
   `name` varchar(128) NOT NULL,
   `status` varchar(32) NOT NULL DEFAULT 'enabled',
   `is_default` tinyint(1) unsigned NOT NULL DEFAULT 0,
-  `default_account_id` varchar(64) GENERATED ALWAYS AS (CASE WHEN `is_default` = 1 THEN `account_id` ELSE NULL END) STORED,
+  `default_account_id` varchar(64) GENERATED ALWAYS AS (CASE WHEN `is_default` = 1 THEN `account_id` ELSE NULL END) VIRTUAL,
   `active_theme_release_id` varchar(64) DEFAULT NULL,
   `legacy_multi_id` bigint unsigned DEFAULT NULL,
   `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
