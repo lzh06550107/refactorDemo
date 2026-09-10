@@ -10,6 +10,7 @@ require __DIR__ . '/IamRuntimeTest.php';
 require __DIR__ . '/QuotaRuntimeTest.php';
 require __DIR__ . '/WorkerRuntimeTest.php';
 require __DIR__ . '/RecoveryRuntimeTest.php';
+require __DIR__ . '/RetryRuntimeTest.php';
 
 function acceptanceApplyThinkPhpEnvironment(AcceptanceConfig $config): void
 {
@@ -58,6 +59,9 @@ try {
 
     acceptanceRecoveryRuntimeTest($runtime);
     fwrite(STDOUT, "[PASS] RecoveryRuntimeTest\n");
+
+    acceptanceRetryRuntimeTest($runtime);
+    fwrite(STDOUT, "[PASS] RetryRuntimeTest\n");
 
     acceptanceIamRuntimeTest($runtime);
     fwrite(STDOUT, "[PASS] IamRuntimeTest\n");
