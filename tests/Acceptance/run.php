@@ -5,12 +5,14 @@ declare(strict_types=1);
 $root = dirname(__DIR__, 2);
 require __DIR__ . '/bootstrap.php';
 require __DIR__ . '/AcceptanceHarnessContractTest.php';
+require __DIR__ . '/FinalConsistencyContractTest.php';
 require __DIR__ . '/FreshDatabaseMigrationTest.php';
 require __DIR__ . '/IamRuntimeTest.php';
 require __DIR__ . '/QuotaRuntimeTest.php';
 require __DIR__ . '/WorkerRuntimeTest.php';
 require __DIR__ . '/RecoveryRuntimeTest.php';
 require __DIR__ . '/RetryRuntimeTest.php';
+require __DIR__ . '/FinalConsistencyRuntimeTest.php';
 
 function acceptanceApplyThinkPhpEnvironment(AcceptanceConfig $config): void
 {
@@ -45,6 +47,9 @@ try {
     acceptanceHarnessContractTest($root);
     fwrite(STDOUT, "[PASS] AcceptanceHarnessContractTest\n");
 
+    acceptanceFinalConsistencyContractTest($root);
+    fwrite(STDOUT, "[PASS] FinalConsistencyContractTest\n");
+
     $runtime = new AcceptanceRuntime($config);
     $runtime->preflight();
 
@@ -65,6 +70,9 @@ try {
 
     acceptanceIamRuntimeTest($runtime);
     fwrite(STDOUT, "[PASS] IamRuntimeTest\n");
+
+    acceptanceFinalConsistencyRuntimeTest($runtime);
+    fwrite(STDOUT, "[PASS] FinalConsistencyRuntimeTest\n");
 
     fwrite(STDOUT, "[PASS] Local acceptance runtime gate\n");
 } catch (Throwable $e) {
