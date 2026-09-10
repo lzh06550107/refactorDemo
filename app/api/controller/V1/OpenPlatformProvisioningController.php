@@ -11,6 +11,7 @@ use app\common\http\ApiResponse;
 use app\openplatform\application\AuthorizerProvisioningQueryService;
 use app\openplatform\application\AuthorizerProvisioningRetryService;
 use app\openplatform\application\OpenPlatformAdminGuard;
+use app\openplatform\application\OpenPlatformAudit;
 use app\openplatform\domain\AuthorizerProvisioning;
 use app\openplatform\domain\OpenPlatformPermission;
 use DateTimeImmutable;
@@ -24,6 +25,7 @@ final readonly class OpenPlatformProvisioningController
         private AuthorizerProvisioningRetryService $retryService,
         private RequestContext $context,
         private OpenPlatformAdminGuard $guard,
+        private OpenPlatformAudit $audit,
     ) {
     }
 
@@ -40,11 +42,29 @@ final readonly class OpenPlatformProvisioningController
     {
         $this->guard->require(OpenPlatformPermission::RETRY_PROVISION);
         $tenantId = $this->tenantId();
-        $result = $this->retryService->retry(
-            $id,
-            $tenantId,
-            new DateTimeImmutable('now', new DateTimeZone('UTC')),
-        );
+        $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
+        $result = $this->retryService->retry($id, $tenantId, $now);
+
+        $principal = $this->context->principal();
+        if ($principal !== null) {
+            $this->audit->admin(
+                $principal->id(),
+                $tenantId,
+                $result->accountId(),
+                OpenPlatformAudit::PROVISIONING_RETRY_REQUESTED,
+                $this->context->requestId(),
+                $this->context->traceId(),
+                [
+                    'provisioning_id' => $result->id(),
+                    'component_platform_id' => $result->componentPlatformId(),
+                    'authorizer_app_id' => $result->authorizerAppId(),
+                    'metadata_version' => $result->metadataVersion(),
+                    'error_code' => $result->lastErrorCode(),
+                    'error_stage' => $result->lastErrorStage(),
+                ],
+                $now,
+            );
+        }
 
         return ApiResponse::success($this->context, [
             'id' => $result->id(),

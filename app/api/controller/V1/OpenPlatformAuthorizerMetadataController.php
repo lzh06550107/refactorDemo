@@ -10,6 +10,7 @@ use app\common\error\ErrorCode;
 use app\common\http\ApiResponse;
 use app\openplatform\application\AuthorizerMetadataRefreshService;
 use app\openplatform\application\OpenPlatformAdminGuard;
+use app\openplatform\application\OpenPlatformAudit;
 use app\openplatform\domain\OpenPlatformPermission;
 use DateTimeImmutable;
 use DateTimeZone;
@@ -21,6 +22,7 @@ final readonly class OpenPlatformAuthorizerMetadataController
         private AuthorizerMetadataRefreshService $refreshService,
         private RequestContext $context,
         private OpenPlatformAdminGuard $guard,
+        private OpenPlatformAudit $audit,
     ) {
     }
 
@@ -32,12 +34,32 @@ final readonly class OpenPlatformAuthorizerMetadataController
             throw new AppException(ErrorCode::UNAUTHORIZED, 'Trusted administrator Tenant context is required.', 401);
         }
 
+        $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
         $metadata = $this->refreshService->refresh(
             $tenantId,
             $componentPlatformId,
             $authorizerAppId,
-            new DateTimeImmutable('now', new DateTimeZone('UTC')),
+            $now,
         );
+
+        $principal = $this->context->principal();
+        if ($principal !== null) {
+            $this->audit->admin(
+                $principal->id(),
+                $tenantId,
+                null,
+                OpenPlatformAudit::METADATA_REFRESH,
+                $this->context->requestId(),
+                $this->context->traceId(),
+                [
+                    'component_platform_id' => $metadata->componentPlatformId(),
+                    'authorizer_app_id' => $metadata->authorizerAppId(),
+                    'metadata_version' => $metadata->version(),
+                    'account_type' => $metadata->accountType()->value,
+                ],
+                $now,
+            );
+        }
 
         return ApiResponse::success($this->context, [
             'component_platform_id' => $metadata->componentPlatformId(),

@@ -17,12 +17,17 @@ use app\iam\infrastructure\ThinkPhpAdminTenantAccess;
 use app\iam\infrastructure\ThinkPhpPermissionAuthorizer;
 use app\iam\security\SessionTokenHasher;
 use app\miniapp\infrastructure\OpenPlatformAuthorizerAccountBinding;
+use app\openplatform\application\AuthorizationCompletionService;
 use app\openplatform\application\AuthorizationEventService;
 use app\openplatform\application\AuthorizationStartService;
 use app\openplatform\application\AuthorizerConnectionService;
 use app\openplatform\application\AuthorizerMetadataSyncService;
+use app\openplatform\application\AuthorizerOwnershipResolver;
+use app\openplatform\application\AuthorizerProvisioningQuotaService;
+use app\openplatform\application\AuthorizerProvisioningWorker;
 use app\openplatform\application\ComponentAccessTokenService;
 use app\openplatform\application\ComponentTicketService;
+use app\openplatform\application\OpenPlatformAudit;
 use app\openplatform\application\OpenPlatformEventService;
 use app\openplatform\contract\AuthorizationIntentRepository;
 use app\openplatform\contract\AuthorizerAccountBinding;
@@ -50,6 +55,10 @@ use app\openplatform\contract\OpenPlatformHttpTransport;
 use app\openplatform\contract\OpenPlatformSecretCipher;
 use app\openplatform\contract\ProvisioningJobRepository;
 use app\openplatform\contract\ProvisioningJobScheduler;
+use app\openplatform\infrastructure\AuditedAuthorizerAccountFinalizer;
+use app\openplatform\infrastructure\AuditedAuthorizerConnectionStore;
+use app\openplatform\infrastructure\AuditedAuthorizerMetadataRepository;
+use app\openplatform\infrastructure\AuditedAuthorizerProvisioningRepository;
 use app\openplatform\infrastructure\ConfiguredComponentCredentialProvider;
 use app\openplatform\infrastructure\NativeOpenPlatformHttpTransport;
 use app\openplatform\infrastructure\OpenSslOpenPlatformSecretCipher;
@@ -75,6 +84,9 @@ use app\openplatform\infrastructure\ThinkPhpProvisioningJobScheduler;
 use app\openplatform\infrastructure\WechatAuthorizerClient;
 use app\openplatform\infrastructure\WechatComponentTokenClient;
 use app\openplatform\security\WechatComponentCallbackAuthenticator;
+use app\quota\application\QuotaService;
+use app\quota\contract\QuotaLedgerRepository;
+use app\quota\infrastructure\ThinkPhpQuotaLedgerRepository;
 use JsonException;
 use RuntimeException;
 use think\Service;
@@ -93,14 +105,14 @@ final class AppService extends Service
             AuthorizerAccountBinding::class => OpenPlatformAuthorizerAccountBinding::class,
             AuthorizerAuthorizationRepository::class => ThinkPhpAuthorizerAuthorizationRepository::class,
             AuthorizerAuthorizationCredentialRepository::class => ThinkPhpAuthorizerAuthorizationRepository::class,
-            AuthorizerMetadataRepository::class => ThinkPhpAuthorizerMetadataRepository::class,
+            AuthorizerMetadataRepository::class => AuditedAuthorizerMetadataRepository::class,
             AuthorizerOwnershipRepository::class => ThinkPhpAuthorizerOwnershipRepository::class,
-            AuthorizerProvisioningRepository::class => ThinkPhpAuthorizerProvisioningRepository::class,
+            AuthorizerProvisioningRepository::class => AuditedAuthorizerProvisioningRepository::class,
             ProvisioningJobRepository::class => ThinkPhpProvisioningJobRepository::class,
             ProvisioningJobScheduler::class => ThinkPhpProvisioningJobScheduler::class,
-            AuthorizerConnectionStore::class => ThinkPhpAuthorizerConnectionStore::class,
+            AuthorizerConnectionStore::class => AuditedAuthorizerConnectionStore::class,
             AuthorizerAccountStateReader::class => ThinkPhpAuthorizerAccountStateReader::class,
-            AuthorizerAccountFinalizer::class => ThinkPhpAuthorizerAccountFinalizer::class,
+            AuthorizerAccountFinalizer::class => AuditedAuthorizerAccountFinalizer::class,
             AuthorizerTenantScopeReader::class => ThinkPhpAuthorizerTenantScopeReader::class,
             AuthorizerTokenRepository::class => ThinkPhpAuthorizerTokenRepository::class,
             AuthorizerRefreshLeaseRepository::class => ThinkPhpAuthorizerRefreshLeaseRepository::class,
@@ -115,6 +127,7 @@ final class AppService extends Service
             AuthorizerClient::class => WechatAuthorizerClient::class,
             OpenPlatformSecretCipher::class => OpenSslOpenPlatformSecretCipher::class,
             TransactionManager::class => ThinkPhpTransactionManager::class,
+            QuotaLedgerRepository::class => ThinkPhpQuotaLedgerRepository::class,
         ]);
 
         $this->registerSecurityFactories();
@@ -167,6 +180,86 @@ final class AppService extends Service
 
     private function registerApplicationFactories(): void
     {
+        $this->app->bind(OpenPlatformAudit::class, function (): OpenPlatformAudit {
+            return new OpenPlatformAudit($this->app->make(AuditLogger::class));
+        });
+
+        $this->app->bind(AuditedAuthorizerProvisioningRepository::class, function (): AuditedAuthorizerProvisioningRepository {
+            return new AuditedAuthorizerProvisioningRepository(
+                new ThinkPhpAuthorizerProvisioningRepository(),
+                $this->app->make(OpenPlatformAudit::class),
+            );
+        });
+
+        $this->app->bind(AuditedAuthorizerMetadataRepository::class, function (): AuditedAuthorizerMetadataRepository {
+            return new AuditedAuthorizerMetadataRepository(
+                new ThinkPhpAuthorizerMetadataRepository(),
+                $this->app->make(OpenPlatformAudit::class),
+            );
+        });
+
+        $this->app->bind(AuditedAuthorizerConnectionStore::class, function (): AuditedAuthorizerConnectionStore {
+            return new AuditedAuthorizerConnectionStore(
+                new ThinkPhpAuthorizerConnectionStore(),
+                $this->app->make(OpenPlatformAudit::class),
+            );
+        });
+
+        $this->app->bind(AuditedAuthorizerAccountFinalizer::class, function (): AuditedAuthorizerAccountFinalizer {
+            return new AuditedAuthorizerAccountFinalizer(
+                new ThinkPhpAuthorizerAccountFinalizer(),
+                $this->app->make(OpenPlatformAudit::class),
+            );
+        });
+
+        $this->app->bind(QuotaService::class, function (): QuotaService {
+            return new QuotaService($this->app->make(QuotaLedgerRepository::class));
+        });
+
+        $this->app->bind(AuthorizerProvisioningQuotaService::class, function (): AuthorizerProvisioningQuotaService {
+            return new AuthorizerProvisioningQuotaService(
+                $this->app->make(QuotaService::class),
+                $this->app->make(AuthorizerProvisioningRepository::class),
+            );
+        });
+
+        $this->app->bind(AuthorizerConnectionService::class, function (): AuthorizerConnectionService {
+            return new AuthorizerConnectionService(
+                $this->app->make(AuthorizerConnectionStore::class),
+                $this->app->make(AuthorizerAccountStateReader::class),
+            );
+        });
+
+        $this->app->bind(AuthorizationCompletionService::class, function (): AuthorizationCompletionService {
+            return new AuthorizationCompletionService(
+                $this->app->make(AuthorizationIntentRepository::class),
+                $this->app->make(ComponentAccessTokenService::class),
+                $this->app->make(AuthorizerClient::class),
+                $this->app->make(AuthorizerAuthorizationRepository::class),
+                $this->app->make(AuthorizerAccountBinding::class),
+                $this->app->make(TransactionManager::class),
+                $this->app->make(AuditLogger::class),
+                30,
+                $this->app->make(AuthorizerProvisioningRepository::class),
+                $this->app->make(ProvisioningJobRepository::class),
+            );
+        });
+
+        $this->app->bind(AuthorizerProvisioningWorker::class, function (): AuthorizerProvisioningWorker {
+            return new AuthorizerProvisioningWorker(
+                $this->app->make(ProvisioningJobRepository::class),
+                $this->app->make(AuthorizerProvisioningRepository::class),
+                $this->app->make(AuthorizerAuthorizationRepository::class),
+                $this->app->make(AuthorizerMetadataSyncService::class),
+                $this->app->make(AuthorizerOwnershipResolver::class),
+                $this->app->make(AuthorizerOwnershipRepository::class),
+                $this->app->make(AuthorizerConnectionService::class),
+                $this->app->make(AuthorizerProvisioningQuotaService::class),
+                $this->app->make(AuthorizerAccountFinalizer::class),
+                $this->app->make(AuthorizerMetadataRepository::class),
+            );
+        });
+
         $this->app->bind(AuthorizationStartService::class, function (): AuthorizationStartService {
             return new AuthorizationStartService(
                 $this->app->make(ComponentAccessTokenService::class),
@@ -188,7 +281,7 @@ final class AppService extends Service
         $this->app->bind(AuthorizationEventService::class, function (): AuthorizationEventService {
             return new AuthorizationEventService(
                 $this->app->make(AuthorizationIntentRepository::class),
-                $this->app->make(\app\openplatform\application\AuthorizationCompletionService::class),
+                $this->app->make(AuthorizationCompletionService::class),
                 $this->app->make(ComponentAccessTokenService::class),
                 $this->app->make(AuthorizerClient::class),
                 $this->app->make(AuthorizerAuthorizationRepository::class),

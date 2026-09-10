@@ -10,6 +10,7 @@ use app\common\error\ErrorCode;
 use app\common\http\ApiResponse;
 use app\openplatform\application\AuthorizationStartService;
 use app\openplatform\application\OpenPlatformAdminGuard;
+use app\openplatform\application\OpenPlatformAudit;
 use app\openplatform\domain\AuthorizationIntentMode;
 use app\openplatform\domain\OpenPlatformPermission;
 use DateTimeImmutable;
@@ -24,6 +25,7 @@ final readonly class OpenPlatformAuthorizationStartController
         private AuthorizationStartService $service,
         private RequestContext $context,
         private OpenPlatformAdminGuard $guard,
+        private OpenPlatformAudit $audit,
     ) {
     }
 
@@ -42,7 +44,10 @@ final readonly class OpenPlatformAuthorizationStartController
         }
 
         try {
-            $mode = AuthorizationIntentMode::from((string) $request->param('mode', AuthorizationIntentMode::BIND_EXISTING_ACCOUNT->value));
+            $mode = AuthorizationIntentMode::from((string) $request->param(
+                'mode',
+                AuthorizationIntentMode::BIND_EXISTING_ACCOUNT->value,
+            ));
         } catch (ValueError) {
             $this->invalidArgument('Authorization intent mode is invalid.');
         }
@@ -77,14 +82,29 @@ final readonly class OpenPlatformAuthorizationStartController
             ),
         };
 
+        $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
         $result = $this->service->start(
             $componentPlatformId,
             $tenantId,
             $mode,
             $targetAccountId,
             $requestedAuthType,
-            new DateTimeImmutable('now', new DateTimeZone('UTC')),
+            $now,
         );
+
+        $principal = $this->context->principal();
+        if ($principal !== null) {
+            $this->audit->admin(
+                $principal->id(),
+                $tenantId,
+                $targetAccountId,
+                OpenPlatformAudit::AUTHORIZATION_START,
+                $this->context->requestId(),
+                $this->context->traceId(),
+                ['component_platform_id' => $componentPlatformId],
+                $now,
+            );
+        }
 
         return ApiResponse::success($this->context, [
             'state' => $result->state(),

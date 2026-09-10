@@ -25,14 +25,14 @@ $requiredBindings = [
     ['AuthorizerAccountBinding', 'OpenPlatformAuthorizerAccountBinding'],
     ['AuthorizerAuthorizationRepository', 'ThinkPhpAuthorizerAuthorizationRepository'],
     ['AuthorizerAuthorizationCredentialRepository', 'ThinkPhpAuthorizerAuthorizationRepository'],
-    ['AuthorizerMetadataRepository', 'ThinkPhpAuthorizerMetadataRepository'],
+    ['AuthorizerMetadataRepository', 'AuditedAuthorizerMetadataRepository'],
     ['AuthorizerOwnershipRepository', 'ThinkPhpAuthorizerOwnershipRepository'],
-    ['AuthorizerProvisioningRepository', 'ThinkPhpAuthorizerProvisioningRepository'],
+    ['AuthorizerProvisioningRepository', 'AuditedAuthorizerProvisioningRepository'],
     ['ProvisioningJobRepository', 'ThinkPhpProvisioningJobRepository'],
     ['ProvisioningJobScheduler', 'ThinkPhpProvisioningJobScheduler'],
-    ['AuthorizerConnectionStore', 'ThinkPhpAuthorizerConnectionStore'],
+    ['AuthorizerConnectionStore', 'AuditedAuthorizerConnectionStore'],
     ['AuthorizerAccountStateReader', 'ThinkPhpAuthorizerAccountStateReader'],
-    ['AuthorizerAccountFinalizer', 'ThinkPhpAuthorizerAccountFinalizer'],
+    ['AuthorizerAccountFinalizer', 'AuditedAuthorizerAccountFinalizer'],
     ['AuthorizerTenantScopeReader', 'ThinkPhpAuthorizerTenantScopeReader'],
     ['AuthorizerTokenRepository', 'ThinkPhpAuthorizerTokenRepository'],
     ['AuthorizerRefreshLeaseRepository', 'ThinkPhpAuthorizerRefreshLeaseRepository'],
@@ -47,10 +47,20 @@ $requiredBindings = [
     ['AuthorizerClient', 'WechatAuthorizerClient'],
     ['OpenPlatformSecretCipher', 'OpenSslOpenPlatformSecretCipher'],
     ['TransactionManager', 'ThinkPhpTransactionManager'],
+    ['QuotaLedgerRepository', 'ThinkPhpQuotaLedgerRepository'],
 ];
 foreach ($requiredBindings as [$contract, $implementation]) {
     expectTrue(str_contains($appService, $contract . '::class'), 'AppService explicitly maps ' . $contract);
     expectTrue(str_contains($appService, $implementation . '::class'), 'AppService maps ' . $contract . ' to ' . $implementation);
+}
+
+foreach ([
+    'new ThinkPhpAuthorizerMetadataRepository()',
+    'new ThinkPhpAuthorizerProvisioningRepository()',
+    'new ThinkPhpAuthorizerConnectionStore()',
+    'new ThinkPhpAuthorizerAccountFinalizer()',
+] as $implementation) {
+    expectTrue(str_contains($appService, $implementation), 'audited production decorator wraps existing adapter: ' . $implementation);
 }
 
 expectTrue(str_contains($appService, 'base64_decode($encoded, true)'), 'secret key material uses strict base64 decoding');
@@ -66,6 +76,13 @@ expectTrue(str_contains($appService, 'AuthorizerConnectionService::class'), 'pro
 expectTrue(str_contains($appService, 'AuthorizerMetadataSyncService::class'), 'provider metadata projection is not left at nullable default');
 expectTrue(str_contains($appService, 'OpenPlatformEventService::class'), 'provider ingress explicitly injects authorization event projection');
 expectTrue(str_contains($appService, 'ComponentTicketService::class'), 'union-typed ComponentTicketService has explicit factory');
+expectTrue(str_contains($appService, 'AuthorizationCompletionService::class'), 'authorization completion explicitly receives auto-provision persistence');
+expectTrue(str_contains($appService, 'AuthorizerProvisioningQuotaService::class'), 'quota saga has explicit production factory');
+expectTrue(str_contains($appService, 'AuthorizerProvisioningWorker::class'), 'provisioning worker has explicit production factory');
+expectTrue(str_contains($appService, '$this->app->make(AuthorizerProvisioningQuotaService::class)'), 'production worker cannot silently omit quota saga');
+expectTrue(str_contains($appService, '$this->app->make(AuthorizerAccountFinalizer::class)'), 'production worker cannot silently omit Account finalizer');
+expectTrue(str_contains($appService, '$this->app->make(AuthorizerMetadataRepository::class)'), 'production worker cannot silently omit metadata recovery repository');
+expectTrue(str_contains($appService, '$this->app->make(AuthorizerAccountStateReader::class)'), 'reconnect path always enforces Account lifecycle state');
 expectTrue(!str_contains($appService, 'Fake'), 'production container wiring must not reference Fake implementations');
 expectTrue(!str_contains(strtolower($appService), 'authkey'), 'admin session pepper must not reuse legacy authkey');
 expectTrue(!str_contains($appService, 'secret_key_base64]'), 'AppService never indexes malformed secret configuration syntax');
@@ -148,7 +165,6 @@ foreach ($providerRoutes as $needle) {
         'provider ingress must not use admin context middleware: ' . $needle,
     );
 }
-
 
 $ci = (string) file_get_contents($root . '/.github/workflows/ci.yml');
 expectTrue(str_contains($ci, '/api/v1/openplatform/provisionings/runtime-smoke'), 'CI smoke resolves unauthenticated R8D admin provisioning route');
