@@ -32,6 +32,17 @@ function releaseGateContractTest(string $root): void
         releaseGateAssert(str_contains($source, $needle), 'Release runner must contain gate: ' . $needle);
     }
 
+    foreach (['pdo_mysql', 'mbstring', 'dom', 'xmlwriter'] as $extension) {
+        releaseGateAssert(
+            str_contains($source, "'" . $extension . "' =>"),
+            'Release preflight extension list must contain: ' . $extension,
+        );
+    }
+    releaseGateAssert(
+        str_contains($source, 'extension_loaded($extension)'),
+        'Release preflight must evaluate every required extension.',
+    );
+
     $offline = strpos($source, "tests/run.php");
     $phpunit = strpos($source, "vendor/bin/phpunit");
     $lint = strpos($source, 'releaseLintProject($root)');
