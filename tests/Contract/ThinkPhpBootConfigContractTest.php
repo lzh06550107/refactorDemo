@@ -22,9 +22,12 @@ expectSame('web', $app['default_app'] ?? null, 'Web must remain the default appl
 expectSame(true, $app['app_express'] ?? false, 'Multi-app express mode must preserve non-app paths for the default web application');
 
 expectTrue(is_file($providerPath), 'ThinkPHP provider bindings must exist for application-level exception rendering');
-$provider = is_file($providerPath) ? (string) file_get_contents($providerPath) : '';
-expectTrue(str_contains($provider, 'think\\exception\\Handle::class'), 'ThinkPHP provider must bind the framework exception Handle');
-expectTrue(str_contains($provider, 'ExceptionHandle::class'), 'ThinkPHP provider must route exceptions through app ExceptionHandle');
+$providerBindings = is_file($providerPath) ? require $providerPath : [];
+expectSame(
+    \app\ExceptionHandle::class,
+    $providerBindings[\think\exception\Handle::class] ?? null,
+    'ThinkPHP provider must route framework exceptions through app ExceptionHandle',
+);
 
 expectTrue(is_file($databaseConfigPath), 'ThinkPHP database config must exist so ORM repositories can boot');
 expectTrue(is_file($envExamplePath), '.env.example must document database runtime settings');
