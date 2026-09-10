@@ -8,6 +8,7 @@ $routerPath = $root . '/public/router.php';
 $appConfigPath = $root . '/config/app.php';
 $databaseConfigPath = $root . '/config/database.php';
 $envExamplePath = $root . '/.env.example';
+$providerPath = $root . '/app/provider.php';
 
 expectTrue(is_file($cacheConfigPath), 'ThinkPHP cache config must exist so framework services can boot');
 $cache = require $cacheConfigPath;
@@ -19,6 +20,11 @@ expectTrue(is_string($router) && str_contains($router, "require __DIR__ . '/inde
 $app = require $appConfigPath;
 expectSame('web', $app['default_app'] ?? null, 'Web must remain the default application');
 expectSame(true, $app['app_express'] ?? false, 'Multi-app express mode must preserve non-app paths for the default web application');
+
+expectTrue(is_file($providerPath), 'ThinkPHP provider bindings must exist for application-level exception rendering');
+$provider = is_file($providerPath) ? (string) file_get_contents($providerPath) : '';
+expectTrue(str_contains($provider, 'think\\exception\\Handle::class'), 'ThinkPHP provider must bind the framework exception Handle');
+expectTrue(str_contains($provider, 'ExceptionHandle::class'), 'ThinkPHP provider must route exceptions through app ExceptionHandle');
 
 expectTrue(is_file($databaseConfigPath), 'ThinkPHP database config must exist so ORM repositories can boot');
 expectTrue(is_file($envExamplePath), '.env.example must document database runtime settings');
