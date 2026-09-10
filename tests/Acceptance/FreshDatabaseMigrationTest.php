@@ -26,26 +26,45 @@ function acceptanceFreshDatabaseMigrationTest(AcceptanceRuntime $runtime): void
         $sql = file_get_contents($directory . '/' . $migration);
         acceptanceAssert(is_string($sql) && trim($sql) !== '', 'Migration is empty: ' . $migration);
 
-        try {
-            $db->exec($sql);
-        } catch (Throwable $error) {
-            $foreignKeyContext = '';
-            try {
-                $statusRow = $db->query('SHOW ENGINE INNODB STATUS')->fetch(PDO::FETCH_ASSOC);
-                $status = is_array($statusRow) ? (string) ($statusRow['Status'] ?? $statusRow['status'] ?? '') : '';
-                $marker = strpos($status, 'LATEST FOREIGN KEY ERROR');
-                if ($marker !== false) {
-                    $foreignKeyContext = "\n" . substr($status, $marker, 3000);
-                }
-            } catch (Throwable) {
-                // Preserve the original migration failure if InnoDB diagnostics are unavailable.
-            }
+        $statements = preg_split('/;\s*(?:\R|$)/', trim($sql));
+        acceptanceAssert(is_array($statements), 'Unable to split migration statements: ' . $migration);
+        $statements = array_values(array_filter(
+            array_map(static fn (string $statement): string => trim($statement), $statements),
+            static fn (string $statement): bool => $statement !== '',
+        ));
+        acceptanceAssert($statements !== [], 'Migration has no executable statements: ' . $migration);
 
-            throw new RuntimeException(
-                'Migration failed: ' . $migration . ': ' . $error->getMessage() . $foreignKeyContext,
-                0,
-                $error,
-            );
+        foreach ($statements as $statementIndex => $statement) {
+            try {
+                $db->exec($statement);
+            } catch (Throwable $error) {
+                $foreignKeyContext = '';
+                try {
+                    $statusRow = $db->query('SHOW ENGINE INNODB STATUS')->fetch(PDO::FETCH_ASSOC);
+                    $status = is_array($statusRow) ? (string) ($statusRow['Status'] ?? $statusRow['status'] ?? '') : '';
+                    $marker = strpos($status, 'LATEST FOREIGN KEY ERROR');
+                    if ($marker !== false) {
+                        $foreignKeyContext = "\n" . substr($status, $marker, 3000);
+                    }
+                } catch (Throwable) {
+                    // Preserve the original migration failure if InnoDB diagnostics are unavailable.
+                }
+
+                $preview = preg_replace('/\s+/', ' ', $statement);
+                $preview = is_string($preview) ? substr($preview, 0, 240) : '';
+                throw new RuntimeException(
+                    sprintf(
+                        'Migration failed: %s statement #%d [%s]: %s%s',
+                        $migration,
+                        $statementIndex + 1,
+                        $preview,
+                        $error->getMessage(),
+                        $foreignKeyContext,
+                    ),
+                    0,
+                    $error,
+                );
+            }
         }
     }
 
