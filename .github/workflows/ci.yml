@@ -163,6 +163,14 @@ jobs:
       - name: Install locked dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
 
+      - name: Export resolved Composer lock
+        uses: actions/upload-artifact@v4
+        with:
+          name: composer-lock
+          path: composer.lock
+          if-no-files-found: error
+          retention-days: 1
+
       - name: Verify resolved lockfile
         run: test -f composer.lock
 
