@@ -45,6 +45,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          WEPLATFORM_ADMIN_SESSION_PEPPER=ci-admin-session-pepper \
+          WEPLATFORM_OPENPLATFORM_AUTHORIZATION_CALLBACK_URI=https://example.com/api/v1/openplatform/authorization/callback \
+          WEPLATFORM_OPENPLATFORM_HTTP_TIMEOUT_SECONDS=10 \
+          WEPLATFORM_OPENPLATFORM_SECRET_KEY_VERSION=v1 \
+          WEPLATFORM_OPENPLATFORM_SECRET_KEY_BASE64=a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s= \
+          WEPLATFORM_OPENPLATFORM_CREDENTIAL_SECRETS_JSON='{"ci/ref":"ci-secret"}' \
           php think run -p 18080 > /tmp/thinkphp-server.log 2>&1 &
           server_pid=$!
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT
@@ -93,3 +99,25 @@ jobs:
           php -r '$j=json_decode(file_get_contents("/tmp/health-web.json"), true); exit(($j["data"]["application"] ?? null) === "web" ? 0 : 1);'
           php -r '$j=json_decode(file_get_contents("/tmp/health-admin.json"), true); exit(($j["data"]["application"] ?? null) === "admin" ? 0 : 1);'
           php -r '$j=json_decode(file_get_contents("/tmp/health-api.json"), true); exit(($j["data"]["application"] ?? null) === "api" ? 0 : 1);'
+
+          admin_body=/tmp/r8d-admin-unauthenticated.json
+          admin_status="$(request_json /api/v1/openplatform/provisionings/runtime-smoke "$admin_body")"
+          if [ "$admin_status" != "401" ]; then
+            echo "Unauthenticated R8D admin provisioning route returned HTTP $admin_status, expected 401" >&2
+            cat "$admin_body" >&2 || true
+            cat /tmp/thinkphp-server.log >&2 || true
+            exit 1
+          fi
+
+          for path in \
+            /api/v1/openplatform/components/runtime-smoke/events \
+            /api/v1/openplatform/components/runtime-smoke/ticket; do
+            body=/tmp/r8d-provider-ingress.json
+            status="$(curl -sS -X POST -H 'Accept: application/json' -H 'Content-Type: application/xml' -d '<xml/>' -o "$body" -w '%{http_code}' "http://127.0.0.1:18080${path}" || true)"
+            if [ "$status" = "000" ] || [ "$status" = "401" ]; then
+              echo "Provider ingress $path returned HTTP $status; it must resolve without admin authentication middleware" >&2
+              cat "$body" >&2 || true
+              cat /tmp/thinkphp-server.log >&2 || true
+              exit 1
+            fi
+          done
