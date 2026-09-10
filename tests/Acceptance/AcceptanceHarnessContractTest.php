@@ -11,8 +11,9 @@ function acceptanceHarnessContractTest(string $root): void
     $quota = $root . '/tests/Acceptance/QuotaRuntimeTest.php';
     $worker = $root . '/tests/Acceptance/WorkerRuntimeTest.php';
     $recovery = $root . '/tests/Acceptance/RecoveryRuntimeTest.php';
+    $retry = $root . '/tests/Acceptance/RetryRuntimeTest.php';
 
-    foreach ([$run, $bootstrap, $migration, $iam, $quota, $worker, $recovery] as $file) {
+    foreach ([$run, $bootstrap, $migration, $iam, $quota, $worker, $recovery, $retry] as $file) {
         acceptanceAssert(is_file($file), 'acceptance runtime harness file must exist: ' . basename($file));
     }
 
@@ -21,6 +22,7 @@ function acceptanceHarnessContractTest(string $root): void
     $quotaSource = (string) file_get_contents($quota);
     $workerSource = (string) file_get_contents($worker);
     $recoverySource = (string) file_get_contents($recovery);
+    $retrySource = (string) file_get_contents($retry);
     acceptanceAssert(str_contains($bootstrapSource, 'WEPLATFORM_ACCEPTANCE'), 'acceptance harness requires explicit opt-in');
     acceptanceAssert(str_contains($bootstrapSource, "['127.0.0.1', 'localhost', '::1']"), 'acceptance database is local-only');
     acceptanceAssert(str_contains($bootstrapSource, "str_contains(\$databaseLower, 'acceptance')"), 'acceptance database name is guarded');
@@ -36,6 +38,8 @@ function acceptanceHarnessContractTest(string $root): void
     acceptanceAssert(str_contains($runSource, 'WEPLATFORM_OPENPLATFORM_CREDENTIAL_SECRETS_JSON'), 'worker acceptance receives isolated dummy credential map');
     acceptanceAssert(str_contains($runSource, 'RecoveryRuntimeTest.php'), 'acceptance runner executes recovery runtime gate');
     acceptanceAssert(str_contains($runSource, 'acceptanceRecoveryRuntimeTest($runtime)'), 'recovery runtime gate is invoked explicitly');
+    acceptanceAssert(str_contains($runSource, 'RetryRuntimeTest.php'), 'acceptance runner executes retry runtime gate');
+    acceptanceAssert(str_contains($runSource, 'acceptanceRetryRuntimeTest($runtime)'), 'retry runtime gate is invoked explicitly');
     acceptanceAssert(str_contains($runSource, '$exitCode = 0;'), 'acceptance runner tracks exit code without exiting before cleanup');
     $finallyPos = strpos($runSource, '} finally {');
     $exitPos = strrpos($runSource, 'exit($exitCode);');
@@ -85,4 +89,18 @@ function acceptanceHarnessContractTest(string $root): void
     acceptanceAssert(str_contains($recoverySource, 'Terminal recovery must not consume or release quota again.'), 'terminal crash recovery asserts quota idempotency');
     acceptanceAssert(str_contains($recoverySource, 'Reconnect must not create a second Account.'), 'reconnect asserts Account reuse');
     acceptanceAssert(str_contains($recoverySource, 'Reconnect must not consume quota.'), 'reconnect asserts no duplicate quota consumption');
+
+    acceptanceAssert(str_contains($retrySource, "'/api/v1/openplatform/provisionings/'"), 'retry acceptance calls the real protected provisioning retry HTTP route');
+    acceptanceAssert(str_contains($retrySource, "'openplatform.authorizer.retry_provision'"), 'retry acceptance grants the production retry permission');
+    acceptanceAssert(str_contains($retrySource, "'quota_blocked'"), 'retry acceptance starts from a retryable quota-blocked state');
+    acceptanceAssert(str_contains($retrySource, "'metadata_ready'"), 'retry acceptance verifies resumed METADATA_READY state');
+    acceptanceAssert(str_contains($retrySource, "'dead'"), 'retry acceptance starts from a dead durable job');
+    acceptanceAssert(str_contains($retrySource, "'ready'"), 'retry acceptance verifies scheduler requeues the job');
+    acceptanceAssert(str_contains($retrySource, "=== 202"), 'retry acceptance verifies HTTP 202 success');
+    acceptanceAssert(str_contains($retrySource, "=== 409"), 'retry acceptance verifies live-claim HTTP 409 conflict');
+    acceptanceAssert(str_contains($retrySource, "'CONFLICT'"), 'retry acceptance verifies stable busy conflict code');
+    acceptanceAssert(str_contains($retrySource, 'Retry scheduling must not consume or release quota.'), 'retry acceptance asserts retry scheduling has no quota side effects');
+    acceptanceAssert(!str_contains($retrySource, 'openplatform:provisioning-worker'), 'retry HTTP acceptance must not invoke the provisioning worker');
+    acceptanceAssert(!str_contains($retrySource, 'component_access_tokens'), 'retry HTTP acceptance must not seed provider component tokens');
+    acceptanceAssert(!str_contains($retrySource, 'component_verify_tickets'), 'retry HTTP acceptance must not seed provider tickets');
 }
