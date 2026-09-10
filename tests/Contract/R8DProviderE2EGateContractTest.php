@@ -69,7 +69,7 @@ function providerE2EGateContractTest(string $root): void
 
     $guideSource = (string) file_get_contents($guide);
     foreach ([
-        '1bac2af23eb21b625722b0bb3b09782eb696972a',
+        'git rev-parse HEAD',
         'AppSecret',
         'EncodingAESKey',
         '不要',
