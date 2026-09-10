@@ -46,17 +46,6 @@ final readonly class AuditedAuthorizerProvisioningRepository implements Authoriz
         }
 
         $emitted = [];
-        if (
-            $current !== null
-            && $current->version() === 1
-            && $current->status() === AuthorizerProvisioningStatus::PENDING_METADATA
-        ) {
-            // Initial INSERT may still be inside the authorization-completion transaction.
-            // Emit creation only after the first successful post-creation CAS proves durability.
-            $this->emit($current, OpenPlatformAudit::PROVISIONING_CREATED);
-            $emitted[OpenPlatformAudit::PROVISIONING_CREATED] = true;
-        }
-
         if ($current?->quotaConsumeEntryId() === null && $next->quotaConsumeEntryId() !== null) {
             $this->emit($next, OpenPlatformAudit::PROVISIONING_QUOTA_CONSUMED, [
                 'quota_ledger_entry_id' => $next->quotaConsumeEntryId(),

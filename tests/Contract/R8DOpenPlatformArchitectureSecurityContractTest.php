@@ -5,6 +5,8 @@ declare(strict_types=1);
 $root = dirname(__DIR__, 2);
 $appService = (string) file_get_contents($root . '/app/AppService.php');
 $audit = (string) file_get_contents($root . '/app/openplatform/application/OpenPlatformAudit.php');
+$completionService = (string) file_get_contents($root . '/app/openplatform/application/AuthorizationCompletionService.php');
+$transactionManager = (string) file_get_contents($root . '/app/common/infrastructure/ThinkPhpTransactionManager.php');
 $provisioning = (string) file_get_contents($root . '/app/openplatform/infrastructure/AuditedAuthorizerProvisioningRepository.php');
 $metadata = (string) file_get_contents($root . '/app/openplatform/infrastructure/AuditedAuthorizerMetadataRepository.php');
 $connection = (string) file_get_contents($root . '/app/openplatform/infrastructure/AuditedAuthorizerConnectionStore.php');
@@ -71,6 +73,52 @@ $findStart = strpos($provisioning, 'public function find(', $insertStart === fal
 expectTrue($insertStart !== false && $findStart !== false, 'provisioning repository exposes insert/find boundaries');
 $insertBody = substr($provisioning, $insertStart, $findStart - $insertStart);
 expectTrue(!str_contains($insertBody, '$this->audit'), 'provisioning INSERT does not emit pre-commit success telemetry');
+
+$transactionStart = strpos($completionService, '$completion = $this->transactions->run(');
+$postCommit = strpos($completionService, '[$authorization, $provisioningId] = $completion;');
+$completionAuditCall = strpos($completionService, '$this->auditCompletion(', $postCommit === false ? 0 : $postCommit);
+expectTrue(
+    $transactionStart !== false
+    && $postCommit !== false
+    && $completionAuditCall !== false
+    && $transactionStart < $postCommit
+    && $postCommit < $completionAuditCall,
+    'authorization/provisioning completion audit runs only after transaction returns',
+);
+expectTrue(str_contains($transactionManager, 'return Db::transaction('), 'ThinkPHP transaction manager return is the commit boundary');
+$auditCompletionStart = strpos($completionService, 'private function auditCompletion(');
+$auditCompletionEnd = strpos(
+    $completionService,
+    'private function assertAutoProvisioningConfigured',
+    $auditCompletionStart === false ? 0 : $auditCompletionStart,
+);
+expectTrue($auditCompletionStart !== false && $auditCompletionEnd !== false, 'completion audit method boundary is explicit');
+$auditCompletionBody = substr($completionService, $auditCompletionStart, $auditCompletionEnd - $auditCompletionStart);
+expectSame(
+    1,
+    substr_count($auditCompletionBody, 'OpenPlatformAudit::PROVISIONING_CREATED'),
+    'successful auto-provision commit emits exactly one provisioning creation audit action',
+);
+expectTrue(str_contains($auditCompletionBody, 'if ($provisioningId !== null)'), 'creation audit is limited to auto-provision completion');
+foreach ([
+    'authorizationCode',
+    'refreshToken',
+    'accessToken',
+    'authorization_code',
+    'refresh_token',
+    'access_token',
+] as $secretNeedle) {
+    expectTrue(!str_contains($auditCompletionBody, $secretNeedle), 'creation audit contains no provider secret material: ' . $secretNeedle);
+}
+$completedReplay = strpos($completionService, 'if ($current->completed())');
+expectTrue(
+    $completedReplay !== false && $transactionStart !== false && $completedReplay < $transactionStart,
+    'completed replay exits before the transaction and cannot duplicate creation audit',
+);
+expectTrue(
+    !str_contains($provisioning, 'OpenPlatformAudit::PROVISIONING_CREATED'),
+    'worker CAS repository cannot emit delayed duplicate provisioning creation audit',
+);
 
 $metadataObserve = strpos($metadata, '$result = $this->inner->observe(');
 $metadataAudit = strpos($metadata, '$this->audit->provider(');

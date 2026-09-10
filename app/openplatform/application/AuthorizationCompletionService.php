@@ -248,8 +248,27 @@ final readonly class AuthorizationCompletionService
                 $metadata,
                 $now,
             ));
+
+            if ($provisioningId !== null) {
+                $this->audit->record(new AuditEvent(
+                    'external:wechat-openplatform',
+                    $intent->tenantId(),
+                    null,
+                    OpenPlatformAudit::PROVISIONING_CREATED,
+                    'success',
+                    $requestId,
+                    $traceId,
+                    [
+                        'component_platform_id' => $authorization->componentPlatformId(),
+                        'authorizer_app_id' => $authorization->authorizerAppId(),
+                        'intent_id' => $intent->id(),
+                        'provisioning_id' => $provisioningId,
+                    ],
+                    $now,
+                ));
+            }
         } catch (Throwable) {
-            // Post-commit audit failure must not undo a completed authorization.
+            // Post-commit audit failure must not undo a completed authorization/provisioning trigger.
         }
     }
 
