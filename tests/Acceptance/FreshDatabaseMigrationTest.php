@@ -25,7 +25,16 @@ function acceptanceFreshDatabaseMigrationTest(AcceptanceRuntime $runtime): void
     foreach ($expected as $migration) {
         $sql = file_get_contents($directory . '/' . $migration);
         acceptanceAssert(is_string($sql) && trim($sql) !== '', 'Migration is empty: ' . $migration);
-        $db->exec($sql);
+
+        try {
+            $db->exec($sql);
+        } catch (Throwable $error) {
+            throw new RuntimeException(
+                'Migration failed: ' . $migration . ': ' . $error->getMessage(),
+                0,
+                $error,
+            );
+        }
     }
 
     foreach ([
