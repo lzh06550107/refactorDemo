@@ -29,8 +29,20 @@ function acceptanceFreshDatabaseMigrationTest(AcceptanceRuntime $runtime): void
         try {
             $db->exec($sql);
         } catch (Throwable $error) {
+            $foreignKeyContext = '';
+            try {
+                $statusRow = $db->query('SHOW ENGINE INNODB STATUS')->fetch(PDO::FETCH_ASSOC);
+                $status = is_array($statusRow) ? (string) ($statusRow['Status'] ?? $statusRow['status'] ?? '') : '';
+                $marker = strpos($status, 'LATEST FOREIGN KEY ERROR');
+                if ($marker !== false) {
+                    $foreignKeyContext = "\n" . substr($status, $marker, 3000);
+                }
+            } catch (Throwable) {
+                // Preserve the original migration failure if InnoDB diagnostics are unavailable.
+            }
+
             throw new RuntimeException(
-                'Migration failed: ' . $migration . ': ' . $error->getMessage(),
+                'Migration failed: ' . $migration . ': ' . $error->getMessage() . $foreignKeyContext,
                 0,
                 $error,
             );
