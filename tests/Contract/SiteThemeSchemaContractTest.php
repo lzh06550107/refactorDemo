@@ -22,6 +22,13 @@ expectSame(7, substr_count($up, 'ENGINE=InnoDB'), 'all R6 tables use InnoDB');
 expectSame(7, substr_count($up, 'DEFAULT CHARSET=utf8mb4'), 'all R6 tables use utf8mb4');
 expectTrue(str_contains($up, 'UNIQUE KEY `uk_domain_bindings_host` (`host`)'), 'host must be globally unambiguous');
 expectTrue(str_contains($up, 'uk_sites_one_default_per_account'), 'one default site per account must be enforced');
+expectTrue(
+    str_contains(
+        $up,
+        '`default_account_id` varchar(64) GENERATED ALWAYS AS (CASE WHEN `is_default` = 1 THEN `account_id` ELSE NULL END) VIRTUAL',
+    ),
+    'default-site uniqueness must use a virtual generated column so account cascade remains valid on MySQL 8.4',
+);
 expectTrue(str_contains($up, 'uk_site_theme_release_idempotency'), 'theme publication idempotency must be database-enforced');
 expectTrue(str_contains($repo, 'Db::transaction'), 'theme publication must be transactional');
 expectTrue(str_contains($repo, '->lock(true)'), 'theme publication must lock the site row');
