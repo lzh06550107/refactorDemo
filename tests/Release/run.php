@@ -70,8 +70,15 @@ function releasePreflight(string $root): void
     if (!is_file($root . '/tests/Acceptance/run.php')) {
         throw new RuntimeException('Local acceptance runner is missing.');
     }
-    if (!extension_loaded('pdo_mysql')) {
-        throw new RuntimeException('pdo_mysql extension is required for the local release gate.');
+    foreach ([
+        'pdo_mysql' => 'MySQL acceptance',
+        'mbstring' => 'ThinkPHP runtime',
+        'dom' => 'PHPUnit runtime',
+        'xmlwriter' => 'PHPUnit runtime',
+    ] as $extension => $purpose) {
+        if (!extension_loaded($extension)) {
+            throw new RuntimeException($extension . ' extension is required for ' . $purpose . '.');
+        }
     }
     if (getenv('WEPLATFORM_ACCEPTANCE') !== '1') {
         throw new RuntimeException('Set WEPLATFORM_ACCEPTANCE=1 explicitly before the local release gate.');
