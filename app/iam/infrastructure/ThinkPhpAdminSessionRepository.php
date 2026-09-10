@@ -14,10 +14,16 @@ final class ThinkPhpAdminSessionRepository implements AdminSessionRepository
 {
     public function findByTokenHash(string $tokenHash): ?AdminSession
     {
+        $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
+
         $row = Db::table('admin_sessions')
             ->join('admin_users', 'admin_users.id = admin_sessions.admin_user_id')
             ->where('admin_sessions.token_hash', $tokenHash)
             ->where('admin_users.status', 'active')
+            ->where(function ($query) use ($now): void {
+                $query->whereNull('admin_users.expires_at')
+                    ->whereOr('admin_users.expires_at', '>', $now->format('Y-m-d H:i:s.u'));
+            })
             ->field([
                 'admin_sessions.id',
                 'admin_sessions.admin_user_id',
