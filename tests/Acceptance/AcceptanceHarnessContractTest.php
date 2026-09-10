@@ -10,8 +10,9 @@ function acceptanceHarnessContractTest(string $root): void
     $iam = $root . '/tests/Acceptance/IamRuntimeTest.php';
     $quota = $root . '/tests/Acceptance/QuotaRuntimeTest.php';
     $worker = $root . '/tests/Acceptance/WorkerRuntimeTest.php';
+    $recovery = $root . '/tests/Acceptance/RecoveryRuntimeTest.php';
 
-    foreach ([$run, $bootstrap, $migration, $iam, $quota, $worker] as $file) {
+    foreach ([$run, $bootstrap, $migration, $iam, $quota, $worker, $recovery] as $file) {
         acceptanceAssert(is_file($file), 'acceptance runtime harness file must exist: ' . basename($file));
     }
 
@@ -19,6 +20,7 @@ function acceptanceHarnessContractTest(string $root): void
     $bootstrapSource = (string) file_get_contents($bootstrap);
     $quotaSource = (string) file_get_contents($quota);
     $workerSource = (string) file_get_contents($worker);
+    $recoverySource = (string) file_get_contents($recovery);
     acceptanceAssert(str_contains($bootstrapSource, 'WEPLATFORM_ACCEPTANCE'), 'acceptance harness requires explicit opt-in');
     acceptanceAssert(str_contains($bootstrapSource, "['127.0.0.1', 'localhost', '::1']"), 'acceptance database is local-only');
     acceptanceAssert(str_contains($bootstrapSource, "str_contains(\$databaseLower, 'acceptance')"), 'acceptance database name is guarded');
@@ -32,6 +34,8 @@ function acceptanceHarnessContractTest(string $root): void
     acceptanceAssert(str_contains($runSource, 'acceptanceWorkerRuntimeTest($runtime)'), 'worker runtime gate is invoked explicitly');
     acceptanceAssert(str_contains($runSource, 'WEPLATFORM_OPENPLATFORM_SECRET_KEY_BASE64'), 'worker acceptance receives isolated dummy secret key');
     acceptanceAssert(str_contains($runSource, 'WEPLATFORM_OPENPLATFORM_CREDENTIAL_SECRETS_JSON'), 'worker acceptance receives isolated dummy credential map');
+    acceptanceAssert(str_contains($runSource, 'RecoveryRuntimeTest.php'), 'acceptance runner executes recovery runtime gate');
+    acceptanceAssert(str_contains($runSource, 'acceptanceRecoveryRuntimeTest($runtime)'), 'recovery runtime gate is invoked explicitly');
     acceptanceAssert(str_contains($runSource, '$exitCode = 0;'), 'acceptance runner tracks exit code without exiting before cleanup');
     $finallyPos = strpos($runSource, '} finally {');
     $exitPos = strrpos($runSource, 'exit($exitCode);');
@@ -70,4 +74,15 @@ function acceptanceHarnessContractTest(string $root): void
     acceptanceAssert(str_contains($workerSource, 'discovered=0 handled=0 failed=0'), 'worker acceptance asserts empty-queue result');
     acceptanceAssert(!str_contains($workerSource, 'INSERT INTO authorizer_provisioning_jobs'), 'empty-queue worker acceptance must not seed jobs');
     acceptanceAssert(!str_contains($workerSource, 'component_platforms'), 'empty-queue worker acceptance must not seed provider configuration');
+
+    acceptanceAssert(str_contains($recoverySource, "'provisioned'"), 'recovery acceptance seeds a terminal PROVISIONED crash boundary');
+    acceptanceAssert(str_contains($recoverySource, "'unauthorized'"), 'terminal recovery proves authorization cannot regress a durable terminal outcome');
+    acceptanceAssert(str_contains($recoverySource, "'claimed'"), 'recovery acceptance seeds an expired claimed job');
+    acceptanceAssert(str_contains($recoverySource, 'claim_expires_at'), 'recovery acceptance exercises expired-claim recovery');
+    acceptanceAssert(str_contains($recoverySource, "'reconnected'"), 'recovery acceptance verifies SAME_OWNER reconnect terminal state');
+    acceptanceAssert(str_contains($recoverySource, 'Provisioning worker must handle exactly one due job'), 'recovery acceptance executes the real worker command per scenario');
+    acceptanceAssert(str_contains($recoverySource, 'Terminal recovery must not create a second Account.'), 'terminal crash recovery asserts Account idempotency');
+    acceptanceAssert(str_contains($recoverySource, 'Terminal recovery must not consume or release quota again.'), 'terminal crash recovery asserts quota idempotency');
+    acceptanceAssert(str_contains($recoverySource, 'Reconnect must not create a second Account.'), 'reconnect asserts Account reuse');
+    acceptanceAssert(str_contains($recoverySource, 'Reconnect must not consume quota.'), 'reconnect asserts no duplicate quota consumption');
 }
