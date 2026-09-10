@@ -45,12 +45,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          WEPLATFORM_ADMIN_SESSION_PEPPER=ci-admin-session-pepper \
-          WEPLATFORM_OPENPLATFORM_AUTHORIZATION_CALLBACK_URI=https://example.com/api/v1/openplatform/authorization/callback \
-          WEPLATFORM_OPENPLATFORM_HTTP_TIMEOUT_SECONDS=10 \
-          WEPLATFORM_OPENPLATFORM_SECRET_KEY_VERSION=v1 \
-          WEPLATFORM_OPENPLATFORM_SECRET_KEY_BASE64=a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s= \
-          WEPLATFORM_OPENPLATFORM_CREDENTIAL_SECRETS_JSON='{"ci/ref":"ci-secret"}' \
+          PHP_WEPLATFORM_ADMIN_SESSION_PEPPER=ci-admin-session-pepper \
+          PHP_WEPLATFORM_OPENPLATFORM_AUTHORIZATION_CALLBACK_URI=https://example.com/api/v1/openplatform/authorization/callback \
+          PHP_WEPLATFORM_OPENPLATFORM_HTTP_TIMEOUT_SECONDS=10 \
+          PHP_WEPLATFORM_OPENPLATFORM_SECRET_KEY_VERSION=v1 \
+          PHP_WEPLATFORM_OPENPLATFORM_SECRET_KEY_BASE64=a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s= \
+          PHP_WEPLATFORM_OPENPLATFORM_CREDENTIAL_SECRETS_JSON='{"ci/ref":"ci-secret"}' \
           php think run -p 18080 > /tmp/thinkphp-server.log 2>&1 &
           server_pid=$!
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT
