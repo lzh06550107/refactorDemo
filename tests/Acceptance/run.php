@@ -9,6 +9,7 @@ require __DIR__ . '/FreshDatabaseMigrationTest.php';
 require __DIR__ . '/IamRuntimeTest.php';
 
 $runtime = null;
+$exitCode = 0;
 try {
     $config = AcceptanceConfig::load($root);
 
@@ -25,17 +26,19 @@ try {
     fwrite(STDOUT, "[PASS] IamRuntimeTest\n");
 
     fwrite(STDOUT, "[PASS] Local acceptance runtime gate\n");
-    exit(0);
 } catch (Throwable $e) {
+    $exitCode = 1;
     fwrite(STDERR, '[FAIL] Local acceptance runtime gate: ' . $e->getMessage() . PHP_EOL);
-    exit(1);
 } finally {
     if ($runtime instanceof AcceptanceRuntime) {
         try {
             $runtime->stopServer();
             $runtime->cleanupDatabase();
         } catch (Throwable $cleanupError) {
-            fwrite(STDERR, '[WARN] Acceptance cleanup failed: ' . $cleanupError->getMessage() . PHP_EOL);
+            $exitCode = 1;
+            fwrite(STDERR, '[FAIL] Acceptance cleanup failed: ' . $cleanupError->getMessage() . PHP_EOL);
         }
     }
 }
+
+exit($exitCode);

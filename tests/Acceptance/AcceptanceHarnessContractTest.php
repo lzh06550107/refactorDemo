@@ -23,4 +23,9 @@ function acceptanceHarnessContractTest(string $root): void
     acceptanceAssert(str_contains($runSource, 'FreshDatabaseMigrationTest.php'), 'acceptance runner executes fresh migration gate');
     acceptanceAssert(str_contains($runSource, 'IamRuntimeTest.php'), 'acceptance runner executes IAM runtime gate');
     acceptanceAssert(!str_contains($runSource, 'WEPLATFORM_OPENPLATFORM_CREDENTIAL_SECRETS_JSON'), 'IAM acceptance gate does not require provider credentials');
+    acceptanceAssert(str_contains($runSource, '$exitCode = 0;'), 'acceptance runner tracks exit code without exiting before cleanup');
+    $finallyPos = strpos($runSource, '} finally {');
+    $exitPos = strrpos($runSource, 'exit($exitCode);');
+    acceptanceAssert(is_int($finallyPos) && is_int($exitPos) && $exitPos > $finallyPos, 'acceptance runner exits only after finally cleanup');
+    acceptanceAssert(str_contains($runSource, "[FAIL] Acceptance cleanup failed:"), 'cleanup failure makes the acceptance gate fail');
 }
