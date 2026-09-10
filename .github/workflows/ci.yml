@@ -121,3 +121,50 @@ jobs:
               exit 1
             fi
           done
+
+  release:
+    name: R8D MySQL release gate
+    needs: test
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci-root-password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -pci-root-password"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      WEPLATFORM_ACCEPTANCE: '1'
+      DATABASE_HOSTNAME: 127.0.0.1
+      DATABASE_DATABASE: weplatform_acceptance
+      DATABASE_USERNAME: root
+      DATABASE_PASSWORD: ci-root-password
+      DATABASE_HOSTPORT: '3306'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup release PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_mysql, mbstring, dom, xmlwriter
+          tools: composer:v2
+          coverage: none
+
+      - name: Validate Composer manifest
+        run: composer validate --strict
+
+      - name: Install locked dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Verify resolved lockfile
+        run: test -f composer.lock
+
+      - name: Run R8D release gate
+        run: php tests/Release/run.php
