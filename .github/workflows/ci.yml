@@ -29,7 +29,10 @@ jobs:
       - name: Validate Composer manifest
         run: composer validate --strict
 
-      - name: Install dependencies
+      - name: Verify committed Composer lock
+        run: test -f composer.lock
+
+      - name: Install locked dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
 
       - name: Run offline contract suite
@@ -126,8 +129,6 @@ jobs:
     name: R8D MySQL release gate
     needs: test
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     services:
       mysql:
         image: mysql:8.4
@@ -162,38 +163,11 @@ jobs:
       - name: Validate Composer manifest
         run: composer validate --strict
 
+      - name: Verify committed Composer lock
+        run: test -f composer.lock
+
       - name: Install locked dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
 
-      - name: Export resolved Composer lock
-        uses: actions/upload-artifact@v4
-        with:
-          name: composer-lock
-          path: composer.lock
-          if-no-files-found: error
-          retention-days: 1
-
-      - name: Verify resolved lockfile
-        run: test -f composer.lock
-
       - name: Run R8D release gate
         run: php tests/Release/run.php
-
-      - name: Materialize Composer lock on feature branch
-        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-        shell: bash
-        run: |
-          set -euo pipefail
-          cp composer.lock /tmp/composer.lock
-          git fetch origin "${GITHUB_HEAD_REF}"
-          git checkout -B "${GITHUB_HEAD_REF}" "origin/${GITHUB_HEAD_REF}"
-          if git ls-files --error-unmatch composer.lock >/dev/null 2>&1; then
-            echo "composer.lock is already tracked; no materialization required."
-            exit 0
-          fi
-          cp /tmp/composer.lock composer.lock
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add composer.lock
-          git commit -m 'build: lock Composer dependencies'
-          git push origin "HEAD:${GITHUB_HEAD_REF}"
