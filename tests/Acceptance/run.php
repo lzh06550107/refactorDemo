@@ -8,10 +8,32 @@ require __DIR__ . '/AcceptanceHarnessContractTest.php';
 require __DIR__ . '/FreshDatabaseMigrationTest.php';
 require __DIR__ . '/IamRuntimeTest.php';
 
+function acceptanceApplyThinkPhpEnvironment(AcceptanceConfig $config): void
+{
+    $environmentName = 'weplatform_acceptance_' . bin2hex(random_bytes(8));
+    $_ENV['ENV_NAME'] = $environmentName;
+    putenv('PHP_ENV_NAME=' . $environmentName);
+
+    $values = [
+        'DATABASE_HOSTNAME' => $config->host,
+        'DATABASE_DATABASE' => $config->database,
+        'DATABASE_USERNAME' => $config->username,
+        'DATABASE_PASSWORD' => $config->password,
+        'DATABASE_HOSTPORT' => (string) $config->port,
+        'DATABASE_CHARSET' => 'utf8mb4',
+        'WEPLATFORM_ADMIN_SESSION_PEPPER' => $config->pepper,
+    ];
+    foreach ($values as $name => $value) {
+        $_ENV[$name] = $value;
+        putenv('PHP_' . $name . '=' . $value);
+    }
+}
+
 $runtime = null;
 $exitCode = 0;
 try {
     $config = AcceptanceConfig::load($root);
+    acceptanceApplyThinkPhpEnvironment($config);
 
     acceptanceHarnessContractTest($root);
     fwrite(STDOUT, "[PASS] AcceptanceHarnessContractTest\n");

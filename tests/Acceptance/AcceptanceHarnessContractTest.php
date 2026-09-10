@@ -28,4 +28,21 @@ function acceptanceHarnessContractTest(string $root): void
     $exitPos = strrpos($runSource, 'exit($exitCode);');
     acceptanceAssert(is_int($finallyPos) && is_int($exitPos) && $exitPos > $finallyPos, 'acceptance runner exits only after finally cleanup');
     acceptanceAssert(str_contains($runSource, "[FAIL] Acceptance cleanup failed:"), 'cleanup failure makes the acceptance gate fail');
+
+    foreach ([
+        'PHP_ENV_NAME',
+        'PHP_DATABASE_HOSTNAME',
+        'PHP_DATABASE_DATABASE',
+        'PHP_DATABASE_USERNAME',
+        'PHP_DATABASE_PASSWORD',
+        'PHP_DATABASE_HOSTPORT',
+        'PHP_DATABASE_CHARSET',
+        'PHP_WEPLATFORM_ADMIN_SESSION_PEPPER',
+    ] as $name) {
+        acceptanceAssert(str_contains($runSource, $name), 'ThinkPHP acceptance environment must explicitly isolate: ' . $name);
+    }
+    acceptanceAssert(str_contains($runSource, "\$_ENV['ENV_NAME'] = \$environmentName"), 'in-process ThinkPHP environment is isolated from project .env');
+    $environmentPos = strpos($runSource, 'acceptanceApplyThinkPhpEnvironment($config);');
+    $preflightPos = strpos($runSource, '$runtime->preflight();');
+    acceptanceAssert(is_int($environmentPos) && is_int($preflightPos) && $environmentPos < $preflightPos, 'ThinkPHP acceptance environment is applied before runtime boot');
 }
