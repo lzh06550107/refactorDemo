@@ -32,6 +32,7 @@ $files = [
     __DIR__ . '/Contract/R8DOpenPlatformArchitectureSecurityContractTest.php',
     __DIR__ . '/Contract/R8DOpenPlatformSecretScanContractTest.php',
     __DIR__ . '/Contract/R8DProvisioningWorkerRuntimeContractTest.php',
+    __DIR__ . '/Contract/R8DProviderE2EGateContractTest.php',
     __DIR__ . '/Unit/Common/Context/RequestContextTest.php',
     __DIR__ . '/Unit/Common/Context/CorrelationIdFactoryTest.php',
     __DIR__ . '/Unit/Common/Security/SecretValueTest.php',
