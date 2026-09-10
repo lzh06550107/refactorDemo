@@ -7,6 +7,7 @@ require __DIR__ . '/bootstrap.php';
 require __DIR__ . '/AcceptanceHarnessContractTest.php';
 require __DIR__ . '/FreshDatabaseMigrationTest.php';
 require __DIR__ . '/IamRuntimeTest.php';
+require __DIR__ . '/QuotaRuntimeTest.php';
 
 function acceptanceApplyThinkPhpEnvironment(AcceptanceConfig $config): void
 {
@@ -43,6 +44,9 @@ try {
 
     acceptanceFreshDatabaseMigrationTest($runtime);
     fwrite(STDOUT, "[PASS] FreshDatabaseMigrationTest\n");
+
+    acceptanceQuotaRuntimeTest($runtime);
+    fwrite(STDOUT, "[PASS] QuotaRuntimeTest\n");
 
     acceptanceIamRuntimeTest($runtime);
     fwrite(STDOUT, "[PASS] IamRuntimeTest\n");
