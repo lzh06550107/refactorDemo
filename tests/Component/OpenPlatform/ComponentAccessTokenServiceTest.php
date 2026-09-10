@@ -19,8 +19,6 @@ use app\openplatform\domain\ComponentTicketWriteResult;
 use app\openplatform\domain\ComponentTokenRefreshLease;
 use app\openplatform\domain\ComponentTokenResponse;
 use app\openplatform\domain\ComponentVerifyTicket;
-use DateTimeImmutable;
-use DateTimeZone;
 
 $now = new DateTimeImmutable('2026-09-08T08:00:00Z', new DateTimeZone('UTC'));
 $platform = new ComponentPlatform('platform-1', 'wx-component-1', 'secret/app', 'secret/verify', 'secret/aes', true);

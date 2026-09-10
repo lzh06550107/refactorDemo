@@ -16,8 +16,6 @@ use app\openplatform\domain\ComponentVerifyTicket;
 use app\openplatform\security\WechatComponentEnvelopeParser;
 use app\openplatform\security\WechatComponentMessageDecryptor;
 use app\openplatform\security\WechatComponentSignatureVerifier;
-use DateTimeImmutable;
-use DateTimeZone;
 
 $platform = new ComponentPlatform('platform-1', 'wx-component-1', 'secret/app', 'secret/verify', 'secret/aes', true);
 $platforms = new class($platform) implements ComponentPlatformRepository {

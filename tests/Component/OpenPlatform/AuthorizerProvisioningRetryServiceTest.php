@@ -12,7 +12,6 @@ use app\openplatform\contract\ProvisioningJobScheduler;
 use app\openplatform\domain\AuthorizerAccessToken;
 use app\openplatform\domain\AuthorizerAuthorization;
 use app\openplatform\domain\AuthorizerProvisioning;
-use DateTimeImmutable;
 
 $now = new DateTimeImmutable('2026-09-09T06:45:00Z');
 $blocked = AuthorizerProvisioning::pending(
