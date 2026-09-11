@@ -1,0 +1,63 @@
+name: Web H5 Task 5 GREEN
+
+on:
+  push:
+    branches:
+      - refactor/web-h5-template-foundation-v1
+    paths:
+      - .github/workflows/web-h5-task5-green.yml
+
+permissions:
+  contents: write
+
+jobs:
+  green:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refactor/web-h5-template-foundation-v1
+          fetch-depth: 0
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+      - name: Register Task 5 tests
+        shell: python
+        run: |
+          from pathlib import Path
+          path = Path('tests/run.php')
+          source = path.read_text()
+          anchor = "    __DIR__ . '/Component/Theme/FilesystemThemePackageRepositoryTest.php',\n"
+          lines = (
+              "    __DIR__ . '/Component/Theme/ThemePageRendererTest.php',\n"
+              "    __DIR__ . '/Component/Theme/RenderThemePageTest.php',\n"
+          )
+          if "ThemePageRendererTest.php" not in source:
+              if anchor not in source:
+                  raise SystemExit('Theme component anchor not found')
+              source = source.replace(anchor, anchor + lines, 1)
+          path.write_text(source)
+      - name: Lint Task 5 PHP
+        run: |
+          php -l modules/theme/rendering/ThemePageRenderer.php
+          php -l modules/theme/application/RenderThemePage.php
+      - name: Run focused Task 5 tests
+        run: |
+          php -r "require 'tests/Support/bootstrap.php'; require 'tests/Component/Theme/ThemePageRendererTest.php';"
+          php -r "require 'tests/Support/bootstrap.php'; require 'tests/Component/Theme/RenderThemePageTest.php';"
+          php -r "require 'tests/Support/bootstrap.php'; require 'tests/Unit/Theme/SafeThemeRendererTest.php';"
+      - name: Install locked Composer dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Run complete offline suite
+        run: php tests/run.php
+      - name: Commit runner registration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tests/run.php
+          if git diff --cached --quiet; then
+            echo "No runner change"
+            exit 0
+          fi
+          git commit -m "test: register safe theme composition tests"
+          git push origin HEAD:refactor/web-h5-template-foundation-v1
