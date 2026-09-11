@@ -1,0 +1,40 @@
+name: Migration bootstrap artifacts
+
+on:
+  pull_request:
+    branches:
+      - refactor/admin-foundation-completion-v1
+
+permissions:
+  contents: read
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+          coverage: none
+
+      - name: Resolve locked migration dependency
+        run: composer update topthink/think-migration --with-dependencies --minimal-changes --no-interaction --no-install
+
+      - name: Generate immutable V1 manifest
+        run: |
+          php -r '$files=glob("database/schema/v1/*.sql"); sort($files); foreach($files as $f){echo hash_file("sha256",$f)."  ".basename($f).PHP_EOL;}' > database/schema/v1/manifest.sha256
+          test "$(wc -l < database/schema/v1/manifest.sha256)" -eq 18
+
+      - name: Upload generated dependency artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: migration-bootstrap-artifacts
+          path: |
+            composer.lock
+            database/schema/v1/manifest.sha256
+          if-no-files-found: error
