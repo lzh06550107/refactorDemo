@@ -1,4 +1,4 @@
-name: Architecture Migration Task 4
+name: Architecture Migration Task 5
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  migrate-runtime-site-theme:
+  migrate-identity-integration:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
@@ -29,26 +29,29 @@ jobs:
       - name: Install locked dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
 
-      - name: Move runtime site and theme modules
+      - name: Move member oauth webhook and miniapp modules
         shell: bash
         run: |
           set -euo pipefail
-          git mv app/module modules/module
-          git mv app/site modules/site
-          git mv app/theme modules/theme
+          git mv app/member modules/member
+          git mv app/oauth modules/oauth
+          git mv app/webhook modules/webhook
+          git mv app/miniapp modules/miniapp
 
           python3 <<'PY'
           from pathlib import Path
 
           namespace_mapping = {
-              'app\\module\\': 'modules\\module\\',
-              'app\\site\\': 'modules\\site\\',
-              'app\\theme\\': 'modules\\theme\\',
+              'app\\member\\': 'modules\\member\\',
+              'app\\oauth\\': 'modules\\oauth\\',
+              'app\\webhook\\': 'modules\\webhook\\',
+              'app\\miniapp\\': 'modules\\miniapp\\',
           }
           path_mapping = {
-              'app/module/': 'modules/module/',
-              'app/site/': 'modules/site/',
-              'app/theme/': 'modules/theme/',
+              'app/member/': 'modules/member/',
+              'app/oauth/': 'modules/oauth/',
+              'app/webhook/': 'modules/webhook/',
+              'app/miniapp/': 'modules/miniapp/',
           }
           excluded = Path('tests/Contract/AppModulesArchitectureContractTest.php')
           for root_name in ('app', 'modules', 'tests', 'config'):
@@ -73,23 +76,23 @@ jobs:
         run: |
           set -euo pipefail
           composer dump-autoload
-          find modules/module modules/site modules/theme -name '*.php' -print0 | xargs -0 -n1 php -l
+          find modules/member modules/oauth modules/webhook modules/miniapp -name '*.php' -print0 | xargs -0 -n1 php -l
+          php -l app/AppService.php
 
-      - name: Run focused runtime site theme regressions
+      - name: Run focused identity integration regressions
         run: >-
           php -r "require 'tests/Support/bootstrap.php';
-          require 'tests/Unit/Module/RuntimeModuleResolverTest.php';
-          require 'tests/Unit/Module/ModulePluginRelationTest.php';
-          require 'tests/Component/Module/R20ModuleRuntimeRepositoryTest.php';
-          require 'tests/Component/Module/ModuleAuthorizationServiceTest.php';
-          require 'tests/GoldenMaster/LegacyModuleAdapterTest.php';
-          require 'tests/Unit/Site/SiteTest.php';
-          require 'tests/Component/Site/SiteDomainResolverTest.php';
-          require 'tests/GoldenMaster/R20SiteSnapshotTest.php';
-          require 'tests/Unit/Theme/ThemeVersionTest.php';
-          require 'tests/Component/Theme/ThemeReleaseServiceTest.php';
-          require 'tests/Unit/Theme/SafeThemeRendererTest.php';
-          require 'tests/GoldenMaster/R20ThemeStyleSnapshotTest.php';"
+          require 'tests/Unit/Member/ExternalIdentityTest.php';
+          require 'tests/Component/Member/MemberIdentityServiceTest.php';
+          require 'tests/Unit/OAuth/OAuthStateTest.php';
+          require 'tests/Component/OAuth/OAuthOrchestratorTest.php';
+          require 'tests/Unit/Webhook/WechatSignatureVerifierTest.php';
+          require 'tests/Component/Webhook/WechatWebhookServiceTest.php';
+          require 'tests/Unit/MiniApp/MiniAppProviderAccountTest.php';
+          require 'tests/Unit/MiniApp/MiniAppSessionTest.php';
+          require 'tests/Component/MiniApp/MiniAppLoginServiceTest.php';
+          require 'tests/Component/MiniApp/MiniAppSessionServiceTest.php';
+          require 'tests/GoldenMaster/R20MiniAppProviderSnapshotTest.php';"
 
       - name: Verify architecture gate progressed and no other offline regression
         shell: bash
@@ -103,9 +106,9 @@ jobs:
           test "$status" -eq 1
           grep -F '[FAIL] AppModulesArchitectureContractTest.php:' /tmp/offline.out
           test "$(grep -c '^\[FAIL\]' /tmp/offline.out)" -eq 1
-          ! grep -E 'app directory: (module|site|theme)$' /tmp/offline.out
+          ! grep -E 'app directory: (member|oauth|webhook|miniapp)$' /tmp/offline.out
 
-      - name: Commit verified Task 4 migration
+      - name: Commit verified Task 5 migration
         shell: bash
         run: |
           set -euo pipefail
@@ -113,5 +116,5 @@ jobs:
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add app modules tests config
           git diff --cached --check
-          git commit -m 'refactor: move runtime site and theme modules [architecture-migration-generated]'
+          git commit -m 'refactor: move identity integration modules [architecture-migration-generated]'
           git push origin HEAD:${GITHUB_REF_NAME}
