@@ -2,68 +2,91 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build the first production Web/H5 delivery foundation using ThinkPHP server-side delivery, HTML theme templates, modern JavaScript ES modules, Vite-built assets, safe theme resolution, and at least one complete SSR page.
+**Goal:** Build the first production Web/H5 delivery foundation using ThinkPHP server-side delivery, trusted HTML theme templates, modern JavaScript ES modules, Vite-built assets, safe filesystem theme resolution, and at least one complete server-rendered page.
 
-**Architecture:** `app/web` owns public HTTP routes and obtains prepared view data from `modules/*`; `modules/theme` owns theme/template resolution and safe rendering boundaries; trusted theme files live under `themes/<theme-key>`. The browser receives complete HTML first, then plain JavaScript progressively enhances interaction. Vue is not a site-wide runtime; local Vue islands are allowed only in later approved complex components.
+**Architecture:** `app/web` owns public HTTP routes and prepares delivery inputs; business data continues to come from `modules/*`. `modules/theme` owns theme-package resolution and safe rendering, reusing the existing `SafeThemeRenderer` and `ViewContract` instead of introducing a second unsafe template engine. Trusted theme files live under `themes/<theme-key>`. The browser receives complete HTML before JavaScript; plain JavaScript progressively enhances interaction. No Nuxt, no site-wide Vue SPA, and no Node.js production runtime.
 
-**Tech Stack:** PHP 8.2+, ThinkPHP 8.1.3, existing `modules/theme` rendering primitives, HTML5, CSS, JavaScript ES modules, Vite 8.2.2, Vitest 5.0.0, Node.js 24.
+**Tech Stack:** PHP 8.2+, ThinkPHP 8.1.3, existing `modules/theme` rendering primitives, HTML5, CSS, JavaScript ES modules, Vite 8.2.2, Vitest 5.0.0, jsdom 30.0.1, Node.js 24.
 
 **Spec:** `docs/superpowers/specs/2026-09-11-frontend-architecture-foundation-design.md`
 
+**Execution dependency:** Execute `docs/superpowers/plans/2026-09-11-admin-vue3-foundation.md` first. This plan assumes the frontend branch already has Node 24 CI setup and `.gitignore` entries for Admin artifacts; it adds Web-specific entries and gates without changing Admin behavior.
+
 ## Global Constraints
 
-- Public Web/H5 remains server-template-first; no Nuxt/Next/site-wide SPA runtime.
-- `app/web` is the public delivery entry; business rules stay in `modules/*`.
-- Themes live under `themes/<theme-key>` and cannot query infrastructure repositories directly.
-- Theme keys follow the existing `ThemeDefinition` rule `^[A-Za-z0-9_-]+$`.
-- Complete HTML must be returned without waiting for browser JavaScript.
-- JavaScript uses ES modules and progressive enhancement.
-- Vite is build-time tooling only; production does not require a Node.js runtime.
-- User-controlled values must not be interpolated into PHP or JavaScript source.
-- Untrusted text is escaped by default; rich HTML requires an explicit sanitization policy and is outside this foundation slice.
-- Existing `SafeThemeRenderer` and `ViewContract` security behavior must not be weakened.
-- Existing R8D and Admin PHP gates must remain green.
+- Public Web/H5 is server-template-first; no Nuxt/Next/site-wide SPA runtime.
+- `app/web` is the public delivery entry; business rules remain in `modules/*`.
+- Themes live under `themes/<theme-key>` and cannot query database/repository infrastructure directly.
+- Theme keys use the existing `ThemeDefinition` rule `^[A-Za-z0-9_-]+$`.
+- Complete HTML must render with JavaScript disabled.
+- JavaScript uses ES modules and progressive enhancement only.
+- Vite is build-time/development tooling; production requires only static built assets plus ThinkPHP/PHP-FPM.
+- Generated `public/build/web/` and `frontend/web/node_modules/` are not committed.
+- Vite manifest path is exactly `public/build/web/manifest.json`.
+- Untrusted scalar text is escaped through existing `SafeThemeRenderer`; rich HTML input is not accepted in this foundation slice.
+- Existing `SafeThemeRenderer` forbidden-directive behavior must not be weakened.
+- User-controlled values must never become PHP/JavaScript source or filesystem paths.
+- Existing R8D and Admin gates remain green.
 
 ---
 
 ## File Structure Map
 
-- Create `frontend/web/package.json`, `package-lock.json`, `vite.config.js` — Vanilla JS/CSS asset pipeline.
+### Web assets
+
+- Create `frontend/web/package.json`, `package-lock.json`, `vite.config.js`.
 - Create `frontend/web/src/js/main.js`, `src/js/components/navigation.js`, `src/css/main.css`.
 - Create `frontend/web/src/js/__tests__/navigation.test.js`.
-- Create `themes/corporate/theme.json` — first trusted theme manifest.
-- Create `themes/corporate/layouts/default.html` — HTML document shell.
-- Create `themes/corporate/pages/index.html` — first page body template.
+- Modify `.gitignore` for Web node_modules/build output.
+
+### Theme package
+
+- Create `themes/corporate/theme.json`.
+- Create `themes/corporate/layouts/default.html`.
+- Create `themes/corporate/pages/index.html`.
 - Create `themes/corporate/components/header.html`, `footer.html`.
-- Create `modules/theme/domain/ThemeManifest.php` — validated manifest metadata.
-- Create `modules/theme/domain/ResolvedThemePage.php` — immutable resolved template bundle.
-- Create `modules/theme/contract/ThemePackageRepository.php` — theme package lookup boundary.
-- Create `modules/theme/infrastructure/FilesystemThemePackageRepository.php` — safe filesystem implementation rooted at `/themes`.
-- Create `modules/theme/rendering/ThemePageRenderer.php` — compose layout/components/page then delegate escaping to `SafeThemeRenderer`.
-- Create `modules/theme/application/RenderThemePage.php` — application use case.
-- Create `app/web/controller/HomeController.php` — public root controller.
-- Modify `app/web/route/app.php` — map `/` while keeping `/health`.
-- Create `app/web/support/WebAssetManifest.php` — resolve Vite hashed assets with dev fallback rules.
-- Create `tests/Contract/WebFrontendArchitectureContractTest.php` and focused unit/component tests.
-- Modify `.github/workflows/ci.yml` — Node 24 web asset install/test/build and HTML smoke.
+
+### Theme runtime
+
+- Create `modules/theme/domain/ThemeManifest.php`.
+- Create `modules/theme/domain/ResolvedThemePage.php`.
+- Create `modules/theme/domain/ThemePageNotFound.php`.
+- Create `modules/theme/contract/ThemePackageRepository.php`.
+- Create `modules/theme/infrastructure/FilesystemThemePackageRepository.php`.
+- Create `modules/theme/rendering/ThemePageRenderer.php`.
+- Create `modules/theme/application/RenderThemePage.php`.
+- Modify `app/AppService.php` for theme package binding.
+
+### Web delivery
+
+- Create `app/web/support/WebAssetManifest.php`.
+- Create `app/web/controller/HomeController.php`.
+- Modify `app/web/route/app.php`, `config/weplatform.php`, `.env.example`, and `app/AppService.php` for asset configuration/binding.
+
+### Tests/CI
+
+- Create `tests/Contract/WebFrontendArchitectureContractTest.php` and focused Theme/Web tests.
+- Extend `.github/workflows/ci.yml` with Web npm/test/build and HTML smoke.
 
 ---
 
-### Task 1: RED Web Frontend Architecture Contract
+### Task 1: RED Web/H5 Architecture Contract
 
 **Files:**
 - Create: `tests/Contract/WebFrontendArchitectureContractTest.php`
 - Modify: `tests/run.php`
 
 **Interfaces:**
-- Consumes: repo root and require-time contract convention.
-- Produces: permanent gate for server-template-first Web/H5 architecture.
+- Consumes: repository root.
+- Produces: permanent server-template-first architecture gate.
 
 - [ ] **Step 1: Write failing contract**
 
-Use a static closure and assert:
-
 ```php
+<?php
+
+declare(strict_types=1);
+
 (static function (): void {
     $root = dirname(__DIR__, 2);
     foreach ([
@@ -71,9 +94,11 @@ Use a static closure and assert:
         'themes/corporate/theme.json',
         'themes/corporate/layouts/default.html',
         'themes/corporate/pages/index.html',
-    ] as $path) {
-        if (!is_file($root . '/' . $path)) {
-            throw new RuntimeException("Web frontend foundation missing: {$path}");
+        'themes/corporate/components/header.html',
+        'themes/corporate/components/footer.html',
+    ] as $relative) {
+        if (!is_file($root . '/' . $relative)) {
+            throw new RuntimeException("Web frontend foundation missing: {$relative}");
         }
     }
 
@@ -83,8 +108,10 @@ Use a static closure and assert:
         512,
         JSON_THROW_ON_ERROR,
     );
-    if (isset($package['dependencies']['vue']) || isset($package['dependencies']['nuxt'])) {
-        throw new RuntimeException('Web/H5 foundation must not be a site-wide Vue/Nuxt runtime.');
+    foreach (['vue', 'nuxt', 'react', 'next'] as $forbiddenDependency) {
+        if (isset($package['dependencies'][$forbiddenDependency])) {
+            throw new RuntimeException("Web foundation runtime dependency is forbidden: {$forbiddenDependency}");
+        }
     }
 
     $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root . '/themes'));
@@ -93,27 +120,27 @@ Use a static closure and assert:
             continue;
         }
         $source = (string) file_get_contents($file->getPathname());
-        foreach (['think\\facade\\Db', 'Db::', 'Repository::class'] as $forbidden) {
+        foreach (['<?', 'think\\facade\\Db', 'Db::', 'Repository::class'] as $forbidden) {
             if (str_contains($source, $forbidden)) {
-                throw new RuntimeException('Theme must not access persistence directly: ' . $file->getPathname());
+                throw new RuntimeException('Theme contains forbidden executable/persistence access: ' . $file->getPathname());
             }
         }
     }
 })();
 ```
 
-Register immediately after `AdminFrontendArchitectureContractTest.php`.
+Register immediately after `AdminFrontendArchitectureContractTest.php` in `tests/run.php`.
 
-- [ ] **Step 2: Verify RED**
+- [ ] **Step 2: Prove RED**
 
 ```bash
 php tests/Contract/WebFrontendArchitectureContractTest.php
 php tests/run.php
 ```
 
-Expected: fail because `frontend/web/package.json` is absent; unrelated tests continue.
+Expected: first failure says `frontend/web/package.json` is missing; unrelated tests continue.
 
-- [ ] **Step 3: Commit RED gate**
+- [ ] **Step 3: Commit RED gate only**
 
 ```bash
 git add tests/Contract/WebFrontendArchitectureContractTest.php tests/run.php
@@ -122,7 +149,7 @@ git commit -m "test: define web template architecture contract"
 
 ---
 
-### Task 2: Vanilla Web Vite Asset Pipeline
+### Task 2: Vanilla JavaScript/CSS Vite Pipeline
 
 **Files:**
 - Create: `frontend/web/package.json`
@@ -132,10 +159,13 @@ git commit -m "test: define web template architecture contract"
 - Create: `frontend/web/src/js/components/navigation.js`
 - Create: `frontend/web/src/css/main.css`
 - Create: `frontend/web/src/js/__tests__/navigation.test.js`
+- Modify: `.gitignore`
 
 **Interfaces:**
-- Produces `public/build/web/manifest.json` and hashed JS/CSS assets.
-- Produces `initNavigation(root = document): void`.
+- Vite entry: `src/js/main.js`.
+- Build output: `public/build/web/`.
+- Manifest: `public/build/web/manifest.json`.
+- JS API: `initNavigation(root = document): void`.
 
 - [ ] **Step 1: Create exact package manifest**
 
@@ -159,19 +189,47 @@ git commit -m "test: define web template architecture contract"
 }
 ```
 
-- [ ] **Step 2: Configure Vite**
+- [ ] **Step 2: Configure Vite deterministically**
 
-`vite.config.js` must use `frontend/web/src/js/main.js` as the build entry, output to `../../public/build/web`, enable `manifest: true`, and use `base: '/build/web/'`. Vitest uses jsdom.
+`vite.config.js`:
 
-- [ ] **Step 3: Write RED navigation test**
+```js
+import { defineConfig } from 'vite'
+import { resolve } from 'node:path'
 
-Create DOM with a button carrying `data-nav-toggle` and target with `data-nav-panel`; call `initNavigation(document)` and assert click toggles `aria-expanded` and panel hidden state.
+export default defineConfig({
+  base: '/build/web/',
+  server: { host: '127.0.0.1', port: 5174, cors: true },
+  test: { environment: 'jsdom' },
+  build: {
+    outDir: resolve(process.cwd(), '../../public/build/web'),
+    emptyOutDir: true,
+    manifest: 'manifest.json',
+    rolldownOptions: {
+      input: resolve(process.cwd(), 'src/js/main.js'),
+    },
+  },
+})
+```
+
+- [ ] **Step 3: RED progressive-navigation test**
+
+Build DOM with `[data-nav-toggle]` and `[data-nav-panel]`. Assert `initNavigation(document)` sets initial `aria-expanded=false`, click toggles to true and unhides panel, second click reverses it.
 
 - [ ] **Step 4: Implement minimal progressive enhancement**
 
-`main.js` imports CSS and `initNavigation`; run it on `DOMContentLoaded`. No framework dependency.
+`main.js` imports `../css/main.css` and `initNavigation`; on DOMContentLoaded call `initNavigation(document)`. No Vue/jQuery dependency.
 
-- [ ] **Step 5: Install/build/test**
+- [ ] **Step 5: Ignore generated artifacts**
+
+Append:
+
+```gitignore
+frontend/web/node_modules/
+public/build/web/
+```
+
+- [ ] **Step 6: Install/test/build**
 
 ```bash
 cd frontend/web
@@ -179,23 +237,21 @@ npm install
 npm test
 npm run build
 cd ../..
-test -f public/build/web/.vite/manifest.json || test -f public/build/web/manifest.json
+test -f public/build/web/manifest.json
 ```
 
-Expected: GREEN with hashed assets.
+Expected: GREEN; manifest exists only as generated output.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit source and lockfile, not build output**
 
 ```bash
-git add frontend/web public/build/web
+git add frontend/web .gitignore
 git commit -m "build: add web vite asset pipeline"
 ```
 
-If repository policy excludes generated build output, keep `public/build/web` ignored and change the architecture contract/CI to require the build result at runtime rather than committing it; make this decision once and encode it in `.gitignore` and the contract.
-
 ---
 
-### Task 3: First Trusted Theme Package
+### Task 3: First Trusted Corporate Theme
 
 **Files:**
 - Create: `themes/corporate/theme.json`
@@ -206,10 +262,10 @@ If repository policy excludes generated build output, keep `public/build/web` ig
 
 **Interfaces:**
 - Theme key: `corporate`.
-- Manifest fields: `key`, `name`, `version`, `layout`, `pages`.
-- Foundation page contract fields: `site_title`, `page_title`, `page_description`, `asset_css`, `asset_js`, `header_html`, `content_html`, `footer_html`.
+- Page key: `index`.
+- Trusted fragment tokens: `@@HEADER_HTML@@`, `@@CONTENT_HTML@@`, `@@FOOTER_HTML@@`.
 
-- [ ] **Step 1: Define manifest**
+- [ ] **Step 1: Create exact manifest**
 
 ```json
 {
@@ -219,40 +275,54 @@ If repository policy excludes generated build output, keep `public/build/web` ig
   "layout": "layouts/default.html",
   "pages": {
     "index": "pages/index.html"
+  },
+  "components": {
+    "header": "components/header.html",
+    "footer": "components/footer.html"
   }
 }
 ```
 
-- [ ] **Step 2: Create complete HTML layout**
+- [ ] **Step 2: Create layout**
 
-The layout contains `<!doctype html>`, `<html lang="zh-CN">`, UTF-8 charset, responsive viewport, escaped `{{ page_title }}`/`{{ page_description }}`, asset placeholders, and body placeholders for header/content/footer.
+`default.html` contains complete HTML document and only these scalar placeholders:
 
-- [ ] **Step 3: Create first page/components**
+```text
+{{ page_title }}
+{{ page_description }}
+{{ asset_css_url }}
+{{ asset_js_url }}
+```
 
-Header contains site title and a responsive navigation toggle. Index body contains a Hero section with `{{ site_title }}` and `{{ page_description }}`. Footer contains a static platform-neutral copyright region; no database calls or PHP directives.
+It contains exact trusted fragment tokens `@@HEADER_HTML@@`, `@@CONTENT_HTML@@`, `@@FOOTER_HTML@@`. CSS link is `<link rel="stylesheet" href="{{ asset_css_url }}">`; JS is `<script type="module" src="{{ asset_js_url }}"></script>`.
 
-- [ ] **Step 4: Contract verification**
+- [ ] **Step 3: Create header/page/footer templates**
+
+Header uses `{{ site_title }}` and semantic navigation with `data-nav-toggle`/`data-nav-panel`. Index page uses `{{ site_title }}`, `{{ page_title }}`, `{{ page_description }}`. Footer uses `{{ site_title }}`. No PHP tags or ThinkPHP directives.
+
+- [ ] **Step 4: Verify architecture contract progresses**
 
 ```bash
 php tests/Contract/WebFrontendArchitectureContractTest.php
 ```
 
-Expected: contract progresses beyond file existence and no persistence violations are found.
+Expected: file/dependency/theme-source checks pass; later runtime checks may still fail until subsequent tasks.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add themes tests/Contract/WebFrontendArchitectureContractTest.php
+git add themes
 git commit -m "feat: add corporate web theme skeleton"
 ```
 
 ---
 
-### Task 4: Filesystem Theme Package Resolution
+### Task 4: Theme Manifest and Safe Filesystem Resolution
 
 **Files:**
 - Create: `modules/theme/domain/ThemeManifest.php`
 - Create: `modules/theme/domain/ResolvedThemePage.php`
+- Create: `modules/theme/domain/ThemePageNotFound.php`
 - Create: `modules/theme/contract/ThemePackageRepository.php`
 - Create: `modules/theme/infrastructure/FilesystemThemePackageRepository.php`
 - Create: `tests/Unit/Theme/ThemeManifestTest.php`
@@ -261,44 +331,55 @@ git commit -m "feat: add corporate web theme skeleton"
 - Modify: `tests/run.php`
 
 **Interfaces:**
-- `ThemePackageRepository::resolve(string $themeKey, string $pageKey): ResolvedThemePage`.
-- `ThemeManifest::fromArray(array $data): ThemeManifest`.
-- `ResolvedThemePage` returns `layoutTemplate()`, `pageTemplate()`, `componentTemplate(string $name)` and manifest metadata.
 
-- [ ] **Step 1: RED validation tests**
+```php
+interface ThemePackageRepository
+{
+    public function resolve(string $themeKey, string $pageKey): ResolvedThemePage;
+}
+```
 
-Reject invalid theme keys (`../x`, `/absolute`, `x\\y`), manifest key mismatch, missing layout, missing page mapping, paths leaving the package root, and unreadable files.
+`ResolvedThemePage` exposes `manifest(): ThemeManifest`, `layoutTemplate(): string`, `pageTemplate(): string`, `headerTemplate(): string`, `footerTemplate(): string`.
 
-- [ ] **Step 2: Implement manifest validation**
+- [ ] **Step 1: RED manifest tests**
 
-Apply the same theme-key regex already used by `ThemeDefinition`. Manifest template paths must be relative, contain no NUL bytes, and after `realpath` must start with the resolved theme root plus directory separator.
+Reject malformed key, manifest key mismatch, missing `name/version/layout/pages/components`, missing `index`, missing header/footer, absolute paths, `..` traversal, NUL bytes, and non-string path values.
 
-- [ ] **Step 3: Implement filesystem repository**
+- [ ] **Step 2: Implement manifest value object**
 
-Constructor receives the absolute themes root. `resolve('corporate', 'index')` loads only `themes/corporate/theme.json` and paths declared in it. Never concatenate unvalidated page/template paths directly from request input.
+Use the same key regex as existing `ThemeDefinition`. Page/component keys use `^[A-Za-z0-9_-]+$`. Template paths are normalized forward-slash relative paths and may not start `/` or contain `..` segments.
 
-- [ ] **Step 4: Bind in AppService**
+- [ ] **Step 3: RED filesystem tests**
 
-Bind `ThemePackageRepository::class` to a factory creating `FilesystemThemePackageRepository(root_path() . 'themes')` or the repository's canonical project-root equivalent.
+Cover valid `corporate/index`, unknown theme -> `ThemePageNotFound`, unknown page -> `ThemePageNotFound`, symlink/path escape -> rejection, missing declared file -> invalid package error.
 
-- [ ] **Step 5: Verify GREEN**
+- [ ] **Step 4: Implement filesystem repository**
+
+Constructor receives absolute themes root. Resolve root with `realpath`; theme directory must exist directly below root. Every declared template gets `realpath`, and the resolved file path must begin with `$themeRoot . DIRECTORY_SEPARATOR` before reading.
+
+- [ ] **Step 5: Bind exact root in AppService**
+
+Factory:
+
+```php
+$this->app->bind(ThemePackageRepository::class, function (): ThemePackageRepository {
+    return new FilesystemThemePackageRepository($this->app->getRootPath() . 'themes');
+});
+```
+
+- [ ] **Step 6: Verify and commit**
 
 ```bash
 php tests/Unit/Theme/ThemeManifestTest.php
 php tests/Component/Theme/FilesystemThemePackageRepositoryTest.php
 php tests/run.php
-```
-
-- [ ] **Step 6: Commit**
-
-```bash
 git add modules/theme app/AppService.php tests
 git commit -m "feat: resolve trusted theme packages"
 ```
 
 ---
 
-### Task 5: Compose Theme Page with Existing Safe Renderer
+### Task 5: Safe Theme Page Composition
 
 **Files:**
 - Create: `modules/theme/rendering/ThemePageRenderer.php`
@@ -308,84 +389,145 @@ git commit -m "feat: resolve trusted theme packages"
 - Modify: `tests/run.php`
 
 **Interfaces:**
-- `ThemePageRenderer::render(ResolvedThemePage $page, array $viewModel): string`.
-- `RenderThemePage::execute(string $themeKey, string $pageKey, array $viewModel): string`.
 
-- [ ] **Step 1: RED escaping/security tests**
+```php
+final class ThemePageRenderer
+{
+    public function render(ResolvedThemePage $page, array $viewModel): string;
+}
 
-Pass `site_title` as `<script>alert(1)</script>` and assert the output contains escaped text, not executable script. Assert templates containing forbidden `<?`, `{php`, `{hook}`, `{template}`, `{data}`, `{if}`, `{loop}` continue to fail through `SafeThemeRenderer`.
-
-- [ ] **Step 2: Define composition order**
-
-Render header/footer/page fragments first with their own explicit `ViewContract`s, then insert those trusted rendered HTML fragments into the layout without re-escaping them. Do not generalize `SafeThemeRenderer` to allow arbitrary raw fields. `ThemePageRenderer` must own the distinction between escaped scalar inputs and internally-produced trusted fragments.
-
-- [ ] **Step 3: Implement renderer**
-
-The foundation contracts are fixed:
-
-```text
-header:  site_title
-page:    site_title, page_title, page_description
-footer:  site_title
-layout:  page_title, page_description, asset_css, asset_js + trusted header/content/footer fragments
+final readonly class RenderThemePage
+{
+    public function execute(string $themeKey, string $pageKey, array $viewModel): string;
+}
 ```
 
-Implement a small internal placeholder substitution for the three trusted fragments only after all user-derived scalar values have gone through `SafeThemeRenderer`.
+Required view-model scalar fields: `site_title`, `page_title`, `page_description`, `asset_css_url`, `asset_js_url`.
 
-- [ ] **Step 4: Implement application use case**
+- [ ] **Step 1: RED escaping tests**
 
-`RenderThemePage` resolves package through `ThemePackageRepository`, then delegates to `ThemePageRenderer`.
+Pass `<script>alert(1)</script>` in every user-derived scalar field and assert no executable script appears. Existing forbidden directives (`<?`, `{php`, `{hook`, `{template`, `{data`, `{if`, `{elseif`, `{else}`, `{loop`) must still fail through `SafeThemeRenderer`.
 
-- [ ] **Step 5: Verify**
+- [ ] **Step 2: Implement fragment rendering**
+
+Render fragments separately with `SafeThemeRenderer`:
+
+```text
+header contract: site_title
+page contract: site_title, page_title, page_description
+footer contract: site_title
+```
+
+These outputs are trusted only because they are produced from trusted repository templates plus escaped scalar values.
+
+- [ ] **Step 3: Render scalar layout safely**
+
+Render layout with `SafeThemeRenderer` contract:
+
+```text
+page_title, page_description, asset_css_url, asset_js_url
+```
+
+The `@@...@@` fragment tokens remain untouched because they are not `{{...}}` placeholders.
+
+- [ ] **Step 4: Insert only exact trusted tokens**
+
+After scalar rendering, replace exactly three tokens with pre-rendered fragment strings. If any token is missing or remains after replacement, throw an invalid-theme exception. Do not add a generic `raw` placeholder feature to `SafeThemeRenderer`.
+
+- [ ] **Step 5: Implement application use case**
+
+`RenderThemePage` resolves the theme package through `ThemePackageRepository`, then delegates to `ThemePageRenderer`.
+
+- [ ] **Step 6: Verify and commit**
 
 ```bash
 php tests/Component/Theme/ThemePageRendererTest.php
 php tests/Component/Theme/RenderThemePageTest.php
+php tests/Unit/Theme/SafeThemeRendererTest.php
 php tests/run.php
-```
-
-Expected: GREEN and existing `SafeThemeRendererTest.php` still GREEN.
-
-- [ ] **Step 6: Commit**
-
-```bash
 git add modules/theme tests
 git commit -m "feat: compose safe server rendered theme pages"
 ```
 
 ---
 
-### Task 6: Vite Asset Manifest Resolver
+### Task 6: Deterministic Vite Asset Manifest Resolver
 
 **Files:**
 - Create: `app/web/support/WebAssetManifest.php`
 - Create: `tests/Unit/Web/WebAssetManifestTest.php`
+- Modify: `config/weplatform.php`
+- Modify: `.env.example`
+- Modify: `app/AppService.php`
 - Modify: `tests/run.php`
 
 **Interfaces:**
-- `WebAssetManifest::forEntry(string $entry): array{js:string,css:list<string>}`.
-- Production manifest path points to Vite output under `public/build/web`.
 
-- [ ] **Step 1: RED manifest tests**
+```php
+WebAssetManifest::forEntry(string $entry): array{js:string,css:string}
+```
 
-Fixture manifest maps `src/js/main.js` to a hashed JS file and CSS list. Assert returned public paths begin `/build/web/`. Missing manifest/entry throws a controlled runtime exception without leaking filesystem paths to HTTP clients.
+- Production entry: `src/js/main.js` from `public/build/web/manifest.json`.
+- Development JS URL: `http://127.0.0.1:5174/src/js/main.js` by default.
+- Development CSS URL: `http://127.0.0.1:5174/src/css/main.css` by default.
 
-- [ ] **Step 2: Implement resolver**
+- [ ] **Step 1: RED production-manifest tests**
 
-Support Vite 8 manifest location discovered from the actual Task 2 build (`.vite/manifest.json` if present). Cache decoded manifest in-memory per request/process instance. Validate referenced file names are relative and remain beneath `/build/web/`.
+Fixture:
 
-- [ ] **Step 3: Verify and commit**
+```json
+{
+  "src/js/main.js": {
+    "file": "assets/main-abc123.js",
+    "src": "src/js/main.js",
+    "isEntry": true,
+    "css": ["assets/main-def456.css"]
+  }
+}
+```
+
+Assert result is `{js: '/build/web/assets/main-abc123.js', css: '/build/web/assets/main-def456.css'}`. Reject missing entry, missing `file`, missing CSS, absolute asset path, and `..` traversal.
+
+- [ ] **Step 2: RED development-mode test**
+
+With dev mode true and origin `http://127.0.0.1:5174`, return direct JS/CSS source URLs and do not require manifest file.
+
+- [ ] **Step 3: Implement resolver**
+
+Constructor receives `manifestPath`, `devMode`, `devOrigin`. Production manifest is decoded once per instance. Asset paths must remain relative and are prefixed with `/build/web/`.
+
+- [ ] **Step 4: Add exact configuration**
+
+`config/weplatform.php`:
+
+```php
+'web_assets_dev' => (bool) env('WEPLATFORM_WEB_ASSETS_DEV', false),
+'web_assets_dev_origin' => (string) env('WEPLATFORM_WEB_ASSETS_DEV_ORIGIN', 'http://127.0.0.1:5174'),
+```
+
+`.env.example`:
+
+```env
+WEPLATFORM_WEB_ASSETS_DEV=false
+WEPLATFORM_WEB_ASSETS_DEV_ORIGIN=http://127.0.0.1:5174
+```
+
+- [ ] **Step 5: Bind resolver in AppService**
+
+Use manifest path `$this->app->getRootPath() . 'public/build/web/manifest.json'` and the exact config values above.
+
+- [ ] **Step 6: Verify and commit**
 
 ```bash
 php tests/Unit/Web/WebAssetManifestTest.php
 php tests/run.php
-git add app/web/support tests
+git add app/web/support config/weplatform.php .env.example app/AppService.php tests
 git commit -m "feat: resolve web vite assets"
 ```
 
 ---
 
-### Task 7: Public Home Route Returns Complete HTML
+### Task 7: First Complete Server-Rendered Home Page
 
 **Files:**
 - Create: `app/web/controller/HomeController.php`
@@ -399,71 +541,80 @@ git commit -m "feat: resolve web vite assets"
 
 - [ ] **Step 1: RED controller test**
 
-Instantiate controller with fake `RenderThemePage`/asset resolver dependencies or their interfaces and assert content type is HTML, output starts with `<!doctype html>`, contains escaped title/content, and includes resolved CSS/JS asset paths.
+Assert controller output starts with `<!doctype html>`, contains escaped page/site text, includes CSS and module JS URLs from `WebAssetManifest`, and never requires browser JavaScript to reveal the Hero text.
 
-- [ ] **Step 2: Implement controller**
+- [ ] **Step 2: Implement foundation controller**
 
-Use foundation data only:
+Use:
 
 ```php
-[
+$assets = $this->assets->forEntry('src/js/main.js');
+$html = $this->renderThemePage->execute('corporate', 'index', [
     'site_title' => 'WePlatform',
     'page_title' => 'WePlatform',
     'page_description' => 'ThinkPHP 8 Web/H5 theme runtime',
-]
+    'asset_css_url' => $assets['css'],
+    'asset_js_url' => $assets['js'],
+]);
+return response($html, 200, ['Content-Type' => 'text/html; charset=UTF-8']);
 ```
 
-Theme key is `corporate`, page key is `index`. This is a bootstrap page, not a replacement for later site-domain resolution.
+This bootstrap content is deliberately static; later Site/Theme vertical slices replace it with domain-selected site/theme data.
 
 - [ ] **Step 3: Register root route**
 
-Add `Route::get('/', 'HomeController/index');` or the ThinkPHP multi-app syntax proven by runtime tests. Keep `health` unchanged.
+Keep:
 
-- [ ] **Step 4: Verify**
+```php
+Route::get('health', 'HealthController/index');
+```
+
+and add:
+
+```php
+Route::get('/', 'HomeController/index');
+```
+
+- [ ] **Step 4: Build assets and verify runtime**
 
 ```bash
+npm ci --prefix frontend/web
+npm run build --prefix frontend/web
 php tests/Component/Web/HomeControllerTest.php
 php tests/run.php
-php think run -p 18080
 ```
 
-In another shell:
-
-```bash
-curl -fsS http://127.0.0.1:18080/ | grep '<!doctype html>'
-curl -fsS http://127.0.0.1:18080/health
-```
-
-Expected: root HTML and health JSON both work.
+Then start `php think run -p 18080` and verify `/` returns 200 HTML while `/health` remains 200 JSON.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add app/web themes tests
+git add app/web tests
 git commit -m "feat: serve first web theme page"
 ```
 
 ---
 
-### Task 8: Controlled Missing Theme/Page Handling
+### Task 8: Controlled Theme/Page Failure Mapping
 
 **Files:**
-- Create: `modules/theme/domain/ThemePageNotFound.php` or use the project-standard typed application exception if that is already the established boundary.
-- Modify: `modules/theme/infrastructure/FilesystemThemePackageRepository.php`
-- Modify: `app/web/controller/HomeController.php` only if HTTP mapping belongs there; otherwise use central exception mapping.
 - Create: `tests/Component/Web/WebThemeNotFoundTest.php`
+- Modify: `modules/theme/domain/ThemePageNotFound.php`
+- Modify: `modules/theme/infrastructure/FilesystemThemePackageRepository.php`
+- Modify: `app/web/controller/HomeController.php` only if controller-level mapping is the established project convention; otherwise modify the central exception mapping used by `ExceptionHandle`.
 
 **Interfaces:**
-- Missing theme or page maps to controlled HTTP 404.
-- Internal template/render corruption maps to controlled HTTP 500 and server-side structured logging.
+- Unknown theme/page -> controlled 404.
+- Corrupt trusted theme package/rendering error -> controlled 500.
+- Public responses contain no absolute filesystem paths or stack traces.
 
-- [ ] **Step 1: RED missing-theme test**
+- [ ] **Step 1: RED not-found/error tests**
 
-Assert `resolve('missing-theme', 'index')` produces the typed not-found condition and public HTTP response does not include absolute paths or stack traces.
+Test unknown theme, unknown page, missing declared template, and invalid template directive. Assert only unknown theme/page are 404; corrupt package/directive errors are 500.
 
-- [ ] **Step 2: Implement typed failure mapping**
+- [ ] **Step 2: Implement explicit exception types/mapping**
 
-Differentiate not-found from invalid/corrupt trusted package. Do not turn every rendering failure into 404.
+`ThemePageNotFound` is the only not-found condition from theme lookup. Invalid manifest/path/template conditions remain invalid-package/render errors and map to 500 through the existing exception envelope/handler.
 
 - [ ] **Step 3: Verify and commit**
 
@@ -471,25 +622,30 @@ Differentiate not-found from invalid/corrupt trusted package. Do not turn every 
 php tests/Component/Web/WebThemeNotFoundTest.php
 php tests/run.php
 git add modules/theme app/web tests
-git commit -m "feat: handle missing web themes safely"
+git commit -m "feat: map web theme failures safely"
 ```
 
 ---
 
-### Task 9: Web/H5 CI Gates
+### Task 9: Web/H5 CI and HTML Smoke
 
 **Files:**
 - Modify: `.github/workflows/ci.yml`
 - Modify: `tests/Contract/WebFrontendArchitectureContractTest.php`
 
 **Interfaces:**
-- CI independently proves Vanilla web assets and full HTML runtime.
+- Final CI `test` job runs both Admin and Web Node gates plus all existing PHP gates.
 
-- [ ] **Step 1: Reuse Node 24 setup**
+- [ ] **Step 1: Expand existing Node cache**
 
-If Admin plan already added Node setup, reuse the same setup-node step and add npm cache dependency path for both `frontend/admin/package-lock.json` and `frontend/web/package-lock.json`. Do not add a second competing Node version.
+Keep Node version `24`; set `cache-dependency-path` to a multiline value containing both:
 
-- [ ] **Step 2: Add Web asset gates**
+```text
+frontend/admin/package-lock.json
+frontend/web/package-lock.json
+```
+
+- [ ] **Step 2: Add exact Web commands**
 
 ```bash
 npm ci --prefix frontend/web
@@ -497,11 +653,21 @@ npm test --prefix frontend/web
 npm run build --prefix frontend/web
 ```
 
+Run Web build before starting the PHP HTTP smoke so the production-mode manifest exists.
+
 - [ ] **Step 3: Extend HTTP smoke**
 
-After starting ThinkPHP, request `/` and assert status 200, `Content-Type` contains `text/html`, response contains `<!doctype html>` and `/build/web/`, while existing `/health`, `/admin/health`, `/api/v1/health` checks remain unchanged.
+Keep every existing R8D/Admin check. Add request `/` and assert:
 
-- [ ] **Step 4: Run complete local gates**
+```text
+HTTP 200
+Content-Type includes text/html
+body includes <!doctype html>
+body includes /build/web/assets/
+body includes ThinkPHP 8 Web/H5 theme runtime
+```
+
+- [ ] **Step 4: Run full local gates**
 
 ```bash
 composer validate --strict
@@ -529,26 +695,34 @@ git commit -m "ci: gate server rendered web frontend"
 
 ---
 
-### Task 10: Final Web/H5 Foundation Verification
+### Task 10: Exact-HEAD Web/H5 Verification
 
 **Files:**
-- Modify only if fresh verification exposes a real defect.
+- No planned source changes.
 
 **Interfaces:**
-- Produces exact-head evidence for the combined frontend foundation branch.
+- Produces final combined frontend-foundation evidence.
 
-- [ ] **Step 1: Security/static scans**
+- [ ] **Step 1: Verify repository boundaries**
 
-Confirm themes contain no PHP opening tags, ThinkPHP Db access, repository instantiation, or provider secrets. Confirm `frontend/web/package.json` has no Vue/Nuxt runtime dependency.
+Search `themes/` for PHP tags, `Db::`, repository class references and provider secrets. Search `frontend/web/package.json` for Vue/Nuxt/React/Next runtime dependencies. Expected: no violations.
 
-- [ ] **Step 2: Fresh full regression**
+- [ ] **Step 2: Verify generated output is untracked**
 
-Run the complete PHP + Admin + Web gates from Task 9 and the MySQL Release Gate. Do not reuse prior green logs as completion evidence.
+```bash
+git status --short
+```
 
-- [ ] **Step 3: Manual browser acceptance**
+After builds, `public/build/admin`, `public/build/web`, and both node_modules directories must not appear in Git status.
 
-Start ThinkPHP on port 8000. Build Web assets. Open `http://127.0.0.1:8000/` and confirm a styled Corporate home page renders with JavaScript disabled; re-enable JavaScript and confirm responsive navigation enhancement works.
+- [ ] **Step 3: Fresh complete regression**
 
-- [ ] **Step 4: Exact-head CI**
+Run Task 9 local gates plus `php tests/Release/run.php` against disposable MySQL acceptance configuration. Fresh results are required; do not reuse Admin-plan evidence.
 
-Push the branch, inspect CI for the exact SHA, and require PHP tests, Admin frontend gates, Web asset gates, HTTP smoke, and MySQL Release Gate to be GREEN before calling the combined frontend foundation complete.
+- [ ] **Step 4: Manual no-JavaScript acceptance**
+
+Build Web assets and run ThinkPHP on port 8000. Open `http://127.0.0.1:8000/` with browser JavaScript disabled and confirm title/Hero/content are visible. Re-enable JavaScript and confirm the responsive navigation toggle works.
+
+- [ ] **Step 5: Exact-head CI**
+
+Push `refactor/frontend-foundation-v1`; require PR-triggered CI for the exact final commit SHA to show PHP tests, Admin frontend gates, Web frontend gates, HTTP smoke, and MySQL release gate GREEN before declaring the combined frontend foundation complete.
