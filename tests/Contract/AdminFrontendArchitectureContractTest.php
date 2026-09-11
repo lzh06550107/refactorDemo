@@ -27,9 +27,19 @@ declare(strict_types=1);
         }
     }
 
-    $appConfig = (string) file_get_contents($root . '/config/app.php');
-    if (!str_contains($appConfig, "'admin-api' => 'admin'")) {
-        throw new RuntimeException('config/app.php must map admin-api to admin');
+    /** @var array<string,mixed> $appConfig */
+    $appConfig = require $root . '/config/app.php';
+    $appMap = $appConfig['app_map'] ?? null;
+    if (!is_array($appMap)) {
+        throw new RuntimeException('config/app.php app_map must be an array');
+    }
+
+    $adminApiAlias = $appMap['admin-api'] ?? null;
+    if (!is_callable($adminApiAlias) || $adminApiAlias(null) !== 'admin') {
+        throw new RuntimeException('config/app.php must map admin-api to admin through a callable alias');
+    }
+    if (array_search('admin', $appMap, true) !== false) {
+        throw new RuntimeException('admin must remain directly addressable; do not use admin as a scalar app_map value');
     }
 
     $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root . '/frontend/admin/src'));
