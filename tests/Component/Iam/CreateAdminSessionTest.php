@@ -52,6 +52,10 @@ expectSame($store->saved, $issued->session(), 'issued result carries the persist
 expectSame('session-1', $store->saved->id(), 'generated session id is persisted');
 expectSame('admin-1', $store->saved->userId(), 'administrator id is persisted');
 expectSame($now, $store->saved->issuedAt(), 'issued_at equals requested issuance time');
-expectSame($now->modify('+3600 seconds'), $store->saved->expiresAt(), 'expiry equals now plus TTL');
+expectSame(
+    $now->modify('+3600 seconds')->format(DATE_ATOM),
+    $store->saved->expiresAt()->format(DATE_ATOM),
+    'expiry equals now plus TTL',
+);
 expectSame($hasher->hash('raw-test-token'), $store->saved->tokenHash(), 'only hashed token is persisted');
 expectTrue($store->saved->tokenHash() !== 'raw-test-token', 'raw token must never be persisted');
