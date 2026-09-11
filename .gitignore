@@ -5,3 +5,5 @@ runtime/
 .phpunit.result.cache
 frontend/admin/node_modules/
 public/build/admin/
+frontend/web/node_modules/
+public/build/web/
