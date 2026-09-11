@@ -1,0 +1,66 @@
+name: Web H5 Task 8 GREEN
+
+on:
+  push:
+    branches:
+      - refactor/web-h5-template-foundation-v1
+    paths:
+      - .github/workflows/web-h5-task8-green.yml
+
+permissions:
+  contents: write
+
+jobs:
+  green:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refactor/web-h5-template-foundation-v1
+          fetch-depth: 0
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+      - name: Register Task 8 tests
+        shell: python
+        run: |
+          from pathlib import Path
+          path = Path('tests/run.php')
+          source = path.read_text()
+          unit_anchor = "    __DIR__ . '/Unit/Web/WebAssetManifestTest.php',\n"
+          unit_line = "    __DIR__ . '/Unit/Web/WebErrorPageTest.php',\n"
+          component_anchor = "    __DIR__ . '/Component/Web/HomeControllerTest.php',\n"
+          component_line = "    __DIR__ . '/Component/Web/WebThemeNotFoundTest.php',\n"
+          if unit_line not in source:
+              if unit_anchor not in source:
+                  raise SystemExit('web unit anchor not found')
+              source = source.replace(unit_anchor, unit_anchor + unit_line, 1)
+          if component_line not in source:
+              if component_anchor not in source:
+                  raise SystemExit('web component anchor not found')
+              source = source.replace(component_anchor, component_anchor + component_line, 1)
+          path.write_text(source)
+      - name: Install locked Composer dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Lint Task 8 PHP
+        run: |
+          php -l app/web/support/WebErrorPage.php
+          php -l app/web/controller/HomeController.php
+      - name: Run focused Task 8 tests
+        run: |
+          php -r "require 'tests/Support/bootstrap.php'; require 'tests/Unit/Web/WebErrorPageTest.php';"
+          php -r "require 'tests/Support/bootstrap.php'; require 'tests/Component/Web/WebThemeNotFoundTest.php';"
+          php -r "require 'tests/Support/bootstrap.php'; require 'tests/Component/Web/HomeControllerTest.php';"
+      - name: Run complete offline suite
+        run: php tests/run.php
+      - name: Commit Task 8 runner registration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tests/run.php
+          if git diff --cached --quiet; then
+            echo "No Task 8 runner change"
+            exit 0
+          fi
+          git commit -m "test: register controlled web 404 tests"
+          git push origin HEAD:refactor/web-h5-template-foundation-v1
