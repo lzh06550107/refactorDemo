@@ -8,6 +8,8 @@ declare(strict_types=1);
     foreach ([
         'frontend/web/package.json',
         'frontend/web/package-lock.json',
+        'frontend/web/playwright.config.js',
+        'frontend/web/e2e/home.spec.js',
         'themes/corporate/theme.json',
         'themes/corporate/layouts/default.html',
         'themes/corporate/pages/index.html',
@@ -28,6 +30,37 @@ declare(strict_types=1);
     foreach (['vue', 'nuxt', 'react', 'next'] as $forbiddenDependency) {
         if (isset($package['dependencies'][$forbiddenDependency])) {
             throw new RuntimeException("Web foundation runtime dependency is forbidden: {$forbiddenDependency}");
+        }
+    }
+
+    if (($package['devDependencies']['@playwright/test'] ?? null) === null) {
+        throw new RuntimeException('Web browser E2E gate must pin @playwright/test as a development dependency.');
+    }
+    if (($package['scripts']['test:e2e'] ?? null) !== 'playwright test') {
+        throw new RuntimeException('Web browser E2E gate must expose npm run test:e2e.');
+    }
+
+    $playwrightConfig = (string) file_get_contents($root . '/frontend/web/playwright.config.js');
+    foreach ([
+        'http://127.0.0.1:18080',
+        'php ../../think run -p 18080',
+        'trace',
+        'screenshot',
+    ] as $requiredPlaywrightFragment) {
+        if (!str_contains($playwrightConfig, $requiredPlaywrightFragment)) {
+            throw new RuntimeException('Playwright config is missing required fragment: ' . $requiredPlaywrightFragment);
+        }
+    }
+
+    $browserSpec = (string) file_get_contents($root . '/frontend/web/e2e/home.spec.js');
+    foreach ([
+        'javaScriptEnabled: false',
+        'data-nav-toggle',
+        'aria-expanded',
+        'page.setViewportSize',
+    ] as $requiredBrowserSpecFragment) {
+        if (!str_contains($browserSpec, $requiredBrowserSpecFragment)) {
+            throw new RuntimeException('Web browser E2E spec is missing required fragment: ' . $requiredBrowserSpecFragment);
         }
     }
 
@@ -52,6 +85,8 @@ declare(strict_types=1);
         'npm ci --prefix frontend/web',
         'npm test --prefix frontend/web',
         'npm run build --prefix frontend/web',
+        'npx playwright install --with-deps chromium',
+        'npm run test:e2e --prefix frontend/web',
         'web_home_body=/tmp/web-home.html',
         'text/html',
         '<!doctype html>',
@@ -64,8 +99,12 @@ declare(strict_types=1);
     }
 
     $webBuildPosition = strpos($ci, 'npm run build --prefix frontend/web');
+    $browserGatePosition = strpos($ci, 'npm run test:e2e --prefix frontend/web');
     $httpSmokePosition = strpos($ci, 'Smoke multi-app HTTP routes');
     if ($webBuildPosition === false || $httpSmokePosition === false || $webBuildPosition > $httpSmokePosition) {
         throw new RuntimeException('Web production build must run before HTTP smoke.');
+    }
+    if ($browserGatePosition === false || $browserGatePosition < $webBuildPosition || $browserGatePosition > $httpSmokePosition) {
+        throw new RuntimeException('Web browser E2E gate must run after the Web production build and before HTTP smoke.');
     }
 })();
