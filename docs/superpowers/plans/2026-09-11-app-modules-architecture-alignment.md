@@ -6,22 +6,22 @@
 
 **Architecture:** Keep `app/admin`, `app/api`, `app/web`, `app/worker`, and `app/common` as ThinkPHP delivery/shared-kernel roots. Move every current business bounded context to a top-level `modules/` PSR-4 root, rename namespaces mechanically, move the provisioning CLI adapter to `app/worker/command`, and enforce the boundary with an offline architecture contract that executes on `require`.
 
-**Tech Stack:** PHP 8.2+, ThinkPHP 8.1.3, think-multi-app 1.1.1, Composer PSR-4, PHPUnit 11.5, MySQL 8.4 release acceptance, GitHub Actions.
+**Tech Stack:** PHP 8.2+, ThinkPHP 8.1.3, think-multi-app 1.1.1, Composer PSR-4, PHPUnit 11.5, MySQL 8.4, GitHub Actions.
 
 **Spec:** `docs/superpowers/specs/2026-09-11-app-modules-architecture-alignment-design.md`
 
 ## Global Constraints
 
 - Preserve all API URLs, methods, JSON fields, response envelopes, and stable error codes.
-- Preserve database migrations `001` through `009` byte-for-byte; this architecture change requires no schema change.
-- Preserve the external CLI command name `openplatform:provisioning-worker` and its options/exit semantics.
-- Preserve R8D provisioning states, ownership uniqueness, reconnect behavior, quota consume/release/idempotency semantics, and provider cryptography.
-- `app/*` first-level runtime directories are limited to `admin`, `api`, `web`, `worker`, and `common`.
-- Business capabilities live under `modules/*` and use the `modules\` namespace.
-- Business-module code MUST NOT depend on `app\admin`, `app\api`, `app\web`, or `app\worker`.
-- Domain code MUST NOT depend on ThinkPHP framework APIs or `app\common\infrastructure`.
-- No permanent `class_alias()` bridge for old business namespaces.
-- `app/AppService.php` remains the composition root for this slice; do not split it into per-module providers.
+- Preserve database migrations `001` through `009` byte-for-byte.
+- Preserve `openplatform:provisioning-worker` command name, options, and exit semantics.
+- Preserve R8D provisioning states, ownership uniqueness, reconnect behavior, quota semantics, and provider cryptography.
+- First-level runtime directories under `app/` are limited to `admin`, `api`, `web`, `worker`, and `common`.
+- Business capabilities live under `modules/*` using the `modules\` namespace.
+- Business modules MUST NOT depend on `app\admin`, `app\api`, `app\web`, or `app\worker`.
+- Domain code MUST NOT depend on ThinkPHP or `app\common\infrastructure`.
+- No permanent `class_alias()` compatibility layer for old business namespaces.
+- `app/AppService.php` remains the composition root for this slice.
 - PR #7 stays Draft until the new exact HEAD passes automated gates and real WeChat Provider E2E.
 
 ---
@@ -34,26 +34,14 @@
 | Public API adapter | `app/api/**` | unchanged |
 | Web adapter | `app/web/**` | unchanged |
 | Shared kernel | `app/common/**` | unchanged |
-| CLI provisioning adapter | `app/command/OpenPlatformProvisioningWorkerCommand.php` | `app/worker/command/OpenPlatformProvisioningWorkerCommand.php` |
-| Account | `app/account/**` | `modules/account/**` |
-| Entitlement | `app/entitlement/**` | `modules/entitlement/**` |
-| IAM | `app/iam/**` | `modules/iam/**` |
-| Member | `app/member/**` | `modules/member/**` |
-| MiniApp | `app/miniapp/**` | `modules/miniapp/**` |
-| Module runtime | `app/module/**` | `modules/module/**` |
-| OAuth | `app/oauth/**` | `modules/oauth/**` |
-| OpenPlatform | `app/openplatform/**` | `modules/openplatform/**` |
-| Quota | `app/quota/**` | `modules/quota/**` |
-| Site | `app/site/**` | `modules/site/**` |
-| Tenant | `app/tenant/**` | `modules/tenant/**` |
-| Theme | `app/theme/**` | `modules/theme/**` |
-| Webhook | `app/webhook/**` | `modules/webhook/**` |
+| CLI adapter | `app/command/OpenPlatformProvisioningWorkerCommand.php` | `app/worker/command/OpenPlatformProvisioningWorkerCommand.php` |
+| Business modules | `app/{account,entitlement,iam,member,miniapp,module,oauth,openplatform,quota,site,tenant,theme,webhook}/**` | `modules/<same-name>/**` |
 | Legacy runtime integration | `app/legacy/**` | `modules/integration/legacy/**` |
-| Composition root | `app/AppService.php` | unchanged path; imports updated |
-| CLI registration | `config/console.php` | unchanged path; command class updated |
-| Autoload roots | `composer.json` | add `modules\` -> `modules/` |
+| Composition root | `app/AppService.php` | same path; imports updated |
+| CLI registration | `config/console.php` | same path; class updated |
+| Composer | `composer.json`, `composer.lock` | add `modules\` PSR-4 root |
 | Architecture gate | absent | `tests/Contract/AppModulesArchitectureContractTest.php` |
-| Offline suite | `tests/run.php` | register new contract after `StructureContractTest.php` |
+| CI lint | `.github/workflows/ci.yml` | lint `modules` as first-class source |
 
 ---
 
@@ -65,11 +53,9 @@
 
 **Interfaces:**
 - Consumes: `expectTrue(bool $condition, string $message): void` from `tests/Support/bootstrap.php`.
-- Produces: a require-time contract; it MUST NOT hide assertions inside an uncalled function.
+- Produces: a require-time architecture contract.
 
 - [ ] **Step 1: Create the failing contract**
-
-Create `tests/Contract/AppModulesArchitectureContractTest.php`:
 
 ```php
 <?php
@@ -110,9 +96,6 @@ $psr4 = $composer['autoload']['psr-4'] ?? [];
 expectTrue(($psr4['app\\'] ?? null) === 'app/', 'Composer must map app\\ to app/');
 expectTrue(($psr4['modules\\'] ?? null) === 'modules/', 'Composer must map modules\\ to modules/');
 
-$forbiddenDeliveryPrefixes = [
-    'app\\admin\\', 'app\\api\\', 'app\\web\\', 'app\\worker\\',
-];
 $moduleRoot = $root . '/modules';
 if (is_dir($moduleRoot)) {
     $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($moduleRoot, FilesystemIterator::SKIP_DOTS));
@@ -123,7 +106,7 @@ if (is_dir($moduleRoot)) {
         $source = (string) file_get_contents($file->getPathname());
         $relative = str_replace('\\', '/', substr($file->getPathname(), strlen($root) + 1));
 
-        foreach ($forbiddenDeliveryPrefixes as $prefix) {
+        foreach (['app\\admin\\', 'app\\api\\', 'app\\web\\', 'app\\worker\\'] as $prefix) {
             expectTrue(!str_contains($source, $prefix), 'business module depends on delivery app: ' . $relative . ' -> ' . $prefix);
         }
 
@@ -146,8 +129,7 @@ if (is_dir($moduleRoot)) {
 }
 
 $staleModules = array_merge($businessModules, ['legacy', 'command']);
-$activeRoots = [$root . '/app', $root . '/modules', $root . '/config', $root . '/tests'];
-foreach ($activeRoots as $activeRoot) {
+foreach ([$root . '/app', $root . '/modules', $root . '/config', $root . '/tests'] as $activeRoot) {
     if (!is_dir($activeRoot)) {
         continue;
     }
@@ -173,9 +155,9 @@ foreach (['app/admin', 'app/api', 'app/web', 'app/worker', 'app/common', 'module
 }
 ```
 
-- [ ] **Step 2: Register it in the offline suite**
+- [ ] **Step 2: Register it in `tests/run.php`**
 
-Immediately after `StructureContractTest.php` in `tests/run.php`, add:
+Immediately after `StructureContractTest.php` add:
 
 ```php
 __DIR__ . '/Contract/AppModulesArchitectureContractTest.php',
@@ -183,21 +165,21 @@ __DIR__ . '/Contract/AppModulesArchitectureContractTest.php',
 
 - [ ] **Step 3: Prove RED directly**
 
-Run:
-
 ```bash
 php -r "require 'tests/Support/bootstrap.php'; require 'tests/Contract/AppModulesArchitectureContractTest.php';"
 ```
 
-Expected: assertion failure caused by the current tree, for example `unexpected first-level app directory: account`.
+Expected: assertion failure caused by current layout, e.g. `unexpected first-level app directory: account`.
 
-- [ ] **Step 4: Prove the offline suite also sees the RED contract**
+- [ ] **Step 4: Prove the normal suite sees the RED test**
 
-Run `php tests/run.php`.
+```bash
+php tests/run.php
+```
 
-Expected: `AppModulesArchitectureContractTest.php` reports FAIL and subsequent tests continue. This proves the contract executes on `require`.
+Expected: `AppModulesArchitectureContractTest.php` reports FAIL while later tests continue.
 
-- [ ] **Step 5: Commit RED evidence**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add tests/Contract/AppModulesArchitectureContractTest.php tests/run.php
@@ -206,19 +188,16 @@ git commit -m "test: define app-modules architecture boundary"
 
 ---
 
-### Task 2: Add the Modules PSR-4 Root
+### Task 2: Add `modules\` to Composer
 
 **Files:**
 - Modify: `composer.json`
 - Modify: `composer.lock`
 
 **Interfaces:**
-- Consumes: existing `app\` -> `app/` mapping.
-- Produces: `modules\` -> `modules/` autoload mapping.
+- Produces: `modules\` -> `modules/` autoload root.
 
-- [ ] **Step 1: Add the exact Composer mapping**
-
-Use:
+- [ ] **Step 1: Add exact mapping**
 
 ```json
 "autoload": {
@@ -229,9 +208,7 @@ Use:
 }
 ```
 
-- [ ] **Step 2: Refresh only lock metadata required by the root package change**
-
-Run:
+- [ ] **Step 2: Refresh root-package lock metadata only**
 
 ```bash
 composer validate --strict
@@ -239,13 +216,11 @@ composer update --lock --no-install
 composer install --no-interaction
 ```
 
-Expected: no dependency package version changes caused by this PSR-4 edit; lock content-hash is consistent.
+Expected: no dependency package version change caused by this PSR-4 edit; lock content-hash is consistent.
 
-- [ ] **Step 3: Prove the contract is still RED for physical layout, not Composer**
+- [ ] **Step 3: Re-run direct architecture test**
 
-Run the direct architecture-contract command from Task 1.
-
-Expected: no Composer mapping failure; still fails on an unmigrated `app/*` business directory.
+Expected: Composer assertion no longer fails; physical-layout assertion still RED.
 
 - [ ] **Step 4: Commit**
 
@@ -256,7 +231,7 @@ git commit -m "build: add modules psr-4 root"
 
 ---
 
-### Task 3: Migrate Core Modules
+### Task 3: Migrate Tenant, Account, IAM, Entitlement, and Quota
 
 **Files:**
 - Move: `app/tenant/**` -> `modules/tenant/**`
@@ -268,7 +243,7 @@ git commit -m "build: add modules psr-4 root"
 - Modify: `app/AppService.php`
 
 **Interfaces:**
-- Produces unchanged classes under new prefixes `modules\tenant`, `modules\account`, `modules\iam`, `modules\entitlement`, `modules\quota`.
+- Produces unchanged public types under `modules\tenant`, `modules\account`, `modules\iam`, `modules\entitlement`, `modules\quota`.
 
 - [ ] **Step 1: Move directories**
 
@@ -281,13 +256,10 @@ git mv app/entitlement modules/entitlement
 git mv app/quota modules/quota
 ```
 
-- [ ] **Step 2: Rewrite exact namespace prefixes**
-
-Run this one-off script outside the repository or delete it immediately after use:
+- [ ] **Step 2: Rewrite exact prefixes**
 
 ```python
 from pathlib import Path
-
 mapping = {
     'app\\tenant\\': 'modules\\tenant\\',
     'app\\account\\': 'modules\\account\\',
@@ -300,15 +272,15 @@ for root_name in ('app', 'modules', 'tests', 'config'):
     if not root.exists():
         continue
     for path in root.rglob('*.php'):
-        original = path.read_text(encoding='utf-8')
-        changed = original
+        before = path.read_text(encoding='utf-8')
+        after = before
         for old, new in mapping.items():
-            changed = changed.replace(old, new)
-        if changed != original:
-            path.write_text(changed, encoding='utf-8')
+            after = after.replace(old, new)
+        if after != before:
+            path.write_text(after, encoding='utf-8')
 ```
 
-- [ ] **Step 3: Regenerate autoload and lint moved files**
+- [ ] **Step 3: Autoload/lint**
 
 ```bash
 composer dump-autoload
@@ -316,9 +288,7 @@ find modules/tenant modules/account modules/iam modules/entitlement modules/quot
 php -l app/AppService.php
 ```
 
-Expected: all pass.
-
-- [ ] **Step 4: Run focused regression tests**
+- [ ] **Step 4: Focused regression**
 
 ```bash
 php -r "require 'tests/Support/bootstrap.php'; require 'tests/Unit/Tenant/TenantTest.php'; require 'tests/Unit/Account/AccountTest.php'; require 'tests/Unit/Account/LegacyAccountMappingTest.php'; require 'tests/Unit/Iam/AdminUserTest.php'; require 'tests/Component/Iam/RestoreAdminSessionTest.php'; require 'tests/Unit/Entitlement/TenantModuleEntitlementTest.php'; require 'tests/Component/Entitlement/TenantModuleEntitlementServiceTest.php'; require 'tests/Unit/Quota/QuotaLedgerTest.php'; require 'tests/Component/Quota/QuotaServiceIdempotencyTest.php'; require 'tests/GoldenMaster/R20AccountQuotaSnapshotTest.php';"
@@ -326,11 +296,9 @@ php -r "require 'tests/Support/bootstrap.php'; require 'tests/Unit/Tenant/Tenant
 
 Expected: exit `0`.
 
-- [ ] **Step 5: Confirm architecture RED advances to the next unmigrated module**
+- [ ] **Step 5: Architecture gate progression**
 
-Run the direct Architecture Contract.
-
-Expected: it no longer reports the five moved modules; it remains RED on another business directory.
+Run the direct architecture contract. Expected: those five modules are no longer named as failures; another unmigrated business directory keeps it RED.
 
 - [ ] **Step 6: Commit**
 
@@ -347,7 +315,7 @@ git commit -m "refactor: move core business modules out of app"
 - Move: `app/module/**` -> `modules/module/**`
 - Move: `app/site/**` -> `modules/site/**`
 - Move: `app/theme/**` -> `modules/theme/**`
-- Modify references in active PHP roots.
+- Modify active PHP references.
 
 **Interfaces:**
 - Produces unchanged APIs under `modules\module`, `modules\site`, `modules\theme`.
@@ -360,17 +328,27 @@ git mv app/site modules/site
 git mv app/theme modules/theme
 ```
 
-- [ ] **Step 2: Apply exact namespace mapping**
+- [ ] **Step 2: Rewrite exact prefixes**
 
 ```python
+from pathlib import Path
 mapping = {
     'app\\module\\': 'modules\\module\\',
     'app\\site\\': 'modules\\site\\',
     'app\\theme\\': 'modules\\theme\\',
 }
+for root_name in ('app', 'modules', 'tests', 'config'):
+    root = Path(root_name)
+    if not root.exists():
+        continue
+    for path in root.rglob('*.php'):
+        before = path.read_text(encoding='utf-8')
+        after = before
+        for old, new in mapping.items():
+            after = after.replace(old, new)
+        if after != before:
+            path.write_text(after, encoding='utf-8')
 ```
-
-Use the same active-root replacement loop from Task 3.
 
 - [ ] **Step 3: Autoload/lint**
 
@@ -379,7 +357,7 @@ composer dump-autoload
 find modules/module modules/site modules/theme -name '*.php' -print0 | xargs -0 -n1 php -l
 ```
 
-- [ ] **Step 4: Run focused tests**
+- [ ] **Step 4: Focused regression**
 
 ```bash
 php -r "require 'tests/Support/bootstrap.php'; require 'tests/Unit/Module/RuntimeModuleResolverTest.php'; require 'tests/Unit/Module/ModulePluginRelationTest.php'; require 'tests/Component/Module/R20ModuleRuntimeRepositoryTest.php'; require 'tests/Component/Module/ModuleAuthorizationServiceTest.php'; require 'tests/GoldenMaster/LegacyModuleAdapterTest.php'; require 'tests/Unit/Site/SiteTest.php'; require 'tests/Component/Site/SiteDomainResolverTest.php'; require 'tests/GoldenMaster/R20SiteSnapshotTest.php'; require 'tests/Unit/Theme/ThemeVersionTest.php'; require 'tests/Component/Theme/ThemeReleaseServiceTest.php'; require 'tests/Unit/Theme/SafeThemeRendererTest.php'; require 'tests/GoldenMaster/R20ThemeStyleSnapshotTest.php';"
@@ -403,10 +381,10 @@ git commit -m "refactor: move runtime site and theme modules"
 - Move: `app/oauth/**` -> `modules/oauth/**`
 - Move: `app/webhook/**` -> `modules/webhook/**`
 - Move: `app/miniapp/**` -> `modules/miniapp/**`
-- Modify references in active PHP roots.
+- Modify active PHP references.
 
 **Interfaces:**
-- Produces unchanged identity/OAuth/webhook/MiniApp APIs under `modules\member`, `modules\oauth`, `modules\webhook`, `modules\miniapp`.
+- Produces unchanged APIs under `modules\member`, `modules\oauth`, `modules\webhook`, `modules\miniapp`.
 
 - [ ] **Step 1: Move directories**
 
@@ -417,18 +395,28 @@ git mv app/webhook modules/webhook
 git mv app/miniapp modules/miniapp
 ```
 
-- [ ] **Step 2: Apply exact namespace mapping**
+- [ ] **Step 2: Rewrite exact prefixes**
 
 ```python
+from pathlib import Path
 mapping = {
     'app\\member\\': 'modules\\member\\',
     'app\\oauth\\': 'modules\\oauth\\',
     'app\\webhook\\': 'modules\\webhook\\',
     'app\\miniapp\\': 'modules\\miniapp\\',
 }
+for root_name in ('app', 'modules', 'tests', 'config'):
+    root = Path(root_name)
+    if not root.exists():
+        continue
+    for path in root.rglob('*.php'):
+        before = path.read_text(encoding='utf-8')
+        after = before
+        for old, new in mapping.items():
+            after = after.replace(old, new)
+        if after != before:
+            path.write_text(after, encoding='utf-8')
 ```
-
-Use the Task 3 replacement loop.
 
 - [ ] **Step 3: Autoload/lint**
 
@@ -437,7 +425,7 @@ composer dump-autoload
 find modules/member modules/oauth modules/webhook modules/miniapp -name '*.php' -print0 | xargs -0 -n1 php -l
 ```
 
-- [ ] **Step 4: Run focused tests**
+- [ ] **Step 4: Focused regression**
 
 ```bash
 php -r "require 'tests/Support/bootstrap.php'; require 'tests/Unit/Member/ExternalIdentityTest.php'; require 'tests/Component/Member/MemberIdentityServiceTest.php'; require 'tests/Unit/OAuth/OAuthStateTest.php'; require 'tests/Component/OAuth/OAuthOrchestratorTest.php'; require 'tests/Unit/Webhook/WechatSignatureVerifierTest.php'; require 'tests/Component/Webhook/WechatWebhookServiceTest.php'; require 'tests/Unit/MiniApp/MiniAppProviderAccountTest.php'; require 'tests/Unit/MiniApp/MiniAppSessionTest.php'; require 'tests/Component/MiniApp/MiniAppLoginServiceTest.php'; require 'tests/Component/MiniApp/MiniAppSessionServiceTest.php'; require 'tests/GoldenMaster/R20MiniAppProviderSnapshotTest.php';"
@@ -459,11 +447,11 @@ git commit -m "refactor: move identity integration modules"
 **Files:**
 - Move: `app/openplatform/**` -> `modules/openplatform/**`
 - Move: `app/legacy/**` -> `modules/integration/legacy/**`
-- Modify references in active PHP roots.
+- Modify active PHP references.
 - Modify: `app/AppService.php`
 
 **Interfaces:**
-- Produces all existing R8B-R8D OpenPlatform services/contracts/infrastructure under `modules\openplatform` and legacy runtime under `modules\integration\legacy`.
+- Produces existing R8B-R8D OpenPlatform types under `modules\openplatform` and legacy runtime under `modules\integration\legacy`.
 
 - [ ] **Step 1: Move directories**
 
@@ -473,18 +461,28 @@ mkdir -p modules/integration
 git mv app/legacy modules/integration/legacy
 ```
 
-- [ ] **Step 2: Apply exact namespace mapping**
+- [ ] **Step 2: Rewrite exact prefixes**
 
 ```python
+from pathlib import Path
 mapping = {
     'app\\openplatform\\': 'modules\\openplatform\\',
     'app\\legacy\\': 'modules\\integration\\legacy\\',
 }
+for root_name in ('app', 'modules', 'tests', 'config'):
+    root = Path(root_name)
+    if not root.exists():
+        continue
+    for path in root.rglob('*.php'):
+        before = path.read_text(encoding='utf-8')
+        after = before
+        for old, new in mapping.items():
+            after = after.replace(old, new)
+        if after != before:
+            path.write_text(after, encoding='utf-8')
 ```
 
-Use the Task 3 replacement loop.
-
-- [ ] **Step 3: Verify the composition root has no stale business imports**
+- [ ] **Step 3: Verify `AppService` has no stale imports**
 
 ```bash
 php -r '$s=file_get_contents("app/AppService.php"); foreach (["app\\openplatform\\","app\\iam\\","app\\miniapp\\","app\\quota\\"] as $x) { if (str_contains($s,$x)) { fwrite(STDERR,"stale AppService import: $x\n"); exit(1); } }'
@@ -500,7 +498,7 @@ find modules/openplatform modules/integration/legacy -name '*.php' -print0 | xar
 php -l app/AppService.php
 ```
 
-- [ ] **Step 5: Run focused OpenPlatform/legacy coverage**
+- [ ] **Step 5: Focused OpenPlatform/legacy regression**
 
 ```bash
 php -r "require 'tests/Support/bootstrap.php'; require 'tests/Unit/Legacy/LegacySerializedValueDecoderTest.php'; require 'tests/Unit/OpenPlatform/ComponentPlatformTest.php'; require 'tests/Unit/OpenPlatform/AuthorizationIntentTest.php'; require 'tests/Unit/OpenPlatform/AuthorizerProvisioningTest.php'; require 'tests/Unit/OpenPlatform/WechatComponentCallbackAuthenticatorTest.php'; require 'tests/Component/OpenPlatform/AuthorizationCompletionServiceTest.php'; require 'tests/Component/OpenPlatform/AuthorizationAutoProvisionCompletionTest.php'; require 'tests/Component/OpenPlatform/AuthorizerMetadataSyncServiceTest.php'; require 'tests/Component/OpenPlatform/AuthorizerOwnershipResolverTest.php'; require 'tests/Component/OpenPlatform/AuthorizerProvisioningWorkerTest.php'; require 'tests/Component/OpenPlatform/AuthorizerProvisioningQuotaTest.php'; require 'tests/Component/OpenPlatform/AuthorizerReconnectLifecycleTest.php'; require 'tests/Component/MiniApp/OpenPlatformComponentAccessTokenProviderTest.php'; require 'tests/Component/MiniApp/OpenPlatformAuthorizerAccountBindingTest.php';"
@@ -517,25 +515,25 @@ git commit -m "refactor: move openplatform and legacy runtime modules"
 
 ---
 
-### Task 7: Move the CLI Adapter and Make the Architecture Contract GREEN
+### Task 7: Move the CLI Adapter and Turn Architecture GREEN
 
 **Files:**
 - Move: `app/command/OpenPlatformProvisioningWorkerCommand.php` -> `app/worker/command/OpenPlatformProvisioningWorkerCommand.php`
 - Modify: `config/console.php`
-- Modify active references in: `tests/**/*.php`, `README.md`
+- Modify: `README.md`
 
 **Interfaces:**
 - Consumes: `modules\openplatform\application\AuthorizerProvisioningWorker`, `modules\openplatform\application\ProvisioningBatchRunner`, `modules\openplatform\infrastructure\ThinkPhpProvisioningJobSource`.
-- Produces: `app\worker\command\OpenPlatformProvisioningWorkerCommand`; external command remains `openplatform:provisioning-worker`.
+- Produces: `app\worker\command\OpenPlatformProvisioningWorkerCommand` while external command stays unchanged.
 
-- [ ] **Step 1: Move and rename the command namespace**
+- [ ] **Step 1: Move command**
 
 ```bash
 mkdir -p app/worker/command
 git mv app/command/OpenPlatformProvisioningWorkerCommand.php app/worker/command/OpenPlatformProvisioningWorkerCommand.php
 ```
 
-The imports/header must be:
+Header/imports must be:
 
 ```php
 namespace app\worker\command;
@@ -545,36 +543,19 @@ use modules\openplatform\application\ProvisioningBatchRunner;
 use modules\openplatform\infrastructure\ThinkPhpProvisioningJobSource;
 ```
 
-Keep:
+Keep `$this->setName('openplatform:provisioning-worker')` unchanged.
 
-```php
-$this->setName('openplatform:provisioning-worker')
-```
+- [ ] **Step 2: Update console registration**
 
-- [ ] **Step 2: Update `config/console.php`**
-
-Use:
+`config/console.php` must import:
 
 ```php
 use app\worker\command\OpenPlatformProvisioningWorkerCommand;
 ```
 
-Do not change the `commands` array shape.
+- [ ] **Step 3: Update README**
 
-- [ ] **Step 3: Update README with current architecture tokens**
-
-README must explicitly contain all of:
-
-```text
-app/admin
-app/api
-app/web
-app/worker
-app/common
-modules/*
-```
-
-It must explain that the first four are delivery adapters, `common` is the shared kernel, and `modules/*` contains business bounded contexts.
+README must contain and explain `app/admin`, `app/api`, `app/web`, `app/worker`, `app/common`, and `modules/*` as delivery/shared-kernel/business boundaries.
 
 - [ ] **Step 4: Verify command discovery**
 
@@ -583,7 +564,7 @@ composer dump-autoload
 php think list
 ```
 
-Expected: output contains `openplatform:provisioning-worker`.
+Expected: `openplatform:provisioning-worker` appears.
 
 - [ ] **Step 5: Require Architecture Contract GREEN**
 
@@ -593,7 +574,7 @@ php -r "require 'tests/Support/bootstrap.php'; require 'tests/Contract/AppModule
 
 Expected: exit `0`.
 
-- [ ] **Step 6: Run worker contract**
+- [ ] **Step 6: Verify existing worker contract**
 
 ```bash
 php -r "require 'tests/Support/bootstrap.php'; require 'tests/Contract/R8DProvisioningWorkerRuntimeContractTest.php';"
@@ -604,25 +585,26 @@ Expected: exit `0`.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add app/worker config/console.php tests README.md
+git add app/worker config/console.php README.md tests
 git add -u app/command
 git commit -m "refactor: align provisioning worker with app worker entry"
 ```
 
 ---
 
-### Task 8: Repair Architecture-Sensitive Tests and Run the Full Automated Gate
+### Task 8: Repair Path-Sensitive Contracts and CI, Then Run Full Automated Tests
 
 **Files:**
 - Modify path-sensitive: `tests/Contract/*.php`
-- Modify stale imports as needed: `tests/Unit/**/*.php`, `tests/Component/**/*.php`, `tests/GoldenMaster/**/*.php`, `tests/Acceptance/**/*.php`, `tests/ProviderE2E/run.php`
+- Modify stale imports if found: `tests/Unit/**/*.php`, `tests/Component/**/*.php`, `tests/GoldenMaster/**/*.php`, `tests/Acceptance/**/*.php`, `tests/ProviderE2E/run.php`
+- Modify: `.github/workflows/ci.yml`
 - Modify: `README.md`
-- Do not rewrite: `docs/design-source/WeEngine-ThinkPHP-Refactor-V4/**`
+- Do not rewrite historical source: `docs/design-source/WeEngine-ThinkPHP-Refactor-V4/**`
 
 **Interfaces:**
-- Produces active tests/docs consistent with the new physical layout without weakening existing behavioral/security assertions.
+- Produces active tests/docs/CI consistent with new source roots without weakening behavioral or security assertions.
 
-- [ ] **Step 1: Run stale namespace scan**
+- [ ] **Step 1: Scan stale namespaces**
 
 ```bash
 php -r '$roots=["app","modules","config","tests"]; $mods=["account","entitlement","iam","legacy","member","miniapp","module","oauth","openplatform","quota","site","tenant","theme","webhook","command"]; foreach($roots as $r){$it=new RecursiveIteratorIterator(new RecursiveDirectoryIterator($r,FilesystemIterator::SKIP_DOTS));foreach($it as $f){if(!$f->isFile()||strtolower($f->getExtension())!=="php"||$f->getFilename()==="AppModulesArchitectureContractTest.php")continue;$s=file_get_contents($f->getPathname());foreach($mods as $m){$p="app\\$m\\";if(str_contains($s,$p)){fwrite(STDERR,$f->getPathname()." -> ".$p.PHP_EOL);}}}}'
@@ -630,7 +612,7 @@ php -r '$roots=["app","modules","config","tests"]; $mods=["account","entitlement
 
 Expected: no output.
 
-- [ ] **Step 2: Repair active path assertions without weakening them**
+- [ ] **Step 2: Scan and repair old physical-path assertions**
 
 ```bash
 grep -RFn --include='*.php' 'app/openplatform' tests app config || true
@@ -640,9 +622,25 @@ grep -RFn --include='*.php' 'app/legacy' tests app config || true
 grep -RFn --include='*.php' 'app/command' tests app config || true
 ```
 
-For runtime-path assertions, replace only the path root with `modules/openplatform`, `modules/iam`, `modules/account`, `modules/integration/legacy`, or `app/worker` respectively. Secret scans and security checks must continue scanning the same logical code.
+Replace only active runtime path roots with `modules/openplatform`, `modules/iam`, `modules/account`, `modules/integration/legacy`, or `app/worker`. Secret/security scans must keep the same logical scope.
 
-- [ ] **Step 3: Run complete offline suite**
+- [ ] **Step 3: Make CI lint `modules`**
+
+In `.github/workflows/ci.yml`, change:
+
+```yaml
+- name: Lint PHP
+  run: find app config tests -name '*.php' -print0 | xargs -0 -n1 php -l
+```
+
+to:
+
+```yaml
+- name: Lint PHP
+  run: find app modules config tests -name '*.php' -print0 | xargs -0 -n1 php -l
+```
+
+- [ ] **Step 4: Run complete offline suite**
 
 ```bash
 php tests/run.php
@@ -650,41 +648,100 @@ php tests/run.php
 
 Expected: every listed test prints `[PASS]`; exit `0`.
 
-- [ ] **Step 4: Run PHPUnit bridge and full lint**
+- [ ] **Step 5: Run PHPUnit and full lint**
 
 ```bash
 php vendor/bin/phpunit
 find app modules config tests -name '*.php' -print0 | xargs -0 -n1 php -l
 ```
 
-Expected: all pass.
+Expected: all exit `0`.
 
-- [ ] **Step 5: Run existing ThinkPHP HTTP smoke and command gates**
-
-Run the repository's current CI smoke procedure for `/health`, `/admin/health`, and `/api/v1/health`, then run `php think list`.
-
-Expected: unchanged successful health semantics and visible `openplatform:provisioning-worker` command.
-
-- [ ] **Step 6: Commit any path-sensitive cleanup**
+- [ ] **Step 6: Run the exact current CI HTTP smoke locally**
 
 ```bash
-git add tests README.md app modules config
+set -euo pipefail
+PHP_WEPLATFORM_ADMIN_SESSION_PEPPER=ci-admin-session-pepper \
+PHP_WEPLATFORM_OPENPLATFORM_AUTHORIZATION_CALLBACK_URI=https://example.com/api/v1/openplatform/authorization/callback \
+PHP_WEPLATFORM_OPENPLATFORM_HTTP_TIMEOUT_SECONDS=10 \
+PHP_WEPLATFORM_OPENPLATFORM_SECRET_KEY_VERSION=v1 \
+PHP_WEPLATFORM_OPENPLATFORM_SECRET_KEY_BASE64=a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s= \
+PHP_WEPLATFORM_OPENPLATFORM_CREDENTIAL_SECRETS_JSON='{"ci/ref":"ci-secret"}' \
+php think run -p 18080 > /tmp/thinkphp-server.log 2>&1 &
+server_pid=$!
+trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+
+request_json() {
+  local path="$1"
+  local body="$2"
+  curl -sS -H 'Accept: application/json' -o "$body" -w '%{http_code}' "http://127.0.0.1:18080${path}" || true
+}
+
+ready=0
+for _ in $(seq 1 30); do
+  status="$(request_json /health /tmp/health-web.json)"
+  if [ "$status" = "200" ]; then ready=1; break; fi
+  if [ "$status" != "000" ]; then cat /tmp/thinkphp-server.log >&2; exit 1; fi
+  sleep 0.5
+done
+test "$ready" -eq 1
+
+for spec in 'admin:/admin/health' 'api:/api/v1/health'; do
+  app="${spec%%:*}"
+  path="${spec#*:}"
+  body="/tmp/health-${app}.json"
+  status="$(request_json "$path" "$body")"
+  test "$status" = "200"
+done
+
+php -r '$j=json_decode(file_get_contents("/tmp/health-web.json"), true); exit(($j["data"]["application"] ?? null) === "web" ? 0 : 1);'
+php -r '$j=json_decode(file_get_contents("/tmp/health-admin.json"), true); exit(($j["data"]["application"] ?? null) === "admin" ? 0 : 1);'
+php -r '$j=json_decode(file_get_contents("/tmp/health-api.json"), true); exit(($j["data"]["application"] ?? null) === "api" ? 0 : 1);'
+
+admin_body=/tmp/r8d-admin-unauthenticated.json
+admin_status="$(request_json /api/v1/openplatform/provisionings/runtime-smoke "$admin_body")"
+test "$admin_status" = "401"
+
+for path in \
+  /api/v1/openplatform/components/runtime-smoke/events \
+  /api/v1/openplatform/components/runtime-smoke/ticket; do
+  body=/tmp/r8d-provider-ingress.json
+  status="$(curl -sS -X POST -H 'Accept: application/json' -H 'Content-Type: application/xml' -d '<xml/>' -o "$body" -w '%{http_code}' "http://127.0.0.1:18080${path}" || true)"
+  test "$status" != "000"
+  test "$status" != "401"
+done
+```
+
+Expected: exit `0`; web/admin/api application identities unchanged; unauthenticated provisioning route remains `401`; provider ingress resolves without admin auth middleware.
+
+- [ ] **Step 7: Verify CLI command**
+
+```bash
+php think list | grep -F 'openplatform:provisioning-worker'
+```
+
+Expected: one matching command line.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add tests .github/workflows/ci.yml README.md app modules config
 git commit -m "test: enforce aligned app-modules runtime paths"
 ```
 
-If Steps 1-5 require no additional file changes, do not create an empty commit.
+If no files changed after Steps 1-7, do not create an empty commit.
 
 ---
 
 ### Task 9: Run Local/MySQL Release Acceptance on the New Exact HEAD
 
 **Files:**
-- No source changes expected; this task produces verification evidence.
+- No source changes expected.
 
 **Interfaces:**
-- Produces the architecture-aligned release-candidate SHA and local MySQL evidence.
+- Produces architecture-aligned release-candidate SHA plus local MySQL evidence.
 
-- [ ] **Step 1: Verify clean source and record exact HEAD**
+- [ ] **Step 1: Record clean exact HEAD**
 
 ```bash
 git status --short
@@ -692,7 +749,7 @@ FEATURE_HEAD=$(git rev-parse HEAD)
 printf '%s\n' "$FEATURE_HEAD"
 ```
 
-Expected: clean worktree and one exact SHA printed.
+Expected: clean worktree and one exact SHA.
 
 - [ ] **Step 2: Validate/install locked dependencies**
 
@@ -702,11 +759,11 @@ composer install --no-interaction --prefer-dist
 git status --short
 ```
 
-Expected: all exit `0`; worktree stays clean.
+Expected: all exit `0`; worktree remains clean.
 
 - [ ] **Step 3: Run disposable local MySQL release gate**
 
-Set `DATABASE_PASSWORD` in the shell to the local MySQL test account password before running:
+Set `DATABASE_PASSWORD` in the shell to the local MySQL test password, then:
 
 ```bash
 export WEPLATFORM_ACCEPTANCE=1
@@ -717,9 +774,9 @@ export DATABASE_USERNAME=root
 php tests/Release/run.php
 ```
 
-Expected final output includes `[PASS] Local acceptance runtime gate` and `[PASS] Local release gate`. Never point this runner at a non-local/production database.
+Expected: `[PASS] Local acceptance runtime gate` and `[PASS] Local release gate`. Never target a non-local database.
 
-- [ ] **Step 4: Prove migrations 001-009 were untouched**
+- [ ] **Step 4: Prove migrations are untouched**
 
 ```bash
 git diff 1bfa3ded63ff886483f01ac99bf6efedfa549aba -- database/migrations
@@ -734,26 +791,26 @@ git fetch origin main
 git rev-list --left-right --count origin/main...HEAD
 ```
 
-Expected: left/behind count `0`. Otherwise integrate current `main` according to repository policy and rerun Tasks 8-9 on the resulting SHA.
+Expected: left/behind count `0`. Otherwise integrate current `main` per repository policy and rerun Tasks 8-9 on the resulting SHA.
 
 ---
 
 ### Task 10: Exact-HEAD CI and Real Provider Release Gate
 
 **Files:**
-- PR #7 metadata/body only unless a gate exposes a real defect.
+- PR #7 metadata/body only unless a gate exposes a defect.
 
 **Interfaces:**
-- Consumes: `FEATURE_HEAD` from Task 9.
-- Produces final pre-merge evidence; PR stays Draft until real Provider E2E is GREEN.
+- Consumes: architecture-aligned exact feature HEAD.
+- Produces final pre-merge evidence.
 
-- [ ] **Step 1: Push exact feature HEAD and require Actions GREEN**
+- [ ] **Step 1: Push and require exact-head CI GREEN**
 
 ```bash
 git push origin refactor/openplatform-authorizer-provisioning-r8d
 ```
 
-Require on the same SHA: `test: SUCCESS` and `R8D MySQL release gate: SUCCESS`. The log must show `AppModulesArchitectureContractTest.php` executed.
+Require on the same SHA: `test: SUCCESS` and `R8D MySQL release gate: SUCCESS`. CI log must show `AppModulesArchitectureContractTest.php` executed.
 
 - [ ] **Step 2: Update PR #7 evidence**
 
@@ -771,14 +828,14 @@ Real WeChat Provider E2E: PENDING
 
 Use the new exact SHA as current feature HEAD; retain `1bfa3ded63ff886483f01ac99bf6efedfa549aba` only as historical pre-alignment evidence.
 
-- [ ] **Step 3: Deploy the same exact SHA to the public HTTPS E2E environment**
+- [ ] **Step 3: Deploy that exact SHA to public HTTPS E2E environment**
 
 ```bash
 git rev-parse HEAD
 git status --short
 ```
 
-Expected: HEAD equals the CI-green feature SHA and worktree is clean.
+Expected: deployed HEAD equals CI-green SHA and worktree is clean.
 
 - [ ] **Step 4: First real authorization -> `provisioned`**
 
@@ -788,23 +845,23 @@ With temporary `WEPLATFORM_PROVIDER_E2E_*` runner variables set:
 php tests/ProviderE2E/run.php start
 ```
 
-After browser authorization, store only callback `data.provisioning_id` in `FIRST_PROVISIONING_ID`, then run:
+After browser authorization, store only callback `data.provisioning_id` in shell variable `FIRST_PROVISIONING_ID`, then:
 
 ```bash
 php tests/ProviderE2E/run.php verify "$FIRST_PROVISIONING_ID"
 ```
 
-Expected safe result: `status=provisioned`. Do not persist/share authorization URL, state, auth code, provider tokens, AppSecret, EncodingAESKey, verify token, or raw decrypted callback content.
+Expected: `status=provisioned`.
 
 - [ ] **Step 5: Same-authorizer reconnect -> `reconnected`**
 
-Run `start` again with the same Tenant/component platform/authorizer. Store only the second callback provisioning id in `SECOND_PROVISIONING_ID`, then run:
+Run `start` again with the same Tenant/component platform/authorizer. Store only the second callback `data.provisioning_id` in `SECOND_PROVISIONING_ID`, then:
 
 ```bash
 php tests/ProviderE2E/run.php verify "$SECOND_PROVISIONING_ID"
 ```
 
-Expected safe result: `status=reconnected`; the runner also confirms no second semantic quota consume.
+Expected: `status=reconnected` and no second semantic quota consume.
 
 - [ ] **Step 6: Remove test-only runner variables**
 
@@ -816,7 +873,7 @@ unset WEPLATFORM_PROVIDER_E2E_TENANT_ID
 unset WEPLATFORM_PROVIDER_E2E_COMPONENT_PLATFORM_ID
 ```
 
-- [ ] **Step 7: Release sequence only after all gates**
+- [ ] **Step 7: Release only after all gates**
 
 ```text
 fresh main comparison
@@ -833,17 +890,18 @@ Do not claim V1 released before independent post-merge `main` CI is GREEN.
 
 ## Final Verification Checklist
 
-- [ ] Only `admin`, `api`, `web`, `worker`, and `common` remain as first-level `app/` directories.
-- [ ] `app/worker/command/OpenPlatformProvisioningWorkerCommand.php` exists and `php think list` exposes `openplatform:provisioning-worker`.
-- [ ] `modules/` contains all migrated bounded contexts and `modules/integration/legacy`.
+- [ ] Only `admin`, `api`, `web`, `worker`, `common` remain as first-level `app/` directories.
+- [ ] `app/worker/command/OpenPlatformProvisioningWorkerCommand.php` exists and command discovery is unchanged.
+- [ ] `modules/` contains all migrated bounded contexts plus `modules/integration/legacy`.
 - [ ] Every module PHP namespace matches its physical `modules/...` path.
 - [ ] Composer maps both `app\` and `modules\`; committed lock is valid.
+- [ ] CI lints `modules` as production source.
 - [ ] No active runtime/test/config PHP source contains stale old business namespaces.
-- [ ] Business modules do not depend on `app\admin`, `app\api`, `app\web`, or `app\worker`.
+- [ ] Business modules do not depend on delivery app namespaces.
 - [ ] Domain source does not depend on ThinkPHP or `app\common\infrastructure`.
 - [ ] Architecture contract executes through `tests/run.php` and is GREEN.
-- [ ] README describes `app/*` delivery/shared-kernel and `modules/*` business boundaries.
-- [ ] Offline suite, PHPUnit, lint, HTTP smoke, command gate, and MySQL 8.4 release gate are GREEN on one exact feature SHA.
-- [ ] `database/migrations` has no diff from pre-alignment baseline `1bfa3ded63ff886483f01ac99bf6efedfa549aba`.
+- [ ] README documents delivery/shared-kernel/business boundaries.
+- [ ] Offline suite, PHPUnit, lint, HTTP smoke, CLI command gate, and MySQL 8.4 gate are GREEN on one exact feature SHA.
+- [ ] `database/migrations` has no diff from `1bfa3ded63ff886483f01ac99bf6efedfa549aba`.
 - [ ] Real Provider E2E first authorization is `provisioned`; second same-owner authorization is `reconnected` with no second quota consume.
 - [ ] PR #7 remains Draft until all exact-head gates above are satisfied.
