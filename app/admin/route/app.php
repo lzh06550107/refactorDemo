@@ -18,3 +18,6 @@ Route::group('v1/auth', function (): void {
         ->middleware(AdminSessionCookieMiddleware::class)
         ->middleware(AdminCsrfMiddleware::class);
 });
+
+Route::get('v1/dashboard', 'V1.DashboardController/index')
+    ->middleware(AdminSessionCookieMiddleware::class);
