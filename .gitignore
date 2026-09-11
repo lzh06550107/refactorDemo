@@ -6,4 +6,7 @@ runtime/
 frontend/admin/node_modules/
 public/build/admin/
 frontend/web/node_modules/
+frontend/web/e2e/node_modules/
+frontend/web/e2e/playwright-report/
+frontend/web/e2e/test-results/
 public/build/web/
