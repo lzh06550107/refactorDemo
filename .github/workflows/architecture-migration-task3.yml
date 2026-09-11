@@ -1,4 +1,4 @@
-name: Architecture Migration Task 3
+name: Architecture Migration Task 4
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  migrate-core-modules:
+  migrate-runtime-site-theme:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
@@ -29,33 +29,26 @@ jobs:
       - name: Install locked dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
 
-      - name: Move core modules and rewrite namespaces
+      - name: Move runtime site and theme modules
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p modules
-          git mv app/tenant modules/tenant
-          git mv app/account modules/account
-          git mv app/iam modules/iam
-          git mv app/entitlement modules/entitlement
-          git mv app/quota modules/quota
+          git mv app/module modules/module
+          git mv app/site modules/site
+          git mv app/theme modules/theme
 
           python3 <<'PY'
           from pathlib import Path
 
           namespace_mapping = {
-              'app\\tenant\\': 'modules\\tenant\\',
-              'app\\account\\': 'modules\\account\\',
-              'app\\iam\\': 'modules\\iam\\',
-              'app\\entitlement\\': 'modules\\entitlement\\',
-              'app\\quota\\': 'modules\\quota\\',
+              'app\\module\\': 'modules\\module\\',
+              'app\\site\\': 'modules\\site\\',
+              'app\\theme\\': 'modules\\theme\\',
           }
           path_mapping = {
-              'app/tenant/': 'modules/tenant/',
-              'app/account/': 'modules/account/',
-              'app/iam/': 'modules/iam/',
-              'app/entitlement/': 'modules/entitlement/',
-              'app/quota/': 'modules/quota/',
+              'app/module/': 'modules/module/',
+              'app/site/': 'modules/site/',
+              'app/theme/': 'modules/theme/',
           }
           excluded = Path('tests/Contract/AppModulesArchitectureContractTest.php')
           for root_name in ('app', 'modules', 'tests', 'config'):
@@ -75,85 +68,28 @@ jobs:
                       path.write_text(after, encoding='utf-8')
           PY
 
-      - name: Align offline test autoloader with app and modules roots
-        shell: bash
-        run: |
-          set -euo pipefail
-          cat > tests/Support/bootstrap.php <<'PHP'
-          <?php
-
-          declare(strict_types=1);
-
-          spl_autoload_register(static function (string $class): void {
-              $roots = [
-                  'app\\' => '/app/',
-                  'modules\\' => '/modules/',
-              ];
-
-              foreach ($roots as $prefix => $directory) {
-                  if (!str_starts_with($class, $prefix)) {
-                      continue;
-                  }
-
-                  $relative = substr($class, strlen($prefix));
-                  $path = dirname(__DIR__, 2) . $directory . str_replace('\\', '/', $relative) . '.php';
-                  if (is_file($path)) {
-                      require $path;
-                  }
-                  return;
-              }
-          });
-
-          function expectTrue(bool $condition, string $message): void
-          {
-              if (!$condition) {
-                  throw new RuntimeException($message);
-              }
-          }
-
-          function expectSame(mixed $expected, mixed $actual, string $message): void
-          {
-              if ($expected !== $actual) {
-                  throw new RuntimeException($message . ' expected=' . var_export($expected, true) . ' actual=' . var_export($actual, true));
-              }
-          }
-
-          function expectThrows(callable $callback, string $exceptionClass, string $message): void
-          {
-              try {
-                  $callback();
-              } catch (Throwable $e) {
-                  if ($e instanceof $exceptionClass) {
-                      return;
-                  }
-                  throw new RuntimeException($message . ' wrong exception=' . $e::class . ' message=' . $e->getMessage());
-              }
-              throw new RuntimeException($message . ' no exception thrown');
-          }
-          PHP
-
       - name: Regenerate autoload and lint moved code
         shell: bash
         run: |
           set -euo pipefail
           composer dump-autoload
-          find modules/tenant modules/account modules/iam modules/entitlement modules/quota -name '*.php' -print0 | xargs -0 -n1 php -l
-          php -l app/AppService.php
-          php -l tests/Support/bootstrap.php
+          find modules/module modules/site modules/theme -name '*.php' -print0 | xargs -0 -n1 php -l
 
-      - name: Run focused core regressions
+      - name: Run focused runtime site theme regressions
         run: >-
           php -r "require 'tests/Support/bootstrap.php';
-          require 'tests/Unit/Tenant/TenantTest.php';
-          require 'tests/Unit/Account/AccountTest.php';
-          require 'tests/Unit/Account/LegacyAccountMappingTest.php';
-          require 'tests/Unit/Iam/AdminUserTest.php';
-          require 'tests/Component/Iam/RestoreAdminSessionTest.php';
-          require 'tests/Unit/Entitlement/TenantModuleEntitlementTest.php';
-          require 'tests/Component/Entitlement/TenantModuleEntitlementServiceTest.php';
-          require 'tests/Unit/Quota/QuotaLedgerTest.php';
-          require 'tests/Component/Quota/QuotaServiceIdempotencyTest.php';
-          require 'tests/GoldenMaster/R20AccountQuotaSnapshotTest.php';"
+          require 'tests/Unit/Module/RuntimeModuleResolverTest.php';
+          require 'tests/Unit/Module/ModulePluginRelationTest.php';
+          require 'tests/Component/Module/R20ModuleRuntimeRepositoryTest.php';
+          require 'tests/Component/Module/ModuleAuthorizationServiceTest.php';
+          require 'tests/GoldenMaster/LegacyModuleAdapterTest.php';
+          require 'tests/Unit/Site/SiteTest.php';
+          require 'tests/Component/Site/SiteDomainResolverTest.php';
+          require 'tests/GoldenMaster/R20SiteSnapshotTest.php';
+          require 'tests/Unit/Theme/ThemeVersionTest.php';
+          require 'tests/Component/Theme/ThemeReleaseServiceTest.php';
+          require 'tests/Unit/Theme/SafeThemeRendererTest.php';
+          require 'tests/GoldenMaster/R20ThemeStyleSnapshotTest.php';"
 
       - name: Verify architecture gate progressed and no other offline regression
         shell: bash
@@ -167,9 +103,9 @@ jobs:
           test "$status" -eq 1
           grep -F '[FAIL] AppModulesArchitectureContractTest.php:' /tmp/offline.out
           test "$(grep -c '^\[FAIL\]' /tmp/offline.out)" -eq 1
-          ! grep -E 'app directory: (tenant|account|iam|entitlement|quota)$' /tmp/offline.out
+          ! grep -E 'app directory: (module|site|theme)$' /tmp/offline.out
 
-      - name: Commit verified Task 3 migration
+      - name: Commit verified Task 4 migration
         shell: bash
         run: |
           set -euo pipefail
@@ -177,5 +113,5 @@ jobs:
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add app modules tests config
           git diff --cached --check
-          git commit -m 'refactor: move core business modules out of app [architecture-migration-generated]'
+          git commit -m 'refactor: move runtime site and theme modules [architecture-migration-generated]'
           git push origin HEAD:${GITHUB_REF_NAME}
