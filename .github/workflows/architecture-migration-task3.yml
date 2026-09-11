@@ -1,4 +1,4 @@
-name: Architecture Migration Task 6
+name: Architecture Migration Task 7
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  migrate-openplatform-legacy:
+  align-worker-entry:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
@@ -29,24 +29,21 @@ jobs:
       - name: Install locked dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
 
-      - name: Move OpenPlatform and legacy runtime modules
+      - name: Move provisioning CLI adapter to app worker
         shell: bash
         run: |
           set -euo pipefail
-          git mv app/openplatform modules/openplatform
-          mkdir -p modules/integration
-          git mv app/legacy modules/integration/legacy
+          mkdir -p app/worker/command
+          git mv app/command/OpenPlatformProvisioningWorkerCommand.php app/worker/command/OpenPlatformProvisioningWorkerCommand.php
 
           python3 <<'PY'
           from pathlib import Path
 
           namespace_mapping = {
-              'app\\openplatform\\': 'modules\\openplatform\\',
-              'app\\legacy\\': 'modules\\integration\\legacy\\',
+              'app\\command\\': 'app\\worker\\command\\',
           }
           path_mapping = {
-              'app/openplatform': 'modules/openplatform',
-              'app/legacy': 'modules/integration/legacy',
+              'app/command': 'app/worker/command',
           }
           excluded = Path('tests/Contract/AppModulesArchitectureContractTest.php')
           for root_name in ('app', 'modules', 'tests', 'config'):
@@ -64,61 +61,51 @@ jobs:
                       after = after.replace(old, new)
                   if after != before:
                       path.write_text(after, encoding='utf-8')
+
+          readme = Path('README.md')
+          text = readme.read_text(encoding='utf-8')
+          marker = '## Physical architecture boundary'
+          if marker not in text:
+              text += '''\n\n## Physical architecture boundary\n\nThe V1 runtime keeps delivery adapters and business capabilities physically separate:\n\n- `app/admin` — administrator HTTP delivery adapter.\n- `app/api` — public/versioned API delivery adapter.\n- `app/web` — site/web HTTP delivery adapter.\n- `app/worker` — CLI/worker delivery adapter; it exposes no HTTP routes.\n- `app/common` — shared kernel for cross-cutting context, errors, audit, security, and transaction abstractions.\n- `modules/*` — business bounded contexts and their application/domain/infrastructure code.\n\nDependency direction remains `HTTP/Worker -> Application -> Domain <- Infrastructure`; business modules must not depend on the delivery applications.\n'''
+              readme.write_text(text, encoding='utf-8')
           PY
 
-      - name: Verify composition root has no stale migrated imports
+      - name: Verify command namespace and registration
         shell: bash
         run: |
           set -euo pipefail
-          php -r '$s=file_get_contents("app/AppService.php"); foreach (["app\\openplatform\\","app\\iam\\","app\\miniapp\\","app\\quota\\"] as $x) { if (str_contains($s,$x)) { fwrite(STDERR,"stale AppService import: $x\n"); exit(1); } }'
+          grep -F 'namespace app\worker\command;' app/worker/command/OpenPlatformProvisioningWorkerCommand.php
+          grep -F 'use modules\openplatform\application\AuthorizerProvisioningWorker;' app/worker/command/OpenPlatformProvisioningWorkerCommand.php
+          grep -F "setName('openplatform:provisioning-worker')" app/worker/command/OpenPlatformProvisioningWorkerCommand.php
+          grep -F 'use app\worker\command\OpenPlatformProvisioningWorkerCommand;' config/console.php
 
-      - name: Regenerate autoload and lint moved code
+      - name: Regenerate autoload and verify command discovery
         shell: bash
         run: |
           set -euo pipefail
           composer dump-autoload
-          find modules/openplatform modules/integration/legacy -name '*.php' -print0 | xargs -0 -n1 php -l
-          php -l app/AppService.php
+          php -l app/worker/command/OpenPlatformProvisioningWorkerCommand.php
+          php -l config/console.php
+          php think list | tee /tmp/think-list.out
+          grep -F 'openplatform:provisioning-worker' /tmp/think-list.out
 
-      - name: Run focused OpenPlatform and legacy regressions
-        run: >-
-          php -r "require 'tests/Support/bootstrap.php';
-          require 'tests/Unit/Legacy/LegacySerializedValueDecoderTest.php';
-          require 'tests/Unit/OpenPlatform/ComponentPlatformTest.php';
-          require 'tests/Unit/OpenPlatform/AuthorizationIntentTest.php';
-          require 'tests/Unit/OpenPlatform/AuthorizerProvisioningTest.php';
-          require 'tests/Unit/OpenPlatform/WechatComponentCallbackAuthenticatorTest.php';
-          require 'tests/Component/OpenPlatform/AuthorizationCompletionServiceTest.php';
-          require 'tests/Component/OpenPlatform/AuthorizationAutoProvisionCompletionTest.php';
-          require 'tests/Component/OpenPlatform/AuthorizerMetadataSyncServiceTest.php';
-          require 'tests/Component/OpenPlatform/AuthorizerOwnershipResolverTest.php';
-          require 'tests/Component/OpenPlatform/AuthorizerProvisioningWorkerTest.php';
-          require 'tests/Component/OpenPlatform/AuthorizerProvisioningQuotaTest.php';
-          require 'tests/Component/OpenPlatform/AuthorizerReconnectLifecycleTest.php';
-          require 'tests/Component/MiniApp/OpenPlatformComponentAccessTokenProviderTest.php';
-          require 'tests/Component/MiniApp/OpenPlatformAuthorizerAccountBindingTest.php';"
+      - name: Require Architecture Contract GREEN
+        run: php -r "require 'tests/Support/bootstrap.php'; require 'tests/Contract/AppModulesArchitectureContractTest.php';"
 
-      - name: Verify architecture gate progressed and no other offline regression
-        shell: bash
-        run: |
-          set -euo pipefail
-          set +e
-          php tests/run.php > /tmp/offline.out 2>&1
-          status=$?
-          set -e
-          cat /tmp/offline.out
-          test "$status" -eq 1
-          grep -F '[FAIL] AppModulesArchitectureContractTest.php:' /tmp/offline.out
-          test "$(grep -c '^\[FAIL\]' /tmp/offline.out)" -eq 1
-          ! grep -E 'app directory: (openplatform|legacy)$' /tmp/offline.out
+      - name: Verify existing worker contract
+        run: php -r "require 'tests/Support/bootstrap.php'; require 'tests/Contract/R8DProvisioningWorkerRuntimeContractTest.php';"
 
-      - name: Commit verified Task 6 migration
+      - name: Run full offline suite
+        run: php tests/run.php
+
+      - name: Commit verified Task 7 alignment
         shell: bash
         run: |
           set -euo pipefail
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add app modules tests config
+          git add app/worker config/console.php README.md tests modules app
+          git add -u app/command || true
           git diff --cached --check
-          git commit -m 'refactor: move openplatform and legacy runtime modules [architecture-migration-generated]'
+          git commit -m 'refactor: align provisioning worker with app worker entry [architecture-migration-generated]'
           git push origin HEAD:${GITHUB_REF_NAME}
