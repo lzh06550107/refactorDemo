@@ -40,6 +40,7 @@ jobs:
           from pathlib import Path
 
           namespace_mapping = {
+              'namespace app\\command;': 'namespace app\\worker\\command;',
               'app\\command\\': 'app\\worker\\command\\',
           }
           path_mapping = {
