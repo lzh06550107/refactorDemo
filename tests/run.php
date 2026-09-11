@@ -58,6 +58,7 @@ $files = [
     __DIR__ . '/Unit/Admin/AdminCookiePolicyTest.php',
     __DIR__ . '/Component/Admin/AdminCsrfMiddlewareTest.php',
     __DIR__ . '/Component/Admin/AdminSessionCookieMiddlewareTest.php',
+    __DIR__ . '/Component/Admin/AdminAuthControllerTest.php',
     __DIR__ . '/Component/Iam/ThinkPhpAdminUserRepositoryTest.php',
     __DIR__ . '/Component/Iam/ThinkPhpAdminSessionRepositoryTest.php',
     __DIR__ . '/Component/Iam/OpenPlatformAdminContextMiddlewareTest.php',
