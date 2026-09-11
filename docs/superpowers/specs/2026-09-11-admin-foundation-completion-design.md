@@ -63,9 +63,9 @@ Use a dedicated ThinkPHP application for Admin SPA shell/history fallback while 
 Production layout:
 
 ```text
-/admin/*       -> app/adminui for SPA shell/history fallback
+/admin/*        -> app/adminui for SPA shell/history fallback
 /admin/assets/* -> public/admin/assets/* static files
-/admin-api/*   -> app/admin API
+/admin-api/*    -> app/admin API
 ```
 
 Advantages:
@@ -130,7 +130,7 @@ Rules:
 - `/admin/login` returns the same SPA shell.
 - Future `/admin/...` client-side routes return the SPA shell.
 - `/admin/assets/...` must be served as static files by the web server / PHP development router and must never be swallowed by the SPA fallback when the file exists.
-- Missing generated `public/admin/index.html` fails clearly rather than silently returning an unrelated page.
+- Missing generated `public/admin/index.html` returns a controlled 503 response and never exposes an application stack trace in production.
 
 ## 6. First administrator bootstrap
 
@@ -148,42 +148,75 @@ CI/E2E receives the password from a dedicated environment variable so automation
 
 The command prints only non-secret outcome information.
 
-### 6.2 Application service
+### 6.2 Input policy
 
-Add an IAM application service, conceptually `BootstrapFirstAdmin`, independent of the console adapter.
+Username policy:
+
+- trim leading/trailing Unicode whitespace before validation;
+- length after trimming: 3–64 Unicode code points;
+- reject ASCII control characters and DEL;
+- otherwise preserve Unicode usernames rather than limiting administrators to ASCII.
+
+Password policy for the initial administrator:
+
+- minimum 12 Unicode code points;
+- maximum 1024 bytes after UTF-8 encoding to bound hashing input;
+- no composition rule such as mandatory uppercase/digit/symbol;
+- password must never be normalized or trimmed because all supplied characters are intentional secret material.
+
+These rules are part of the bootstrap application service contract and are tested independently of the console adapter.
+
+### 6.3 Application service
+
+Add an IAM application service `BootstrapFirstAdmin`, independent of the console adapter.
 
 Responsibilities:
 
-1. Normalize/validate username and password policy inputs.
-2. Ask a dedicated bootstrap repository whether any administrator exists.
-3. Refuse if the administrator table is non-empty.
-4. Hash the password using `password_hash(..., PASSWORD_DEFAULT)`.
-5. Generate a non-secret administrator ID through an injectable ID generator or an existing project-safe ID mechanism.
-6. Insert one active administrator transactionally.
-7. Return the created administrator identity without returning the password or password hash.
+1. Validate/normalize the username and validate the password according to section 6.2.
+2. Invoke the repository's serialized first-admin creation operation.
+3. Hash the password using `password_hash(..., PASSWORD_DEFAULT)` only inside the application flow before persistence.
+4. Generate the administrator ID through a dedicated `AdminIdGenerator` contract.
+5. Return the created administrator identity without returning the password or password hash.
+
+Use a `SecureAdminIdGenerator` implementation that follows the repository's existing secure-ID convention: `bin2hex(random_bytes(16))`, producing a 32-character identifier that fits the existing `varchar(64)` primary key.
 
 The console command is an adapter only; it must not contain persistence SQL or duplicate bootstrap rules.
 
-### 6.3 Persistence boundary
+### 6.4 Persistence boundary
 
 Use a dedicated repository contract for bootstrap, rather than expanding the existing read-only `AdminUserRepository` / `AdminCredentialRepository` interfaces with unrelated creation semantics.
 
-Required operations are intentionally narrow:
+The repository exposes one atomic semantic operation rather than separate externally callable `hasAny()` and `createFirst()` methods:
 
 ```text
-hasAny(): bool
-createFirst(id, username, passwordHash): void
+createFirst(id, username, passwordHash): Created | AlreadyExists
 ```
+
+This prevents callers from accidentally reintroducing a check-then-insert race.
 
 The infrastructure implementation uses the existing `admin_users` schema and unique username constraint.
 
-### 6.4 Concurrency / fail-closed semantics
+### 6.5 Concurrency / fail-closed semantics
 
-The bootstrap path must prevent two concurrent empty-database bootstrap requests from creating two initial administrators.
+The MySQL implementation uses a named advisory lock with the fixed name:
 
-The implementation must make the empty-check and insertion atomic under MySQL, using a transaction plus a deterministic database serialization mechanism. The exact mechanism may be an advisory lock or another MySQL-safe serialization primitive, but it must be verified by an automated concurrency test and must not rely only on an application-level `COUNT(*)` check.
+```text
+weplatform:admin-bootstrap
+```
 
-If an administrator already exists, the service returns a stable domain/application error and no row is inserted or modified.
+Algorithm on one database connection:
+
+1. Acquire `GET_LOCK('weplatform:admin-bootstrap', 5)`; failure/timeout is an error and creates nothing.
+2. Begin a database transaction.
+3. Count `admin_users` while holding the advisory lock.
+4. If count > 0, roll back/finish without mutation and return `AlreadyExists`.
+5. Insert exactly one active administrator.
+6. Commit.
+7. Release with `RELEASE_LOCK('weplatform:admin-bootstrap')` in `finally` semantics.
+
+The advisory lock must be released on all normal/error paths; connection termination also causes MySQL to release it.
+
+The service must not rely only on an application-level `COUNT(*)` check. A real-MySQL concurrent acceptance test must launch two bootstrap attempts and prove exactly one administrator exists afterward.
 
 ## 7. Security requirements
 
@@ -195,6 +228,7 @@ If an administrator already exists, the service returns a stable domain/applicat
 - Bootstrap is one-time/fail-closed once any administrator exists.
 - Existing login CSRF/session protections remain unchanged.
 - Admin UI and API stay same-origin in production.
+- Advisory-lock timeout/failure fails closed and never falls back to an unlocked insert.
 
 ## 8. Data flow
 
@@ -205,7 +239,9 @@ operator
   -> php think admin:bootstrap --username=admin
   -> Console adapter
   -> BootstrapFirstAdmin
-  -> serialized bootstrap repository transaction
+  -> AdminIdGenerator
+  -> BootstrapAdminRepository::createFirst(...)
+  -> MySQL advisory lock + transaction
   -> admin_users
   -> success identity (no secret)
 ```
@@ -234,10 +270,11 @@ Vue LoginView
 
 ## 9. Error behavior
 
-- Admin production build absent: `/admin/*` returns a controlled 5xx/error response identifying missing Admin build rather than a PHP stack trace in production.
+- Admin production build absent: `/admin/*` returns controlled HTTP 503 with a production-safe response.
 - Bootstrap username invalid: command exits non-zero with a safe validation message.
 - Bootstrap password invalid: command exits non-zero without echoing the password.
-- Existing administrator: command exits non-zero with an explicit "initial administrator already exists" result.
+- Existing administrator: command exits non-zero with an explicit `initial administrator already exists` result.
+- Advisory lock timeout/failure: command exits non-zero and creates no row.
 - Concurrent bootstrap loser: exits non-zero and leaves exactly one administrator row.
 - Database failure: transaction rolls back; no partial administrator is created.
 - Existing login errors keep their current API response contract.
@@ -263,13 +300,15 @@ The first commit should make this contract RED before implementation is added.
 
 Cover:
 
-- bootstrap succeeds on empty repository.
+- bootstrap succeeds on an empty repository.
+- username trimming/length/control-character policy.
+- password length/byte-bound policy and preservation of intentional whitespace.
 - password is hashed, not persisted/returned plaintext.
+- administrator ID uses the injectable generator rather than being hard-coded.
 - existing administrator blocks bootstrap.
-- invalid username/password rejected.
-- transaction/persistence failures propagate safely.
+- advisory-lock/persistence failures propagate safely.
 - `adminui` serves SPA shell for `/admin/` and `/admin/login`.
-- missing build has controlled error behavior.
+- missing build returns controlled 503 behavior.
 
 ### 10.3 MySQL acceptance tests
 
@@ -279,6 +318,7 @@ Against a real migrated MySQL database:
 - created password can authenticate through existing credential repository/auth flow.
 - second bootstrap is rejected.
 - concurrent bootstrap attempts leave exactly one administrator.
+- advisory lock is released after success and failure.
 
 ### 10.4 Chromium E2E
 
@@ -339,17 +379,19 @@ AC3. `/admin-api/v1/*` remains handled by the existing Admin API application and
 
 AC4. On an empty migrated database, `php think admin:bootstrap --username=<name>` creates exactly one active administrator with a password hash and no plaintext password persistence.
 
-AC5. The bootstrap command refuses to create an administrator when any administrator already exists.
+AC5. Bootstrap username/password validation follows the explicit policy in section 6.2.
 
-AC6. Two concurrent bootstrap attempts against an empty database result in exactly one created administrator.
+AC6. The bootstrap command refuses to create an administrator when any administrator already exists.
 
-AC7. The bootstrapped administrator can log in through the production-built Admin SPA, reach Dashboard, restore the authenticated session after reload, and log out.
+AC7. Two concurrent bootstrap attempts against an empty database result in exactly one created administrator, using the fixed MySQL advisory-lock protocol in section 6.5.
 
-AC8. After logout, the old authenticated session is rejected.
+AC8. The bootstrapped administrator can log in through the production-built Admin SPA, reach Dashboard, restore the authenticated session after reload, and log out.
 
-AC9. All existing Web/Admin/backend/release quality gates remain GREEN at the same exact head.
+AC9. After logout, the old authenticated session is rejected.
 
-AC10. Human acceptance verifies the production `/admin/` UI and login/Dashboard experience before the feature PR can be marked ready.
+AC10. All existing Web/Admin/backend/release quality gates remain GREEN at the same exact head.
+
+AC11. Human acceptance verifies the production `/admin/` UI and login/Dashboard experience before the feature PR can be marked ready.
 
 ## 13. Delivery / stacking
 
