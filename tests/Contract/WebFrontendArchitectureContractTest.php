@@ -7,6 +7,7 @@ declare(strict_types=1);
 
     foreach ([
         'frontend/web/package.json',
+        'frontend/web/package-lock.json',
         'themes/corporate/theme.json',
         'themes/corporate/layouts/default.html',
         'themes/corporate/pages/index.html',
@@ -42,5 +43,29 @@ declare(strict_types=1);
                 throw new RuntimeException('Theme contains forbidden executable/persistence access: ' . $file->getPathname());
             }
         }
+    }
+
+    $ci = (string) file_get_contents($root . '/.github/workflows/ci.yml');
+    foreach ([
+        'frontend/admin/package-lock.json',
+        'frontend/web/package-lock.json',
+        'npm ci --prefix frontend/web',
+        'npm test --prefix frontend/web',
+        'npm run build --prefix frontend/web',
+        'web_home_body=/tmp/web-home.html',
+        'text/html',
+        '<!doctype html>',
+        '/build/web/assets/',
+        'ThinkPHP 8 Web/H5 theme runtime',
+    ] as $requiredCiFragment) {
+        if (!str_contains($ci, $requiredCiFragment)) {
+            throw new RuntimeException('Web CI gate is missing required fragment: ' . $requiredCiFragment);
+        }
+    }
+
+    $webBuildPosition = strpos($ci, 'npm run build --prefix frontend/web');
+    $httpSmokePosition = strpos($ci, 'Smoke multi-app HTTP routes');
+    if ($webBuildPosition === false || $httpSmokePosition === false || $webBuildPosition > $httpSmokePosition) {
+        throw new RuntimeException('Web production build must run before HTTP smoke.');
     }
 })();
