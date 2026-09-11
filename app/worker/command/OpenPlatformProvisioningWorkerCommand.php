@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace app\command;
+namespace app\worker\command;
 
 use modules\openplatform\application\AuthorizerProvisioningWorker;
 use modules\openplatform\application\ProvisioningBatchRunner;

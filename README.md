@@ -195,3 +195,17 @@ WantedBy=multi-user.target
 ```
 
 The discovery query is intentionally non-locking. Multiple worker processes may discover the same candidate, but only the existing 60-second `tryClaim()` lease/CAS path may execute it. A single job exception is isolated to that batch item and does not terminate the daemon; command output reports `discovered/handled/failed` invocation counts (not durable provisioning status), never exception plaintext or provider secrets.
+
+
+## Physical architecture boundary
+
+The V1 runtime keeps delivery adapters and business capabilities physically separate:
+
+- `app/admin` — administrator HTTP delivery adapter.
+- `app/api` — public/versioned API delivery adapter.
+- `app/web` — site/web HTTP delivery adapter.
+- `app/worker` — CLI/worker delivery adapter; it exposes no HTTP routes.
+- `app/common` — shared kernel for cross-cutting context, errors, audit, security, and transaction abstractions.
+- `modules/*` — business bounded contexts and their application/domain/infrastructure code.
+
+Dependency direction remains `HTTP/Worker -> Application -> Domain <- Infrastructure`; business modules must not depend on the delivery applications.

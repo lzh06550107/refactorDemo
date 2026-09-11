@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 $root = dirname(__DIR__, 2);
 $sourceFile = $root . '/modules/openplatform/infrastructure/ThinkPhpProvisioningJobSource.php';
-$commandFile = $root . '/app/command/OpenPlatformProvisioningWorkerCommand.php';
+$commandFile = $root . '/app/worker/command/OpenPlatformProvisioningWorkerCommand.php';
 $consoleFile = $root . '/config/console.php';
 $runnerFile = $root . '/modules/openplatform/application/ProvisioningBatchRunner.php';
 $readmeFile = $root . '/README.md';

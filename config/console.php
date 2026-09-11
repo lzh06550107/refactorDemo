@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use app\command\OpenPlatformProvisioningWorkerCommand;
+use app\worker\command\OpenPlatformProvisioningWorkerCommand;
 
 return [
     'commands' => [
