@@ -11,7 +11,7 @@ declare(strict_types=1);
         'frontend/web/e2e/package.json',
         'frontend/web/e2e/package-lock.json',
         'frontend/web/e2e/playwright.config.js',
-        'frontend/web/e2e/home.spec.js',
+        'frontend/web/e2e/home.e2e.js',
         'themes/corporate/theme.json',
         'themes/corporate/layouts/default.html',
         'themes/corporate/pages/index.html',
@@ -50,6 +50,7 @@ declare(strict_types=1);
 
     $playwrightConfig = (string) file_get_contents($root . '/frontend/web/e2e/playwright.config.js');
     foreach ([
+        'home.e2e.js',
         'http://127.0.0.1:18080',
         'php ../../../think run -p 18080',
         'trace',
@@ -60,7 +61,7 @@ declare(strict_types=1);
         }
     }
 
-    $browserSpec = (string) file_get_contents($root . '/frontend/web/e2e/home.spec.js');
+    $browserSpec = (string) file_get_contents($root . '/frontend/web/e2e/home.e2e.js');
     foreach ([
         'javaScriptEnabled: false',
         'data-nav-toggle',
