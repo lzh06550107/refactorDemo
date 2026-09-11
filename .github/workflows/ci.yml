@@ -239,7 +239,6 @@ jobs:
       PHP_DATABASE_CHARSET: utf8mb4
       PHP_WEPLATFORM_ADMIN_SESSION_PEPPER: admin-e2e-session-pepper
       PHP_WEPLATFORM_ADMIN_COOKIE_SECURE: 'false'
-      WEPLATFORM_ADMIN_BOOTSTRAP_PASSWORD: admin-e2e-password-2026
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -279,6 +278,14 @@ jobs:
 
       - name: Prepare Admin browser database
         run: php tests/E2E/PrepareAdminBrowserDatabase.php
+
+      - name: Generate masked Admin browser password
+        shell: bash
+        run: |
+          set -euo pipefail
+          admin_password="$(php -r 'echo bin2hex(random_bytes(32));')"
+          echo "::add-mask::${admin_password}"
+          printf 'WEPLATFORM_ADMIN_BOOTSTRAP_PASSWORD=%s\n' "$admin_password" >> "$GITHUB_ENV"
 
       - name: Bootstrap Admin browser administrator
         run: php think admin:bootstrap --username=e2e-admin
