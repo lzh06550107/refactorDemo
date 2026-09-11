@@ -8,6 +8,7 @@ require __DIR__ . '/AcceptanceHarnessContractTest.php';
 require __DIR__ . '/FinalConsistencyContractTest.php';
 require __DIR__ . '/FreshDatabaseMigrationTest.php';
 require __DIR__ . '/AdminBrowserAuthRuntimeTest.php';
+require __DIR__ . '/AdminBootstrapRuntimeTest.php';
 require __DIR__ . '/IamRuntimeTest.php';
 require __DIR__ . '/QuotaRuntimeTest.php';
 require __DIR__ . '/WorkerRuntimeTest.php';
@@ -59,6 +60,9 @@ try {
 
     acceptanceAdminBrowserAuthRuntimeTest($runtime);
     fwrite(STDOUT, "[PASS] AdminBrowserAuthRuntimeTest\n");
+
+    acceptanceAdminBootstrapRuntimeTest($runtime);
+    fwrite(STDOUT, "[PASS] AdminBootstrapRuntimeTest\n");
 
     acceptanceWorkerRuntimeTest($runtime);
     fwrite(STDOUT, "[PASS] WorkerRuntimeTest\n");
