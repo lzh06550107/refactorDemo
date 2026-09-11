@@ -1,0 +1,97 @@
+name: Web H5 Task 4 GREEN
+
+on:
+  push:
+    branches:
+      - refactor/web-h5-template-foundation-v1
+    paths:
+      - .github/workflows/web-h5-task4-green.yml
+
+permissions:
+  contents: write
+
+jobs:
+  green:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refactor/web-h5-template-foundation-v1
+          fetch-depth: 0
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+      - name: Patch composition root and offline runner
+        shell: python
+        run: |
+          from pathlib import Path
+
+          app = Path('app/AppService.php')
+          source = app.read_text()
+          import_anchor = "use modules\\quota\\infrastructure\\ThinkPhpQuotaLedgerRepository;\n"
+          imports = (
+              "use modules\\theme\\contract\\ThemePackageRepository;\n"
+              "use modules\\theme\\infrastructure\\FilesystemThemePackageRepository;\n"
+          )
+          if "use modules\\theme\\contract\\ThemePackageRepository;" not in source:
+              if import_anchor not in source:
+                  raise SystemExit('AppService import anchor not found')
+              source = source.replace(import_anchor, import_anchor + imports, 1)
+
+          factory_anchor = "        ]);\n\n        $this->registerSecurityFactories();\n"
+          factory = (
+              "        ]);\n\n"
+              "        $this->app->bind(ThemePackageRepository::class, function (): ThemePackageRepository {\n"
+              "            return new FilesystemThemePackageRepository($this->app->getRootPath() . 'themes');\n"
+              "        });\n\n"
+              "        $this->registerSecurityFactories();\n"
+          )
+          if "$this->app->bind(ThemePackageRepository::class" not in source:
+              if factory_anchor not in source:
+                  raise SystemExit('AppService factory anchor not found')
+              source = source.replace(factory_anchor, factory, 1)
+          app.write_text(source)
+
+          runner = Path('tests/run.php')
+          source = runner.read_text()
+          unit_anchor = "    __DIR__ . '/Unit/Theme/ThemeVersionTest.php',\n"
+          unit_line = "    __DIR__ . '/Unit/Theme/ThemeManifestTest.php',\n"
+          component_anchor = "    __DIR__ . '/Component/Theme/ThemeReleaseServiceTest.php',\n"
+          component_line = "    __DIR__ . '/Component/Theme/FilesystemThemePackageRepositoryTest.php',\n"
+          if unit_line not in source:
+              if unit_anchor not in source:
+                  raise SystemExit('Theme unit anchor not found')
+              source = source.replace(unit_anchor, unit_anchor + unit_line, 1)
+          if component_line not in source:
+              if component_anchor not in source:
+                  raise SystemExit('Theme component anchor not found')
+              source = source.replace(component_anchor, component_anchor + component_line, 1)
+          runner.write_text(source)
+      - name: Lint Task 4 PHP
+        run: |
+          php -l modules/theme/domain/ThemeManifest.php
+          php -l modules/theme/domain/ResolvedThemePage.php
+          php -l modules/theme/domain/InvalidThemePackage.php
+          php -l modules/theme/domain/ThemePageNotFound.php
+          php -l modules/theme/contract/ThemePackageRepository.php
+          php -l modules/theme/infrastructure/FilesystemThemePackageRepository.php
+          php -l app/AppService.php
+      - name: Run focused Task 4 tests
+        run: |
+          php -r "require 'tests/Support/bootstrap.php'; require 'tests/Unit/Theme/ThemeManifestTest.php';"
+          php -r "require 'tests/Support/bootstrap.php'; require 'tests/Component/Theme/FilesystemThemePackageRepositoryTest.php';"
+      - name: Install locked Composer dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Run complete offline suite
+        run: php tests/run.php
+      - name: Commit wiring and runner registration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/AppService.php tests/run.php
+          if git diff --cached --quiet; then
+            echo "No wiring changes"
+            exit 0
+          fi
+          git commit -m "feat: wire trusted theme package repository"
+          git push origin HEAD:refactor/web-h5-template-foundation-v1
