@@ -8,7 +8,7 @@ declare(strict_types=1);
         'account', 'entitlement', 'iam', 'member', 'miniapp', 'module', 'oauth',
         'openplatform', 'quota', 'site', 'tenant', 'theme', 'webhook',
     ];
-    $allowedAppDirectories = ['admin', 'api', 'web', 'worker', 'common'];
+    $allowedAppDirectories = ['admin', 'adminui', 'api', 'web', 'worker', 'common'];
 
     foreach (new DirectoryIterator($root . '/app') as $entry) {
         if ($entry->isDot() || !$entry->isDir()) {
@@ -49,7 +49,7 @@ declare(strict_types=1);
             $source = (string) file_get_contents($sourceFile->getPathname());
             $relative = str_replace('\\', '/', substr($sourceFile->getPathname(), strlen($root) + 1));
 
-            foreach (['app\\admin\\', 'app\\api\\', 'app\\web\\', 'app\\worker\\'] as $prefix) {
+            foreach (['app\\admin\\', 'app\\adminui\\', 'app\\api\\', 'app\\web\\', 'app\\worker\\'] as $prefix) {
                 expectTrue(
                     !str_contains($source, $prefix),
                     'business module depends on delivery app: ' . $relative . ' -> ' . $prefix,
