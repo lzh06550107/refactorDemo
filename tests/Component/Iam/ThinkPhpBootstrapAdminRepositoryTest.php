@@ -26,14 +26,14 @@ expectTrue(
     'config/console.php registers AdminBootstrapCommand',
 );
 
-$appService = (string) file_get_contents($root . '/app/AppService.php');
+$provider = (string) file_get_contents($root . '/app/provider.php');
 expectTrue(
-    str_contains($appService, 'BootstrapAdminRepository::class => ThinkPhpBootstrapAdminRepository::class'),
-    'AppService binds BootstrapAdminRepository to ThinkPhpBootstrapAdminRepository',
+    str_contains($provider, 'BootstrapAdminRepository::class => ThinkPhpBootstrapAdminRepository::class'),
+    'provider.php binds BootstrapAdminRepository to ThinkPhpBootstrapAdminRepository',
 );
 expectTrue(
-    str_contains($appService, 'AdminIdGenerator::class => SecureAdminIdGenerator::class'),
-    'AppService binds AdminIdGenerator to SecureAdminIdGenerator',
+    str_contains($provider, 'AdminIdGenerator::class => SecureAdminIdGenerator::class'),
+    'provider.php binds AdminIdGenerator to SecureAdminIdGenerator',
 );
 
 $commandPath = $root . '/app/worker/command/AdminBootstrapCommand.php';
