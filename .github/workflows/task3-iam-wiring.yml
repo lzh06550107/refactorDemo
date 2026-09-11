@@ -1,0 +1,76 @@
+name: Task3 IAM Wiring
+
+on:
+  push:
+    branches:
+      - refactor/frontend-foundation-v1
+
+permissions:
+  contents: write
+
+jobs:
+  wire:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: refactor/frontend-foundation-v1
+
+      - name: Patch AppService bindings exactly once
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('app/AppService.php')
+          source = path.read_text()
+
+          replacements = [
+              (
+                  'use modules\\iam\\contract\\AdminSessionRepository;\n',
+                  'use modules\\iam\\contract\\AdminCredentialRepository;\n'
+                  'use modules\\iam\\contract\\AdminSessionRepository;\n'
+                  'use modules\\iam\\contract\\AdminUserRepository;\n',
+              ),
+              (
+                  'use modules\\iam\\infrastructure\\ThinkPhpAdminSessionRepository;\n',
+                  'use modules\\iam\\infrastructure\\ThinkPhpAdminCredentialRepository;\n'
+                  'use modules\\iam\\infrastructure\\ThinkPhpAdminSessionRepository;\n'
+                  'use modules\\iam\\infrastructure\\ThinkPhpAdminUserRepository;\n',
+              ),
+              (
+                  '            AuditLogger::class => StructuredAuditLogger::class,\n'
+                  '            AdminSessionRepository::class => ThinkPhpAdminSessionRepository::class,\n',
+                  '            AuditLogger::class => StructuredAuditLogger::class,\n'
+                  '            AdminCredentialRepository::class => ThinkPhpAdminCredentialRepository::class,\n'
+                  '            AdminSessionRepository::class => ThinkPhpAdminSessionRepository::class,\n'
+                  '            AdminUserRepository::class => ThinkPhpAdminUserRepository::class,\n',
+              ),
+          ]
+
+          for old, new in replacements:
+              count = source.count(old)
+              if count != 1:
+                  raise SystemExit(f'expected exactly one match, got {count}: {old!r}')
+              source = source.replace(old, new, 1)
+
+          path.write_text(source)
+          PY
+
+      - name: Verify wiring and offline suite
+        run: |
+          php -l app/AppService.php
+          php tests/run.php
+
+      - name: Commit wiring
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add app/AppService.php
+          git diff --cached --check
+          git commit -m 'feat: wire admin credential repositories'
+          git push origin HEAD:refactor/frontend-foundation-v1
