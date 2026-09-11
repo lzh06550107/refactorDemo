@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require dirname(__DIR__) . '/Unit/Migration/V1BaselineSqlTest.php';
+
 (static function (): void {
     $root = dirname(__DIR__, 2);
 
