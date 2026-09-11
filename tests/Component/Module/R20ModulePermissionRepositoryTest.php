@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use app\account\domain\LegacyAccountMapping;
-use app\iam\domain\Permission;
+use modules\account\domain\LegacyAccountMapping;
+use modules\iam\domain\Permission;
 use app\legacy\contract\LegacyDatabase;
 use app\module\infrastructure\R20ModulePermissionRepository;
 

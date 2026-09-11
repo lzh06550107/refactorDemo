@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use app\iam\domain\AdminUser;
-use app\iam\domain\AdminUserStatus;
+use modules\iam\domain\AdminUser;
+use modules\iam\domain\AdminUserStatus;
 
 $user = new AdminUser(
     'user-1',

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace app\module\application;
 
-use app\account\domain\LegacyAccountMapping;
+use modules\account\domain\LegacyAccountMapping;
 use app\common\error\AppException;
 use app\common\error\ErrorCode;
 use app\module\contract\ModuleRuntimeRepository;

@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-use app\account\domain\AccountType;
-use app\account\domain\LegacyAccountMapping;
-use app\iam\domain\LegacyPermissionAssignment;
-use app\iam\domain\LegacyPermissionPolicy;
-use app\iam\domain\Permission;
+use modules\account\domain\AccountType;
+use modules\account\domain\LegacyAccountMapping;
+use modules\iam\domain\LegacyPermissionAssignment;
+use modules\iam\domain\LegacyPermissionPolicy;
+use modules\iam\domain\Permission;
 use app\module\application\ModuleAuthorizationService;
 use app\module\application\RuntimeModuleService;
 use app\module\contract\ModulePermissionRepository;

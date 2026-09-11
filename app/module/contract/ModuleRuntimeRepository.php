@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace app\module\contract;
 
-use app\account\domain\LegacyAccountMapping;
+use modules\account\domain\LegacyAccountMapping;
 use app\module\domain\AccountModuleConfig;
 use app\module\domain\ModuleBinding;
 use app\module\domain\ModuleDefinition;

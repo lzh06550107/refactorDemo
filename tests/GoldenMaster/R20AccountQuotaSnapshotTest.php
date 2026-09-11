@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use app\account\domain\AccountType;
-use app\quota\compat\R20AccountQuotaSnapshotRepository;
+use modules\account\domain\AccountType;
+use modules\quota\compat\R20AccountQuotaSnapshotRepository;
 
 $adapter = new R20AccountQuotaSnapshotRepository();
 $legacy = [

@@ -7,7 +7,7 @@ use app\common\context\RequestContext;
 use app\common\context\RuntimeType;
 use app\common\error\AppException;
 use app\common\error\ErrorCode;
-use app\iam\contract\PermissionAuthorizer;
+use modules\iam\contract\PermissionAuthorizer;
 use app\openplatform\application\OpenPlatformAdminGuard;
 use app\openplatform\domain\OpenPlatformPermission;
 

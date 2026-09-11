@@ -10,12 +10,12 @@ use app\common\context\RuntimeType;
 use app\common\error\AppException;
 use app\common\error\ErrorCode;
 use app\common\security\SecretValue;
-use app\iam\application\RestoreAdminSession;
-use app\iam\contract\AdminSessionRepository;
-use app\iam\contract\AdminTenantAccess;
-use app\iam\domain\AdminSession;
-use app\iam\security\BearerTokenParser;
-use app\iam\security\SessionTokenHasher;
+use modules\iam\application\RestoreAdminSession;
+use modules\iam\contract\AdminSessionRepository;
+use modules\iam\contract\AdminTenantAccess;
+use modules\iam\domain\AdminSession;
+use modules\iam\security\BearerTokenParser;
+use modules\iam\security\SessionTokenHasher;
 use think\App;
 use think\Request;
 

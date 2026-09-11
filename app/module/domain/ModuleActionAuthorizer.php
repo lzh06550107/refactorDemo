@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace app\module\domain;
 
-use app\iam\domain\LegacyPermissionAssignment;
-use app\iam\domain\LegacyPermissionPolicy;
-use app\iam\domain\Permission;
+use modules\iam\domain\LegacyPermissionAssignment;
+use modules\iam\domain\LegacyPermissionPolicy;
+use modules\iam\domain\Permission;
 
 final class ModuleActionAuthorizer
 {

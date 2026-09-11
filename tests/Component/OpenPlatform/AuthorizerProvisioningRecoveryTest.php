@@ -2,19 +2,19 @@
 
 declare(strict_types=1);
 
-use app\account\domain\AccountType;
+use modules\account\domain\AccountType;
 use app\common\error\AppException;
 use app\common\error\ErrorCode;
 use app\openplatform\application\AuthorizerProvisioningQuotaService;
 use app\openplatform\contract\AuthorizerProvisioningRepository;
 use app\openplatform\domain\AuthorizerProvisioning;
 use app\openplatform\domain\AuthorizerProvisioningStatus;
-use app\quota\application\QuotaService;
-use app\quota\contract\QuotaLedgerRepository;
-use app\quota\domain\QuotaAvailability;
-use app\quota\domain\QuotaGrant;
-use app\quota\domain\QuotaLedgerEntry;
-use app\quota\domain\QuotaResource;
+use modules\quota\application\QuotaService;
+use modules\quota\contract\QuotaLedgerRepository;
+use modules\quota\domain\QuotaAvailability;
+use modules\quota\domain\QuotaGrant;
+use modules\quota\domain\QuotaLedgerEntry;
+use modules\quota\domain\QuotaResource;
 
 $now = new DateTimeImmutable('2026-09-09T09:00:00Z');
 $ready = AuthorizerProvisioning::pending(

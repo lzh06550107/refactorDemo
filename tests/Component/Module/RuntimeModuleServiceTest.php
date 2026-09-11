@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use app\account\domain\AccountType;
-use app\account\domain\LegacyAccountMapping;
+use modules\account\domain\AccountType;
+use modules\account\domain\LegacyAccountMapping;
 use app\common\error\AppException;
 use app\module\application\RuntimeModuleService;
 use app\module\contract\ModuleRuntimeRepository;

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use app\account\domain\LegacyAccountMapping;
+use modules\account\domain\LegacyAccountMapping;
 use app\legacy\contract\LegacyDatabase;
 use app\legacy\support\LegacySerializedValueDecoder;
 use app\module\compat\LegacyModuleAdapter;

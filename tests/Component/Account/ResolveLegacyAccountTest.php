@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use app\account\application\ResolveLegacyAccount;
-use app\account\contract\LegacyAccountMappingRepository;
-use app\account\domain\LegacyAccountMapping;
+use modules\account\application\ResolveLegacyAccount;
+use modules\account\contract\LegacyAccountMappingRepository;
+use modules\account\domain\LegacyAccountMapping;
 use app\common\error\AppException;
 use app\common\error\ErrorCode;
 

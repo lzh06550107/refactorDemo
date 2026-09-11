@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 $root = dirname(__DIR__, 3);
-$file = $root . '/app/iam/infrastructure/ThinkPhpAdminSessionRepository.php';
+$file = $root . '/modules/iam/infrastructure/ThinkPhpAdminSessionRepository.php';
 
 expectTrue(is_file($file), 'ThinkPhpAdminSessionRepository production adapter must exist');
 

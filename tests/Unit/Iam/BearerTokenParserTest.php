@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use app\common\error\AppException;
 use app\common\error\ErrorCode;
-use app\iam\security\BearerTokenParser;
+use modules\iam\security\BearerTokenParser;
 
 $parser = new BearerTokenParser();
 

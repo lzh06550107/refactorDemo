@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use app\account\domain\AccountType;
+use modules\account\domain\AccountType;
 use app\common\audit\AuditEvent;
 use app\common\contract\AuditLogger;
 use app\common\error\AppException;

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use app\account\domain\AccountType;
+use modules\account\domain\AccountType;
 use app\openplatform\application\AuthorizerMetadataNormalizer;
 use app\openplatform\domain\AuthorizerInfoResponse;
 

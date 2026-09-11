@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use app\tenant\domain\Tenant;
-use app\tenant\domain\TenantMembership;
-use app\tenant\domain\TenantRole;
-use app\tenant\domain\TenantStatus;
+use modules\tenant\domain\Tenant;
+use modules\tenant\domain\TenantMembership;
+use modules\tenant\domain\TenantRole;
+use modules\tenant\domain\TenantStatus;
 
 $tenant = new Tenant('tenant-1', 'Acme', TenantStatus::ACTIVE);
 expectSame('tenant-1', $tenant->id(), 'tenant id');

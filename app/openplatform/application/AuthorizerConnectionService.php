@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace app\openplatform\application;
 
-use app\account\domain\AccountStatus;
+use modules\account\domain\AccountStatus;
 use app\common\error\AppException;
 use app\common\error\ErrorCode;
 use app\openplatform\contract\AuthorizerAccountStateReader;

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace app\openplatform\domain;
 
-use app\account\domain\AccountType;
+use modules\account\domain\AccountType;
 use DateTimeImmutable;
 use InvalidArgumentException;
 

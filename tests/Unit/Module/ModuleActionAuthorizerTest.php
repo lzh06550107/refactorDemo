@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use app\account\domain\AccountType;
-use app\iam\domain\LegacyPermissionAssignment;
-use app\iam\domain\Permission;
+use modules\account\domain\AccountType;
+use modules\iam\domain\LegacyPermissionAssignment;
+use modules\iam\domain\Permission;
 use app\module\domain\ModuleActionAuthorizer;
 use app\module\domain\ModuleDefinition;
 use app\module\domain\ModuleLifecycleStatus;

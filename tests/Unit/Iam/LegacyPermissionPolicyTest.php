@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use app\iam\domain\LegacyPermissionAssignment;
-use app\iam\domain\LegacyPermissionPolicy;
-use app\iam\domain\Permission;
+use modules\iam\domain\LegacyPermissionAssignment;
+use modules\iam\domain\LegacyPermissionPolicy;
+use modules\iam\domain\Permission;
 
 $policy = new LegacyPermissionPolicy();
 $permission = new Permission('platform_reply_keyword');

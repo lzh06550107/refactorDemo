@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace app\openplatform\infrastructure;
 
-use app\account\domain\AccountType;
+use modules\account\domain\AccountType;
 use app\openplatform\contract\AuthorizerMetadataRepository;
 use app\openplatform\domain\AuthorizerMetadata;
 use app\openplatform\domain\AuthorizerMetadataRecord;

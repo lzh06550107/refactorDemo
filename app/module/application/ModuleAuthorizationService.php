@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace app\module\application;
 
-use app\account\domain\LegacyAccountMapping;
-use app\iam\domain\LegacyPermissionPolicy;
-use app\iam\domain\Permission;
+use modules\account\domain\LegacyAccountMapping;
+use modules\iam\domain\LegacyPermissionPolicy;
+use modules\iam\domain\Permission;
 use app\module\contract\ModulePermissionRepository;
 
 final class ModuleAuthorizationService

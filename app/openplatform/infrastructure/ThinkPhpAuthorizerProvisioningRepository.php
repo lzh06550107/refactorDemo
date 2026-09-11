@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace app\openplatform\infrastructure;
 
-use app\account\domain\AccountType;
+use modules\account\domain\AccountType;
 use app\openplatform\contract\AuthorizerProvisioningRepository;
 use app\openplatform\domain\AuthorizerProvisioning;
 use app\openplatform\domain\AuthorizerProvisioningStatus;

@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use app\account\domain\AccountType;
-use app\account\domain\LegacyAccountMapping;
+use modules\account\domain\AccountType;
+use modules\account\domain\LegacyAccountMapping;
 
 $mapping = new LegacyAccountMapping('account-7', 'tenant-3', 12, 34, 4);
 expectSame('account-7', $mapping->accountId(), 'new account id');

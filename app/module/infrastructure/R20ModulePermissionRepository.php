@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace app\module\infrastructure;
 
-use app\account\domain\LegacyAccountMapping;
-use app\iam\domain\LegacyPermissionAssignment;
+use modules\account\domain\LegacyAccountMapping;
+use modules\iam\domain\LegacyPermissionAssignment;
 use app\legacy\contract\LegacyDatabase;
 use app\module\contract\ModulePermissionRepository;
 use InvalidArgumentException;

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace app\openplatform\application;
 
-use app\account\domain\AccountType;
+use modules\account\domain\AccountType;
 use app\openplatform\domain\AuthorizerInfoResponse;
 use app\openplatform\domain\AuthorizerMetadata;
 use JsonException;

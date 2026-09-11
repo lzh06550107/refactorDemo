@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace app\openplatform\infrastructure;
 
-use app\account\domain\AccountStatus;
+use modules\account\domain\AccountStatus;
 use app\openplatform\contract\AuthorizerAccountStateReader;
 use app\openplatform\domain\AuthorizerAccountOwnership;
 use think\facade\Db;

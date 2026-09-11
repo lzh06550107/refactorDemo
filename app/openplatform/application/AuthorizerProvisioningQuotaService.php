@@ -8,8 +8,8 @@ use app\common\error\AppException;
 use app\common\error\ErrorCode;
 use app\openplatform\contract\AuthorizerProvisioningRepository;
 use app\openplatform\domain\AuthorizerProvisioning;
-use app\quota\application\QuotaService;
-use app\quota\domain\QuotaResource;
+use modules\quota\application\QuotaService;
+use modules\quota\domain\QuotaResource;
 use DateTimeImmutable;
 use LogicException;
 
