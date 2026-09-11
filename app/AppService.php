@@ -97,6 +97,8 @@ use modules\openplatform\security\WechatComponentCallbackAuthenticator;
 use modules\quota\application\QuotaService;
 use modules\quota\contract\QuotaLedgerRepository;
 use modules\quota\infrastructure\ThinkPhpQuotaLedgerRepository;
+use modules\theme\contract\ThemePackageRepository;
+use modules\theme\infrastructure\FilesystemThemePackageRepository;
 use JsonException;
 use RuntimeException;
 use think\Service;
@@ -144,6 +146,10 @@ final class AppService extends Service
             TransactionManager::class => ThinkPhpTransactionManager::class,
             QuotaLedgerRepository::class => ThinkPhpQuotaLedgerRepository::class,
         ]);
+
+        $this->app->bind(ThemePackageRepository::class, function (): ThemePackageRepository {
+            return new FilesystemThemePackageRepository($this->app->getRootPath() . 'themes');
+        });
 
         $this->registerSecurityFactories();
         $this->registerProviderFactories();
