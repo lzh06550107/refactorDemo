@@ -1,0 +1,21 @@
+name: Web H5 Task 4 RED
+
+on:
+  push:
+    branches:
+      - refactor/web-h5-template-foundation-v1
+    paths:
+      - .github/workflows/web-h5-task4-red.yml
+
+jobs:
+  red:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refactor/web-h5-template-foundation-v1
+      - name: Run ThemeManifest RED test
+        run: php -r "require 'tests/Support/bootstrap.php'; require 'tests/Unit/Theme/ThemeManifestTest.php';"
+      - name: Run FilesystemThemePackageRepository RED test
+        if: always()
+        run: php -r "require 'tests/Support/bootstrap.php'; require 'tests/Component/Theme/FilesystemThemePackageRepositoryTest.php';"
