@@ -1,0 +1,144 @@
+name: Web H5 Task 10 Exact HEAD
+
+on:
+  push:
+    branches:
+      - tmp/web-h5-task10-verify-20260911
+    paths:
+      - .github/workflows/web-h5-task10-exact-head.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci-root-password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -pci-root-password"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      WEPLATFORM_ACCEPTANCE: '1'
+      DATABASE_HOSTNAME: 127.0.0.1
+      DATABASE_DATABASE: weplatform_acceptance
+      DATABASE_USERNAME: root
+      DATABASE_PASSWORD: ci-root-password
+      DATABASE_HOSTPORT: '3306'
+    steps:
+      - name: Checkout exact Web HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: df168602e0d8ef53224a77ad2a974515c2c909d9
+          fetch-depth: 0
+
+      - name: Assert exact HEAD
+        run: test "$(git rev-parse HEAD)" = "df168602e0d8ef53224a77ad2a974515c2c909d9"
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_mysql, mbstring, dom, xmlwriter
+          tools: composer:v2
+          coverage: none
+
+      - name: Setup Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Verify Web and theme boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -RInE '<\?php|think\\facade\\Db|Db::|Repository::class|WEPLATFORM_OPENPLATFORM|component_appsecret|authorizer_access_token|authorizer_refresh_token|EncodingAESKey|AppSecret' themes; then
+            echo 'Forbidden executable/persistence/provider-secret material found in themes/' >&2
+            exit 1
+          fi
+          node - <<'NODE'
+          const pkg = require('./frontend/web/package.json')
+          const all = {...(pkg.dependencies || {}), ...(pkg.devDependencies || {})}
+          for (const name of ['vue', 'nuxt', 'react', 'next']) {
+            if (Object.prototype.hasOwnProperty.call(all, name)) {
+              throw new Error(`Forbidden Web runtime/framework dependency: ${name}`)
+            }
+          }
+          NODE
+
+      - name: Validate and install Composer dependencies
+        run: |
+          composer validate --strict
+          test -f composer.lock
+          composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Run PHP offline and PHPUnit gates
+        run: |
+          php tests/run.php
+          php vendor/bin/phpunit
+          find app modules config tests -name '*.php' -print0 | xargs -0 -n1 php -l
+
+      - name: Run Admin frontend gates
+        run: |
+          npm ci --prefix frontend/admin
+          npm run typecheck --prefix frontend/admin
+          npm test --prefix frontend/admin
+          npm run build --prefix frontend/admin
+
+      - name: Run Web frontend gates
+        run: |
+          npm ci --prefix frontend/web
+          npm test --prefix frontend/web
+          npm run build --prefix frontend/web
+          test -f public/build/web/manifest.json
+
+      - name: Verify generated output stays untracked
+        shell: bash
+        run: |
+          set -euo pipefail
+          git_status="$(git status --short --untracked-files=all)"
+          printf '%s\n' "$git_status"
+          if [ -n "$git_status" ]; then
+            echo 'Build/install generated tracked or unignored files.' >&2
+            exit 1
+          fi
+
+      - name: Fresh MySQL release gate
+        run: php tests/Release/run.php
+
+      - name: Automated no-JavaScript SSR proxy check
+        env:
+          WEPLATFORM_WEB_ASSETS_DEV: 'false'
+        shell: bash
+        run: |
+          set -euo pipefail
+          php think run -p 18080 > /tmp/task10-thinkphp.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true; cat /tmp/task10-thinkphp.log || true' EXIT
+          ready=0
+          for _ in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:18080/health >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 0.5
+          done
+          test "$ready" = "1"
+          status="$(curl -sS -D /tmp/task10-home.headers -o /tmp/task10-home.html -w '%{http_code}' http://127.0.0.1:18080/)"
+          test "$status" = "200"
+          grep -Eqi '^content-type:[[:space:]]*text/html' /tmp/task10-home.headers
+          grep -Eqi '^<!doctype html>' /tmp/task10-home.html
+          grep -q '<h1>WePlatform</h1>' /tmp/task10-home.html
+          grep -q 'ThinkPHP 8 Web/H5 theme runtime' /tmp/task10-home.html
+          grep -q '/build/web/assets/' /tmp/task10-home.html
+          if grep -q '@@HEADER_HTML@@\|@@CONTENT_HTML@@\|@@FOOTER_HTML@@' /tmp/task10-home.html; then
+            echo 'Unresolved trusted fragment token found in SSR output.' >&2
+            exit 1
+          fi
