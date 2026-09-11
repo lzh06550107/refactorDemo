@@ -2,7 +2,7 @@ import { defineConfig } from '@playwright/test'
 
 export default defineConfig({
   testDir: '.',
-  testMatch: 'home.spec.js',
+  testMatch: 'home.e2e.js',
   fullyParallel: false,
   workers: 1,
   reporter: process.env.CI ? 'line' : 'list',
