@@ -1,0 +1,114 @@
+name: Web H5 Task 6 GREEN
+
+on:
+  push:
+    branches:
+      - refactor/web-h5-template-foundation-v1
+    paths:
+      - .github/workflows/web-h5-task6-green.yml
+
+permissions:
+  contents: write
+
+jobs:
+  green:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refactor/web-h5-template-foundation-v1
+          fetch-depth: 0
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+      - name: Wire Task 6 configuration and resolver
+        shell: python
+        run: |
+          from pathlib import Path
+
+          config = Path('config/weplatform.php')
+          source = config.read_text()
+          anchor = "    'admin_session_ttl_seconds' => (int) env('WEPLATFORM_ADMIN_SESSION_TTL_SECONDS', 28800),\n"
+          lines = (
+              "    'web_assets_dev' => (bool) env('WEPLATFORM_WEB_ASSETS_DEV', false),\n"
+              "    'web_assets_dev_origin' => (string) env('WEPLATFORM_WEB_ASSETS_DEV_ORIGIN', 'http://127.0.0.1:5174'),\n"
+          )
+          if "'web_assets_dev'" not in source:
+              if anchor not in source:
+                  raise SystemExit('weplatform config anchor not found')
+              source = source.replace(anchor, anchor + lines, 1)
+          config.write_text(source)
+
+          env = Path('.env.example')
+          source = env.read_text()
+          anchor = 'WEPLATFORM_ADMIN_SESSION_TTL_SECONDS=28800\n'
+          lines = (
+              'WEPLATFORM_WEB_ASSETS_DEV=false\n'
+              'WEPLATFORM_WEB_ASSETS_DEV_ORIGIN=http://127.0.0.1:5174\n'
+          )
+          if 'WEPLATFORM_WEB_ASSETS_DEV=' not in source:
+              if anchor not in source:
+                  raise SystemExit('.env.example anchor not found')
+              source = source.replace(anchor, anchor + lines, 1)
+          env.write_text(source)
+
+          app = Path('app/AppService.php')
+          source = app.read_text()
+          import_anchor = "use app\\common\\security\\SecretValue;\n"
+          import_line = "use app\\web\\support\\WebAssetManifest;\n"
+          if import_line not in source:
+              if import_anchor not in source:
+                  raise SystemExit('AppService import anchor not found')
+              source = source.replace(import_anchor, import_anchor + import_line, 1)
+
+          factory_anchor = (
+              "        $this->app->bind(ThemePackageRepository::class, function (): ThemePackageRepository {\n"
+              "            return new FilesystemThemePackageRepository($this->app->getRootPath() . 'themes');\n"
+              "        });\n"
+          )
+          factory = factory_anchor + (
+              "\n        $this->app->bind(WebAssetManifest::class, function (): WebAssetManifest {\n"
+              "            return new WebAssetManifest(\n"
+              "                $this->app->getRootPath() . 'public/build/web/manifest.json',\n"
+              "                (bool) $this->app->config->get('weplatform.web_assets_dev', false),\n"
+              "                (string) $this->app->config->get('weplatform.web_assets_dev_origin', 'http://127.0.0.1:5174'),\n"
+              "            );\n"
+              "        });\n"
+          )
+          if "$this->app->bind(WebAssetManifest::class" not in source:
+              if factory_anchor not in source:
+                  raise SystemExit('AppService theme factory anchor not found')
+              source = source.replace(factory_anchor, factory, 1)
+          app.write_text(source)
+
+          runner = Path('tests/run.php')
+          source = runner.read_text()
+          anchor = "    __DIR__ . '/Unit/Admin/AdminCookiePolicyTest.php',\n"
+          line = "    __DIR__ . '/Unit/Web/WebAssetManifestTest.php',\n"
+          if line not in source:
+              if anchor not in source:
+                  raise SystemExit('tests/run.php web unit anchor not found')
+              source = source.replace(anchor, anchor + line, 1)
+          runner.write_text(source)
+      - name: Lint Task 6 PHP
+        run: |
+          php -l app/web/support/WebAssetManifest.php
+          php -l config/weplatform.php
+          php -l app/AppService.php
+      - name: Run focused Task 6 test
+        run: php -r "require 'tests/Support/bootstrap.php'; require 'tests/Unit/Web/WebAssetManifestTest.php';"
+      - name: Install locked Composer dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Run complete offline suite
+        run: php tests/run.php
+      - name: Commit Task 6 wiring
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/AppService.php config/weplatform.php .env.example tests/run.php
+          if git diff --cached --quiet; then
+            echo "No Task 6 wiring changes"
+            exit 0
+          fi
+          git commit -m "feat: wire web vite asset resolver"
+          git push origin HEAD:refactor/web-h5-template-foundation-v1
