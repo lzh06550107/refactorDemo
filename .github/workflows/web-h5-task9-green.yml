@@ -1,0 +1,133 @@
+name: Web H5 Task 9 GREEN
+
+on:
+  push:
+    branches:
+      - refactor/web-h5-template-foundation-v1
+    paths:
+      - .github/workflows/web-h5-task9-green.yml
+
+permissions:
+  contents: write
+
+jobs:
+  green:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refactor/web-h5-template-foundation-v1
+          fetch-depth: 0
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Patch permanent Web CI gates
+        shell: python
+        run: |
+          from pathlib import Path
+          path = Path('.github/workflows/ci.yml')
+          source = path.read_text()
+
+          cache_old = '          cache-dependency-path: frontend/admin/package-lock.json\n'
+          cache_new = (
+              '          cache-dependency-path: |\n'
+              '            frontend/admin/package-lock.json\n'
+              '            frontend/web/package-lock.json\n'
+          )
+          if 'frontend/web/package-lock.json' not in source:
+              if cache_old not in source:
+                  raise SystemExit('Node cache anchor not found')
+              source = source.replace(cache_old, cache_new, 1)
+
+          admin_build = (
+              '      - name: Build Admin frontend\n'
+              '        run: npm run build --prefix frontend/admin\n'
+          )
+          web_steps = admin_build + (
+              '\n      - name: Install locked Web frontend dependencies\n'
+              '        run: npm ci --prefix frontend/web\n'
+              '\n      - name: Test Web frontend\n'
+              '        run: npm test --prefix frontend/web\n'
+              '\n      - name: Build Web frontend\n'
+              '        run: npm run build --prefix frontend/web\n'
+          )
+          if 'npm ci --prefix frontend/web' not in source:
+              if admin_build not in source:
+                  raise SystemExit('Admin build anchor not found')
+              source = source.replace(admin_build, web_steps, 1)
+
+          health_anchor = (
+              '          php -r \'$j=json_decode(file_get_contents("/tmp/health-api.json"), true); '
+              'exit(($j["data"]["application"] ?? null) === "api" ? 0 : 1);\'\n'
+          )
+          home_smoke = health_anchor + (
+              '\n          web_home_headers=/tmp/web-home.headers\n'
+              '          web_home_body=/tmp/web-home.html\n'
+              '          web_home_status="$(curl -sS -D "$web_home_headers" -o "$web_home_body" -w \'%{http_code}\' \'http://127.0.0.1:18080/\' || true)"\n'
+              '          if [ "$web_home_status" != "200" ]; then\n'
+              '            echo "GET / returned HTTP $web_home_status, expected 200" >&2\n'
+              '            cat "$web_home_body" >&2 || true\n'
+              '            cat /tmp/thinkphp-server.log >&2 || true\n'
+              '            exit 1\n'
+              '          fi\n'
+              '          if ! grep -Eqi \'^content-type:[[:space:]]*text/html\' "$web_home_headers"; then\n'
+              '            echo "GET / did not return text/html" >&2\n'
+              '            cat "$web_home_headers" >&2 || true\n'
+              '            exit 1\n'
+              '          fi\n'
+              '          grep -Eqi \'^<!doctype html>\' "$web_home_body"\n'
+              '          grep -q \'/build/web/assets/\' "$web_home_body"\n'
+              '          grep -q \'ThinkPHP 8 Web/H5 theme runtime\' "$web_home_body"\n'
+          )
+          if 'web_home_body=/tmp/web-home.html' not in source:
+              if health_anchor not in source:
+                  raise SystemExit('HTTP smoke health anchor not found')
+              source = source.replace(health_anchor, home_smoke, 1)
+
+          path.write_text(source)
+      - name: Run Web CI architecture contract
+        run: php -r "require 'tests/Support/bootstrap.php'; require 'tests/Contract/WebFrontendArchitectureContractTest.php';"
+      - name: Install locked Composer dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Install locked Web dependencies
+        run: npm ci --prefix frontend/web
+      - name: Test Web frontend
+        run: npm test --prefix frontend/web
+      - name: Build Web frontend
+        run: npm run build --prefix frontend/web
+      - name: Run complete offline suite
+        run: php tests/run.php
+      - name: Smoke server-rendered home page
+        env:
+          WEPLATFORM_WEB_ASSETS_DEV: 'false'
+        run: |
+          php think run -p 18080 > /tmp/task9-thinkphp.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true; cat /tmp/task9-thinkphp.log || true' EXIT
+          for _ in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:18080/health >/dev/null; then
+              break
+            fi
+            sleep 0.5
+          done
+          status="$(curl -sS -D /tmp/task9-home.headers -o /tmp/task9-home.html -w '%{http_code}' http://127.0.0.1:18080/)"
+          test "$status" = "200"
+          grep -Eqi '^content-type:[[:space:]]*text/html' /tmp/task9-home.headers
+          grep -Eqi '^<!doctype html>' /tmp/task9-home.html
+          grep -q '/build/web/assets/' /tmp/task9-home.html
+          grep -q 'ThinkPHP 8 Web/H5 theme runtime' /tmp/task9-home.html
+      - name: Commit permanent Web CI gates
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/ci.yml
+          if git diff --cached --quiet; then
+            echo "No permanent CI change"
+            exit 0
+          fi
+          git commit -m "ci: gate server rendered web frontend"
+          git push origin HEAD:refactor/web-h5-template-foundation-v1
