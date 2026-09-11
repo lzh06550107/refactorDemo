@@ -48,10 +48,10 @@ jobs:
               'app\\miniapp\\': 'modules\\miniapp\\',
           }
           path_mapping = {
-              'app/member/': 'modules/member/',
-              'app/oauth/': 'modules/oauth/',
-              'app/webhook/': 'modules/webhook/',
-              'app/miniapp/': 'modules/miniapp/',
+              'app/member': 'modules/member',
+              'app/oauth': 'modules/oauth',
+              'app/webhook': 'modules/webhook',
+              'app/miniapp': 'modules/miniapp',
           }
           excluded = Path('tests/Contract/AppModulesArchitectureContractTest.php')
           for root_name in ('app', 'modules', 'tests', 'config'):
