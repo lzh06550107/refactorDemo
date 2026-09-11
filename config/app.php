@@ -8,7 +8,9 @@ return [
     'auto_multi_app' => true,
     'default_app' => 'web',
     'app_express' => true,
-    'app_map' => [],
+    'app_map' => [
+        'admin-api' => 'admin',
+    ],
     'domain_bind' => [],
     'deny_app_list' => ['common', 'worker'],
     'default_timezone' => 'Asia/Shanghai',
