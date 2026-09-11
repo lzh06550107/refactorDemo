@@ -18,6 +18,16 @@ jobs:
         with:
           ref: refactor/frontend-foundation-v1
 
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+          coverage: none
+
+      - name: Install locked dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
       - name: Patch AppService bindings exactly once
         shell: bash
         run: |
