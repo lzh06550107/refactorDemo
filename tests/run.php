@@ -7,6 +7,7 @@ require __DIR__ . '/Support/bootstrap.php';
 $files = [
     __DIR__ . '/Contract/StructureContractTest.php',
     __DIR__ . '/Contract/AppModulesArchitectureContractTest.php',
+    __DIR__ . '/Contract/AdminFrontendArchitectureContractTest.php',
     __DIR__ . '/Contract/ThinkPhpBootConfigContractTest.php',
     __DIR__ . '/Contract/IamTenantAccountSchemaContractTest.php',
     __DIR__ . '/Contract/IamModulePlatformSchemaContractTest.php',
