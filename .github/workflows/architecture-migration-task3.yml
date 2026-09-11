@@ -1,4 +1,4 @@
-name: Architecture Migration Task 5
+name: Architecture Migration Task 6
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  migrate-identity-integration:
+  migrate-openplatform-legacy:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
@@ -29,29 +29,24 @@ jobs:
       - name: Install locked dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
 
-      - name: Move member oauth webhook and miniapp modules
+      - name: Move OpenPlatform and legacy runtime modules
         shell: bash
         run: |
           set -euo pipefail
-          git mv app/member modules/member
-          git mv app/oauth modules/oauth
-          git mv app/webhook modules/webhook
-          git mv app/miniapp modules/miniapp
+          git mv app/openplatform modules/openplatform
+          mkdir -p modules/integration
+          git mv app/legacy modules/integration/legacy
 
           python3 <<'PY'
           from pathlib import Path
 
           namespace_mapping = {
-              'app\\member\\': 'modules\\member\\',
-              'app\\oauth\\': 'modules\\oauth\\',
-              'app\\webhook\\': 'modules\\webhook\\',
-              'app\\miniapp\\': 'modules\\miniapp\\',
+              'app\\openplatform\\': 'modules\\openplatform\\',
+              'app\\legacy\\': 'modules\\integration\\legacy\\',
           }
           path_mapping = {
-              'app/member': 'modules/member',
-              'app/oauth': 'modules/oauth',
-              'app/webhook': 'modules/webhook',
-              'app/miniapp': 'modules/miniapp',
+              'app/openplatform': 'modules/openplatform',
+              'app/legacy': 'modules/integration/legacy',
           }
           excluded = Path('tests/Contract/AppModulesArchitectureContractTest.php')
           for root_name in ('app', 'modules', 'tests', 'config'):
@@ -71,28 +66,37 @@ jobs:
                       path.write_text(after, encoding='utf-8')
           PY
 
+      - name: Verify composition root has no stale migrated imports
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -r '$s=file_get_contents("app/AppService.php"); foreach (["app\\openplatform\\","app\\iam\\","app\\miniapp\\","app\\quota\\"] as $x) { if (str_contains($s,$x)) { fwrite(STDERR,"stale AppService import: $x\n"); exit(1); } }'
+
       - name: Regenerate autoload and lint moved code
         shell: bash
         run: |
           set -euo pipefail
           composer dump-autoload
-          find modules/member modules/oauth modules/webhook modules/miniapp -name '*.php' -print0 | xargs -0 -n1 php -l
+          find modules/openplatform modules/integration/legacy -name '*.php' -print0 | xargs -0 -n1 php -l
           php -l app/AppService.php
 
-      - name: Run focused identity integration regressions
+      - name: Run focused OpenPlatform and legacy regressions
         run: >-
           php -r "require 'tests/Support/bootstrap.php';
-          require 'tests/Unit/Member/ExternalIdentityTest.php';
-          require 'tests/Component/Member/MemberIdentityServiceTest.php';
-          require 'tests/Unit/OAuth/OAuthStateTest.php';
-          require 'tests/Component/OAuth/OAuthOrchestratorTest.php';
-          require 'tests/Unit/Webhook/WechatSignatureVerifierTest.php';
-          require 'tests/Component/Webhook/WechatWebhookServiceTest.php';
-          require 'tests/Unit/MiniApp/MiniAppProviderAccountTest.php';
-          require 'tests/Unit/MiniApp/MiniAppSessionTest.php';
-          require 'tests/Component/MiniApp/MiniAppLoginServiceTest.php';
-          require 'tests/Component/MiniApp/MiniAppSessionServiceTest.php';
-          require 'tests/GoldenMaster/R20MiniAppProviderSnapshotTest.php';"
+          require 'tests/Unit/Legacy/LegacySerializedValueDecoderTest.php';
+          require 'tests/Unit/OpenPlatform/ComponentPlatformTest.php';
+          require 'tests/Unit/OpenPlatform/AuthorizationIntentTest.php';
+          require 'tests/Unit/OpenPlatform/AuthorizerProvisioningTest.php';
+          require 'tests/Unit/OpenPlatform/WechatComponentCallbackAuthenticatorTest.php';
+          require 'tests/Component/OpenPlatform/AuthorizationCompletionServiceTest.php';
+          require 'tests/Component/OpenPlatform/AuthorizationAutoProvisionCompletionTest.php';
+          require 'tests/Component/OpenPlatform/AuthorizerMetadataSyncServiceTest.php';
+          require 'tests/Component/OpenPlatform/AuthorizerOwnershipResolverTest.php';
+          require 'tests/Component/OpenPlatform/AuthorizerProvisioningWorkerTest.php';
+          require 'tests/Component/OpenPlatform/AuthorizerProvisioningQuotaTest.php';
+          require 'tests/Component/OpenPlatform/AuthorizerReconnectLifecycleTest.php';
+          require 'tests/Component/MiniApp/OpenPlatformComponentAccessTokenProviderTest.php';
+          require 'tests/Component/MiniApp/OpenPlatformAuthorizerAccountBindingTest.php';"
 
       - name: Verify architecture gate progressed and no other offline regression
         shell: bash
@@ -106,9 +110,9 @@ jobs:
           test "$status" -eq 1
           grep -F '[FAIL] AppModulesArchitectureContractTest.php:' /tmp/offline.out
           test "$(grep -c '^\[FAIL\]' /tmp/offline.out)" -eq 1
-          ! grep -E 'app directory: (member|oauth|webhook|miniapp)$' /tmp/offline.out
+          ! grep -E 'app directory: (openplatform|legacy)$' /tmp/offline.out
 
-      - name: Commit verified Task 5 migration
+      - name: Commit verified Task 6 migration
         shell: bash
         run: |
           set -euo pipefail
@@ -116,5 +120,5 @@ jobs:
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add app modules tests config
           git diff --cached --check
-          git commit -m 'refactor: move identity integration modules [architecture-migration-generated]'
+          git commit -m 'refactor: move openplatform and legacy runtime modules [architecture-migration-generated]'
           git push origin HEAD:${GITHUB_REF_NAME}
