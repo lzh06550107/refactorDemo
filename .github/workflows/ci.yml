@@ -227,12 +227,12 @@ jobs:
     env:
       WEPLATFORM_ACCEPTANCE: '1'
       DATABASE_HOSTNAME: 127.0.0.1
-      DATABASE_DATABASE: weplatform_admin_browser_e2e
+      DATABASE_DATABASE: weplatform_admin_browser_test
       DATABASE_USERNAME: root
       DATABASE_PASSWORD: ci-root-password
       DATABASE_HOSTPORT: '3306'
       PHP_DATABASE_HOSTNAME: 127.0.0.1
-      PHP_DATABASE_DATABASE: weplatform_admin_browser_e2e
+      PHP_DATABASE_DATABASE: weplatform_admin_browser_test
       PHP_DATABASE_USERNAME: root
       PHP_DATABASE_PASSWORD: ci-root-password
       PHP_DATABASE_HOSTPORT: '3306'
