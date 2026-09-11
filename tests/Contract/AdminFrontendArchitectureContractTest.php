@@ -54,4 +54,25 @@ declare(strict_types=1);
             }
         }
     }
+
+    $ciFile = $root . '/.github/workflows/ci.yml';
+    if (!is_file($ciFile)) {
+        throw new RuntimeException('Permanent CI workflow is missing');
+    }
+    $ci = (string) file_get_contents($ciFile);
+    foreach ([
+        'actions/setup-node@v4' => 'Permanent CI must set up Node for the Admin frontend',
+        "node-version: '24'" => 'Permanent CI must use Node 24 for the Admin frontend',
+        'npm ci --prefix frontend/admin' => 'Permanent CI must install the locked Admin frontend dependency graph',
+        'npm run typecheck --prefix frontend/admin' => 'Permanent CI must typecheck the Admin frontend',
+        'npm test --prefix frontend/admin' => 'Permanent CI must run Admin frontend tests',
+        'npm run build --prefix frontend/admin' => 'Permanent CI must build the Admin frontend',
+        '/admin-api/v1/auth/csrf' => 'Permanent HTTP smoke must exercise the Admin CSRF endpoint',
+        'weplatform_admin_csrf' => 'Permanent HTTP smoke must verify the Admin CSRF cookie',
+        '/admin-api/v1/auth/me' => 'Permanent HTTP smoke must exercise unauthenticated Admin me',
+    ] as $needle => $message) {
+        if (!str_contains($ci, $needle)) {
+            throw new RuntimeException($message);
+        }
+    }
 })();
