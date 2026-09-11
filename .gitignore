@@ -5,6 +5,9 @@ runtime/
 .phpunit.result.cache
 frontend/admin/node_modules/
 public/admin/
+frontend/admin/e2e/node_modules/
+frontend/admin/e2e/playwright-report/
+frontend/admin/e2e/test-results/
 frontend/web/node_modules/
 frontend/web/e2e/node_modules/
 frontend/web/e2e/playwright-report/
