@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 use app\common\error\AppException;
 use app\common\error\ErrorCode;
-use app\openplatform\contract\OpenPlatformHttpTransport;
-use app\openplatform\infrastructure\WechatAuthorizerClient;
+use modules\openplatform\contract\OpenPlatformHttpTransport;
+use modules\openplatform\infrastructure\WechatAuthorizerClient;
 
 $transport = new class implements OpenPlatformHttpTransport {
     /** @var array<string,mixed> */

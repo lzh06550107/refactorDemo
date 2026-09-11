@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use app\openplatform\application\ProvisioningBatchRunner;
-use app\openplatform\contract\ProvisioningJobSource;
+use modules\openplatform\application\ProvisioningBatchRunner;
+use modules\openplatform\contract\ProvisioningJobSource;
 
 final class BatchRunnerSourceFake implements ProvisioningJobSource
 {

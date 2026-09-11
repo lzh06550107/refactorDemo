@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use app\common\error\AppException;
 use app\common\error\ErrorCode;
-use app\openplatform\security\WechatComponentMessageDecryptor;
+use modules\openplatform\security\WechatComponentMessageDecryptor;
 
 $decryptor = new WechatComponentMessageDecryptor();
 $rawKey = random_bytes(32);

@@ -6,7 +6,7 @@ namespace app\api\controller\V1;
 
 use app\common\context\RequestContext;
 use app\common\http\ApiResponse;
-use app\openplatform\application\AuthorizationCallbackService;
+use modules\openplatform\application\AuthorizationCallbackService;
 use DateTimeImmutable;
 use DateTimeZone;
 use think\Request;

@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use app\openplatform\domain\AuthorizationIntent;
-use app\openplatform\domain\AuthorizationIntentMode;
+use modules\openplatform\domain\AuthorizationIntent;
+use modules\openplatform\domain\AuthorizationIntentMode;
 
 $now = new DateTimeImmutable('2026-09-08T09:00:00Z', new DateTimeZone('UTC'));
 $localExpiry = $now->modify('+10 minutes');

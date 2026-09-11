@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace modules\member\compat;
 
-use app\legacy\contract\LegacyDatabase;
+use modules\integration\legacy\contract\LegacyDatabase;
 
 final class R20MemberIdentitySnapshotRepository
 {

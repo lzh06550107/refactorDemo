@@ -17,7 +17,7 @@ expectTrue(str_contains($migration, '`state_hash`') && str_contains($migration, 
 expectTrue(str_contains($migration, '`refresh_token_ciphertext`') && str_contains($migration, '`token_ciphertext`'), 'R8C migration persists encrypted authorizer credentials');
 
 $productionFiles = [];
-foreach ([$root . '/app/openplatform', $root . '/modules/miniapp/infrastructure', $root . '/app/api/controller/V1'] as $directory) {
+foreach ([$root . '/modules/openplatform', $root . '/modules/miniapp/infrastructure', $root . '/app/api/controller/V1'] as $directory) {
     $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($directory));
     foreach ($iterator as $file) {
         if ($file->isFile() && $file->getExtension() === 'php') { $productionFiles[] = $file->getPathname(); }

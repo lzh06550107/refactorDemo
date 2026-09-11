@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 $root = dirname(__DIR__, 2);
 $architectureRoots = [
-    $root . '/app/openplatform/domain',
-    $root . '/app/openplatform/application',
+    $root . '/modules/openplatform/domain',
+    $root . '/modules/openplatform/application',
 ];
 $phpFiles = static function (array $roots): array {
     $files = [];
@@ -64,7 +64,7 @@ $secretPatterns = [
     '/\bgithub_pat_[A-Za-z0-9_]{30,}\b/',
     '/\bAKIA[0-9A-Z]{16}\b/',
 ];
-$scanRoots = [$root . '/app/openplatform', $root . '/modules/miniapp/infrastructure'];
+$scanRoots = [$root . '/modules/openplatform', $root . '/modules/miniapp/infrastructure'];
 foreach (array_merge($phpFiles($scanRoots), [$root . '/database/migrations/20260908_007_openplatform_component_trust_up.sql']) as $file) {
     $source = (string) file_get_contents($file);
     foreach ($secretPatterns as $pattern) {

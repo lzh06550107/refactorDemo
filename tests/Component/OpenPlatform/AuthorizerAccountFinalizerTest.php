@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 $root = dirname(__DIR__, 3);
-$contractPath = $root . '/app/openplatform/contract/AuthorizerAccountFinalizer.php';
-$implementationPath = $root . '/app/openplatform/infrastructure/ThinkPhpAuthorizerAccountFinalizer.php';
+$contractPath = $root . '/modules/openplatform/contract/AuthorizerAccountFinalizer.php';
+$implementationPath = $root . '/modules/openplatform/infrastructure/ThinkPhpAuthorizerAccountFinalizer.php';
 
 expectTrue(is_file($contractPath), 'AuthorizerAccountFinalizer contract must exist');
 expectTrue(is_file($implementationPath), 'ThinkPHP Authorizer Account finalizer must exist');

@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 $root = dirname(__DIR__, 2);
-$repositoryPath = $root . '/app/openplatform/infrastructure/ThinkPhpAuthorizerMetadataRepository.php';
-$servicePath = $root . '/app/openplatform/application/AuthorizerMetadataSyncService.php';
+$repositoryPath = $root . '/modules/openplatform/infrastructure/ThinkPhpAuthorizerMetadataRepository.php';
+$servicePath = $root . '/modules/openplatform/application/AuthorizerMetadataSyncService.php';
 
 expectTrue(is_file($repositoryPath), 'ThinkPHP authorizer metadata repository must exist');
 expectTrue(is_file($servicePath), 'authorizer metadata sync service must exist');

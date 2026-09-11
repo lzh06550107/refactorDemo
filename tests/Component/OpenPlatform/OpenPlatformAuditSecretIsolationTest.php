@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use app\common\audit\AuditEvent;
 use app\common\contract\AuditLogger;
-use app\openplatform\application\OpenPlatformAudit;
+use modules\openplatform\application\OpenPlatformAudit;
 
 $capturingLogger = new class implements AuditLogger {
     /** @var list<array<string,mixed>> */

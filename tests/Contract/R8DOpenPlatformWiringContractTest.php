@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use app\openplatform\infrastructure\ConfiguredComponentCredentialProvider;
+use modules\openplatform\infrastructure\ConfiguredComponentCredentialProvider;
 
 $root = dirname(__DIR__, 2);
 $appServiceFile = $root . '/app/AppService.php';

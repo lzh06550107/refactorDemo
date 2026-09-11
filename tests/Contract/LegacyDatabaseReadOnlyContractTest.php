@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use app\legacy\contract\LegacyDatabase;
+use modules\integration\legacy\contract\LegacyDatabase;
 
 $reflection = new ReflectionClass(LegacyDatabase::class);
 $methods = array_map(static fn (ReflectionMethod $method): string => $method->getName(), $reflection->getMethods());

@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use app\openplatform\domain\ProvisioningJob;
-use app\openplatform\domain\ProvisioningJobStatus;
+use modules\openplatform\domain\ProvisioningJob;
+use modules\openplatform\domain\ProvisioningJobStatus;
 
 expectSame(
     ['READY', 'CLAIMED', 'COMPLETED', 'DEAD'],
@@ -73,7 +73,7 @@ expectSame('max_attempts', $dead->lastErrorCode(), 'dead job records sanitized t
 expectTrue(!$dead->claimableAt($now->modify('+120 seconds')), 'dead job is terminal');
 
 $root = dirname(__DIR__, 3);
-$repositoryPath = $root . '/app/openplatform/infrastructure/ThinkPhpProvisioningJobRepository.php';
+$repositoryPath = $root . '/modules/openplatform/infrastructure/ThinkPhpProvisioningJobRepository.php';
 expectTrue(is_file($repositoryPath), 'ThinkPHP provisioning job repository must exist');
 $source = is_file($repositoryPath) ? (string) file_get_contents($repositoryPath) : '';
 expectTrue(str_contains($source, "Db::table('authorizer_provisioning_jobs')"), 'job repository uses durable provisioning job table');

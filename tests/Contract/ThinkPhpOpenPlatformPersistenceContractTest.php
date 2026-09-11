@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 $root = dirname(__DIR__, 2);
 $files = [
-    'platform' => $root . '/app/openplatform/infrastructure/ThinkPhpComponentPlatformRepository.php',
-    'ticket' => $root . '/app/openplatform/infrastructure/ThinkPhpComponentTicketRepository.php',
-    'token' => $root . '/app/openplatform/infrastructure/ThinkPhpComponentTokenRepository.php',
-    'lease' => $root . '/app/openplatform/infrastructure/ThinkPhpComponentRefreshLeaseRepository.php',
+    'platform' => $root . '/modules/openplatform/infrastructure/ThinkPhpComponentPlatformRepository.php',
+    'ticket' => $root . '/modules/openplatform/infrastructure/ThinkPhpComponentTicketRepository.php',
+    'token' => $root . '/modules/openplatform/infrastructure/ThinkPhpComponentTokenRepository.php',
+    'lease' => $root . '/modules/openplatform/infrastructure/ThinkPhpComponentRefreshLeaseRepository.php',
 ];
 foreach ($files as $name => $file) {
     expectTrue(is_file($file), 'R8B ThinkPHP ' . $name . ' repository must exist');

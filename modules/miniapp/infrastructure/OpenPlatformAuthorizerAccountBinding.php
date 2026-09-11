@@ -7,7 +7,7 @@ namespace modules\miniapp\infrastructure;
 use modules\account\domain\AccountType;
 use app\common\error\AppException;
 use app\common\error\ErrorCode;
-use app\openplatform\contract\AuthorizerAccountBinding;
+use modules\openplatform\contract\AuthorizerAccountBinding;
 use DateTimeImmutable;
 use DateTimeZone;
 use think\facade\Db;

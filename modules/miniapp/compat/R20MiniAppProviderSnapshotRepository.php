@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace modules\miniapp\compat;
 
-use app\legacy\contract\LegacyDatabase;
+use modules\integration\legacy\contract\LegacyDatabase;
 use modules\miniapp\domain\MiniAppConnectionMode;
 
 final readonly class R20MiniAppProviderSnapshotRepository

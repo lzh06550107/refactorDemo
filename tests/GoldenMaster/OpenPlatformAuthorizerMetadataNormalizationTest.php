@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 use modules\account\domain\AccountType;
-use app\openplatform\application\AuthorizerMetadataNormalizer;
-use app\openplatform\domain\AuthorizerInfoResponse;
+use modules\openplatform\application\AuthorizerMetadataNormalizer;
+use modules\openplatform\domain\AuthorizerInfoResponse;
 
 $fixtureRoot = __DIR__ . '/fixtures/openplatform';
 $officialPath = $fixtureRoot . '/official-account-authorizer-info.json';

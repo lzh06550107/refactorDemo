@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use app\legacy\contract\LegacyDatabase;
+use modules\integration\legacy\contract\LegacyDatabase;
 use modules\miniapp\compat\R20MiniAppProviderSnapshotRepository;
 use modules\miniapp\domain\MiniAppConnectionMode;
 

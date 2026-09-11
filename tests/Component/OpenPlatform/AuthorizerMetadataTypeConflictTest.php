@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 use modules\account\domain\AccountType;
-use app\openplatform\domain\AuthorizerProvisioning;
-use app\openplatform\domain\AuthorizerProvisioningStatus;
+use modules\openplatform\domain\AuthorizerProvisioning;
+use modules\openplatform\domain\AuthorizerProvisioningStatus;
 
 $now = new DateTimeImmutable('2026-09-09T10:15:00Z');
 $provisioning = AuthorizerProvisioning::pending(
@@ -23,8 +23,8 @@ expectSame(null, $conflict->quotaConsumeEntryId(), 'type conflict remains before
 expectSame(null, $conflict->accountId(), 'type conflict does not create or move an Account');
 
 $root = dirname(__DIR__, 3);
-$workerSource = (string) file_get_contents($root . '/app/openplatform/application/AuthorizerProvisioningWorker.php');
-$eventSource = (string) file_get_contents($root . '/app/openplatform/application/AuthorizationEventService.php');
+$workerSource = (string) file_get_contents($root . '/modules/openplatform/application/AuthorizerProvisioningWorker.php');
+$eventSource = (string) file_get_contents($root . '/modules/openplatform/application/AuthorizationEventService.php');
 
 expectTrue(str_contains($workerSource, 'ownership->accountType()'), 'worker compares trusted metadata type with historical canonical ownership type');
 expectTrue(str_contains($workerSource, 'METADATA_TYPE_CONFLICT'), 'worker has explicit trusted type conflict stop path');

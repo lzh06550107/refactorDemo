@@ -5,10 +5,10 @@ declare(strict_types=1);
 use modules\account\domain\AccountType;
 use app\common\error\AppException;
 use app\common\error\ErrorCode;
-use app\openplatform\application\AuthorizerProvisioningQuotaService;
-use app\openplatform\contract\AuthorizerProvisioningRepository;
-use app\openplatform\domain\AuthorizerProvisioning;
-use app\openplatform\domain\AuthorizerProvisioningStatus;
+use modules\openplatform\application\AuthorizerProvisioningQuotaService;
+use modules\openplatform\contract\AuthorizerProvisioningRepository;
+use modules\openplatform\domain\AuthorizerProvisioning;
+use modules\openplatform\domain\AuthorizerProvisioningStatus;
 use modules\quota\application\QuotaService;
 use modules\quota\contract\QuotaLedgerRepository;
 use modules\quota\domain\QuotaAvailability;
@@ -98,7 +98,7 @@ $releasedAgain = $service->ensureReleased($terminal, $now->modify('+7 seconds'))
 expectSame('recover-release-1', $releasedAgain->quotaReleaseEntryId(), 'repeated terminal recovery observes same release entry');
 expectSame(1, $ledger->releaseCalls, 'terminal compensation is idempotent and occurs once');
 
-$workerPath = dirname(__DIR__, 3) . '/app/openplatform/application/AuthorizerProvisioningWorker.php';
+$workerPath = dirname(__DIR__, 3) . '/modules/openplatform/application/AuthorizerProvisioningWorker.php';
 $workerSource = (string) file_get_contents($workerPath);
 expectTrue(str_contains($workerSource, 'AuthorizerAccountFinalizer'), 'worker depends on Account finalizer only at Task 10 stage');
 expectTrue(str_contains($workerSource, 'AuthorizerProvisioningQuotaService'), 'worker delegates quota saga to dedicated adapter');

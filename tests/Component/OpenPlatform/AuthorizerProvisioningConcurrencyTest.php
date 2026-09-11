@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use app\openplatform\domain\ProvisioningJob;
-use app\openplatform\domain\ProvisioningJobStatus;
+use modules\openplatform\domain\ProvisioningJob;
+use modules\openplatform\domain\ProvisioningJobStatus;
 
 $now = new DateTimeImmutable('2026-09-10T08:00:00Z');
 $job = ProvisioningJob::ready('concurrency-provisioning-1', $now, $now);

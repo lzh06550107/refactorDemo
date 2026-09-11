@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 use modules\account\domain\LegacyAccountMapping;
-use app\legacy\contract\LegacyDatabase;
-use app\legacy\support\LegacySerializedValueDecoder;
+use modules\integration\legacy\contract\LegacyDatabase;
+use modules\integration\legacy\support\LegacySerializedValueDecoder;
 use modules\module\compat\LegacyModuleAdapter;
 use modules\module\domain\ModuleBindingType;
 use modules\module\domain\ModuleLifecycleStatus;

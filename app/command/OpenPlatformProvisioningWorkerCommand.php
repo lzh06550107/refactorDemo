@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace app\command;
 
-use app\openplatform\application\AuthorizerProvisioningWorker;
-use app\openplatform\application\ProvisioningBatchRunner;
-use app\openplatform\infrastructure\ThinkPhpProvisioningJobSource;
+use modules\openplatform\application\AuthorizerProvisioningWorker;
+use modules\openplatform\application\ProvisioningBatchRunner;
+use modules\openplatform\infrastructure\ThinkPhpProvisioningJobSource;
 use DateTimeImmutable;
 use DateTimeZone;
 use InvalidArgumentException;

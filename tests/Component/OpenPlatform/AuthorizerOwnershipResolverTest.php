@@ -3,10 +3,10 @@
 declare(strict_types=1);
 
 use modules\account\domain\AccountType;
-use app\openplatform\application\AuthorizerOwnershipResolver;
-use app\openplatform\contract\AuthorizerOwnershipRepository;
-use app\openplatform\domain\AuthorizerAccountOwnership;
-use app\openplatform\domain\AuthorizerOwnershipResolution;
+use modules\openplatform\application\AuthorizerOwnershipResolver;
+use modules\openplatform\contract\AuthorizerOwnershipRepository;
+use modules\openplatform\domain\AuthorizerAccountOwnership;
+use modules\openplatform\domain\AuthorizerOwnershipResolution;
 
 $now = new DateTimeImmutable('2026-09-09T04:45:00Z');
 $ownership = new AuthorizerAccountOwnership(
@@ -58,9 +58,9 @@ expectTrue(!method_exists($ownership, 'enabled'), 'ownership has no connection e
 
 $root = dirname(__DIR__, 3);
 $expectedFiles = [
-    $root . '/app/openplatform/infrastructure/ThinkPhpAuthorizerOwnershipRepository.php',
-    $root . '/app/openplatform/contract/AuthorizerConnectionStore.php',
-    $root . '/app/openplatform/infrastructure/ThinkPhpAuthorizerConnectionStore.php',
+    $root . '/modules/openplatform/infrastructure/ThinkPhpAuthorizerOwnershipRepository.php',
+    $root . '/modules/openplatform/contract/AuthorizerConnectionStore.php',
+    $root . '/modules/openplatform/infrastructure/ThinkPhpAuthorizerConnectionStore.php',
 ];
 foreach ($expectedFiles as $file) {
     expectTrue(is_file($file), basename($file) . ' must exist for canonical ownership/connection projection');

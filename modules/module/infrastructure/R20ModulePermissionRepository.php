@@ -6,7 +6,7 @@ namespace modules\module\infrastructure;
 
 use modules\account\domain\LegacyAccountMapping;
 use modules\iam\domain\LegacyPermissionAssignment;
-use app\legacy\contract\LegacyDatabase;
+use modules\integration\legacy\contract\LegacyDatabase;
 use modules\module\contract\ModulePermissionRepository;
 use InvalidArgumentException;
 

@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-$eventServicePath = __DIR__ . '/../../../app/openplatform/application/AuthorizationEventService.php';
-$ingressPath = __DIR__ . '/../../../app/openplatform/application/OpenPlatformEventService.php';
+$eventServicePath = __DIR__ . '/../../../modules/openplatform/application/AuthorizationEventService.php';
+$ingressPath = __DIR__ . '/../../../modules/openplatform/application/OpenPlatformEventService.php';
 
 expectTrue(is_file($eventServicePath), 'Task 5 authorization lifecycle event service must exist before GREEN');
 $eventSource = is_file($eventServicePath) ? (string) file_get_contents($eventServicePath) : '';

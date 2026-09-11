@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 use modules\account\domain\AccountType;
-use app\openplatform\domain\AuthorizerProvisioning;
-use app\openplatform\domain\AuthorizerProvisioningStatus;
+use modules\openplatform\domain\AuthorizerProvisioning;
+use modules\openplatform\domain\AuthorizerProvisioningStatus;
 
 $expectedStatuses = [
     'PENDING_METADATA',
@@ -107,8 +107,8 @@ foreach ($invalidTransitions as $transition) {
 
 $root = dirname(__DIR__, 3);
 foreach ([
-    $root . '/app/openplatform/contract/AuthorizerProvisioningRepository.php',
-    $root . '/app/openplatform/infrastructure/ThinkPhpAuthorizerProvisioningRepository.php',
+    $root . '/modules/openplatform/contract/AuthorizerProvisioningRepository.php',
+    $root . '/modules/openplatform/infrastructure/ThinkPhpAuthorizerProvisioningRepository.php',
 ] as $file) {
     expectTrue(is_file($file), basename($file) . ' must exist for durable provisioning persistence');
 }

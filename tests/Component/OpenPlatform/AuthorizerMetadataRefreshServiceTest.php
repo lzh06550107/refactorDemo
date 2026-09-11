@@ -3,9 +3,9 @@
 declare(strict_types=1);
 
 $root = dirname(__DIR__, 3);
-$serviceFile = $root . '/app/openplatform/application/AuthorizerMetadataRefreshService.php';
-$scopeFile = $root . '/app/openplatform/contract/AuthorizerTenantScopeReader.php';
-$adapterFile = $root . '/app/openplatform/infrastructure/ThinkPhpAuthorizerTenantScopeReader.php';
+$serviceFile = $root . '/modules/openplatform/application/AuthorizerMetadataRefreshService.php';
+$scopeFile = $root . '/modules/openplatform/contract/AuthorizerTenantScopeReader.php';
+$adapterFile = $root . '/modules/openplatform/infrastructure/ThinkPhpAuthorizerTenantScopeReader.php';
 
 expectTrue(is_file($serviceFile), 'metadata refresh service must exist');
 expectTrue(is_file($scopeFile), 'Tenant authorizer scope reader contract must exist');

@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 $root = dirname(__DIR__, 2);
 $paths = [
-    $root . '/app/openplatform/application/OpenPlatformAudit.php',
-    $root . '/app/openplatform/infrastructure/AuditedAuthorizerProvisioningRepository.php',
-    $root . '/app/openplatform/infrastructure/AuditedAuthorizerMetadataRepository.php',
-    $root . '/app/openplatform/infrastructure/AuditedAuthorizerConnectionStore.php',
-    $root . '/app/openplatform/infrastructure/AuditedAuthorizerAccountFinalizer.php',
+    $root . '/modules/openplatform/application/OpenPlatformAudit.php',
+    $root . '/modules/openplatform/infrastructure/AuditedAuthorizerProvisioningRepository.php',
+    $root . '/modules/openplatform/infrastructure/AuditedAuthorizerMetadataRepository.php',
+    $root . '/modules/openplatform/infrastructure/AuditedAuthorizerConnectionStore.php',
+    $root . '/modules/openplatform/infrastructure/AuditedAuthorizerAccountFinalizer.php',
     $root . '/app/api/controller/V1/OpenPlatformAuthorizationStartController.php',
     $root . '/app/api/controller/V1/OpenPlatformAuthorizerMetadataController.php',
     $root . '/app/api/controller/V1/OpenPlatformProvisioningController.php',
@@ -30,7 +30,7 @@ foreach ([
     expectTrue(!str_contains($source, $sentinel), 'production code never embeds test secret sentinel: ' . $sentinel);
 }
 
-$auditSource = (string) file_get_contents($root . '/app/openplatform/application/OpenPlatformAudit.php');
+$auditSource = (string) file_get_contents($root . '/modules/openplatform/application/OpenPlatformAudit.php');
 foreach ([
     "'state' => true",
     "'pre_auth_code' => true",

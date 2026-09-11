@@ -5,13 +5,13 @@ declare(strict_types=1);
 use modules\account\domain\AccountType;
 use app\common\error\AppException;
 use app\common\error\ErrorCode;
-use app\openplatform\application\AuthorizerProvisioningRetryService;
-use app\openplatform\contract\AuthorizerAuthorizationRepository;
-use app\openplatform\contract\AuthorizerProvisioningRepository;
-use app\openplatform\contract\ProvisioningJobScheduler;
-use app\openplatform\domain\AuthorizerAccessToken;
-use app\openplatform\domain\AuthorizerAuthorization;
-use app\openplatform\domain\AuthorizerProvisioning;
+use modules\openplatform\application\AuthorizerProvisioningRetryService;
+use modules\openplatform\contract\AuthorizerAuthorizationRepository;
+use modules\openplatform\contract\AuthorizerProvisioningRepository;
+use modules\openplatform\contract\ProvisioningJobScheduler;
+use modules\openplatform\domain\AuthorizerAccessToken;
+use modules\openplatform\domain\AuthorizerAuthorization;
+use modules\openplatform\domain\AuthorizerProvisioning;
 
 $now = new DateTimeImmutable('2026-09-09T06:45:00Z');
 $blocked = AuthorizerProvisioning::pending(

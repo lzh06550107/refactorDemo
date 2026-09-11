@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use app\openplatform\domain\ComponentPlatform;
+use modules\openplatform\domain\ComponentPlatform;
 
 $platform = new ComponentPlatform(
     'platform-1',

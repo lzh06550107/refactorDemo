@@ -6,10 +6,10 @@ use modules\account\domain\AccountStatus;
 use modules\account\domain\AccountType;
 use app\common\error\AppException;
 use app\common\error\ErrorCode;
-use app\openplatform\application\AuthorizerConnectionService;
-use app\openplatform\contract\AuthorizerAccountStateReader;
-use app\openplatform\contract\AuthorizerConnectionStore;
-use app\openplatform\domain\AuthorizerAccountOwnership;
+use modules\openplatform\application\AuthorizerConnectionService;
+use modules\openplatform\contract\AuthorizerAccountStateReader;
+use modules\openplatform\contract\AuthorizerConnectionStore;
+use modules\openplatform\domain\AuthorizerAccountOwnership;
 
 $now = new DateTimeImmutable('2026-09-09T10:00:00Z');
 $ownership = new AuthorizerAccountOwnership(
@@ -70,7 +70,7 @@ expectSame(1, count($connections->disabled), 'remote unauthorized disables only 
 expectSame(['platform-1', 'wx-authorizer-1'], array_slice($connections->disabled[0], 0, 2), 'disconnect preserves canonical authorizer identity');
 
 $root = dirname(__DIR__, 3);
-$readerPath = $root . '/app/openplatform/infrastructure/ThinkPhpAuthorizerAccountStateReader.php';
+$readerPath = $root . '/modules/openplatform/infrastructure/ThinkPhpAuthorizerAccountStateReader.php';
 expectTrue(is_file($readerPath), 'ThinkPHP Account-state reader must exist for production reconnect policy');
 $readerSource = (string) file_get_contents($readerPath);
 expectTrue(str_contains($readerSource, "Db::table('accounts')"), 'Account-state reader uses canonical accounts table');

@@ -3,10 +3,10 @@
 declare(strict_types=1);
 
 $root = dirname(__DIR__, 2);
-$sourceFile = $root . '/app/openplatform/infrastructure/ThinkPhpProvisioningJobSource.php';
+$sourceFile = $root . '/modules/openplatform/infrastructure/ThinkPhpProvisioningJobSource.php';
 $commandFile = $root . '/app/command/OpenPlatformProvisioningWorkerCommand.php';
 $consoleFile = $root . '/config/console.php';
-$runnerFile = $root . '/app/openplatform/application/ProvisioningBatchRunner.php';
+$runnerFile = $root . '/modules/openplatform/application/ProvisioningBatchRunner.php';
 $readmeFile = $root . '/README.md';
 $testRunnerFile = $root . '/tests/run.php';
 

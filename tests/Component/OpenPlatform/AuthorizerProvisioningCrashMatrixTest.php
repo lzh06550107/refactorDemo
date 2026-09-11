@@ -3,9 +3,9 @@
 declare(strict_types=1);
 
 $root = dirname(__DIR__, 3);
-$worker = (string) file_get_contents($root . '/app/openplatform/application/AuthorizerProvisioningWorker.php');
-$quota = (string) file_get_contents($root . '/app/openplatform/application/AuthorizerProvisioningQuotaService.php');
-$finalizer = (string) file_get_contents($root . '/app/openplatform/infrastructure/ThinkPhpAuthorizerAccountFinalizer.php');
+$worker = (string) file_get_contents($root . '/modules/openplatform/application/AuthorizerProvisioningWorker.php');
+$quota = (string) file_get_contents($root . '/modules/openplatform/application/AuthorizerProvisioningQuotaService.php');
+$finalizer = (string) file_get_contents($root . '/modules/openplatform/infrastructure/ThinkPhpAuthorizerAccountFinalizer.php');
 
 $metadataSync = strpos($worker, '$this->metadataSync->sync(');
 $withMetadata = $metadataSync === false ? false : strpos($worker, '->withMetadata(', $metadataSync);

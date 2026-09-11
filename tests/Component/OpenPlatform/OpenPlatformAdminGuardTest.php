@@ -8,8 +8,8 @@ use app\common\context\RuntimeType;
 use app\common\error\AppException;
 use app\common\error\ErrorCode;
 use modules\iam\contract\PermissionAuthorizer;
-use app\openplatform\application\OpenPlatformAdminGuard;
-use app\openplatform\domain\OpenPlatformPermission;
+use modules\openplatform\application\OpenPlatformAdminGuard;
+use modules\openplatform\domain\OpenPlatformPermission;
 
 $authorizer = new class implements PermissionAuthorizer {
     public array $calls = [];

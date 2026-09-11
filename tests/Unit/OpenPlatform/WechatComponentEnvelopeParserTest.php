@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use app\common\error\AppException;
 use app\common\error\ErrorCode;
-use app\openplatform\security\WechatComponentEnvelopeParser;
+use modules\openplatform\security\WechatComponentEnvelopeParser;
 
 $parser = new WechatComponentEnvelopeParser();
 $outer = $parser->parseOuter('<xml><AppId>wx-diagnostic</AppId><Encrypt><![CDATA[cipher-value]]></Encrypt></xml>');

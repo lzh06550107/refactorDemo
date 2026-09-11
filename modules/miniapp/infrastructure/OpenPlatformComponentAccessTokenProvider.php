@@ -6,7 +6,7 @@ namespace modules\miniapp\infrastructure;
 
 use modules\miniapp\contract\ComponentAccessTokenProvider;
 use modules\miniapp\domain\ComponentAccessToken;
-use app\openplatform\application\ComponentAccessTokenService;
+use modules\openplatform\application\ComponentAccessTokenService;
 
 final readonly class OpenPlatformComponentAccessTokenProvider implements ComponentAccessTokenProvider
 {
