@@ -127,7 +127,7 @@ jobs:
             exit 1
           fi
 
-          for spec in 'admin:/admin/health' 'api:/api/v1/health'; do
+          for spec in 'admin:/admin-api/health' 'api:/api/v1/health'; do
             app="${spec%%:*}"
             path="${spec#*:}"
             body="/tmp/health-${app}.json"
@@ -207,6 +207,91 @@ jobs:
               exit 1
             fi
           done
+
+  admin-browser:
+    name: Admin production browser E2E
+    needs: test
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci-root-password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -pci-root-password"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      WEPLATFORM_ACCEPTANCE: '1'
+      DATABASE_HOSTNAME: 127.0.0.1
+      DATABASE_DATABASE: weplatform_admin_browser_test
+      DATABASE_USERNAME: root
+      DATABASE_PASSWORD: ci-root-password
+      DATABASE_HOSTPORT: '3306'
+      PHP_DATABASE_HOSTNAME: 127.0.0.1
+      PHP_DATABASE_DATABASE: weplatform_admin_browser_test
+      PHP_DATABASE_USERNAME: root
+      PHP_DATABASE_PASSWORD: ci-root-password
+      PHP_DATABASE_HOSTPORT: '3306'
+      PHP_DATABASE_CHARSET: utf8mb4
+      PHP_WEPLATFORM_ADMIN_SESSION_PEPPER: admin-e2e-session-pepper
+      PHP_WEPLATFORM_ADMIN_COOKIE_SECURE: 'false'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Admin browser PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_mysql, mbstring
+          tools: composer:v2
+          coverage: none
+
+      - name: Setup Admin browser Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            frontend/admin/package-lock.json
+            frontend/admin/e2e/package-lock.json
+
+      - name: Install locked PHP dependencies for Admin browser E2E
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Install locked Admin frontend dependencies for browser E2E
+        run: npm ci --prefix frontend/admin
+
+      - name: Build Admin frontend for browser E2E
+        run: npm run build --prefix frontend/admin
+
+      - name: Install locked Admin browser E2E dependencies
+        run: npm ci --prefix frontend/admin/e2e
+
+      - name: Install Chromium for Admin browser E2E
+        working-directory: frontend/admin/e2e
+        run: npx playwright install --with-deps chromium
+
+      - name: Prepare Admin browser database
+        run: php tests/E2E/PrepareAdminBrowserDatabase.php
+
+      - name: Generate masked Admin browser password
+        shell: bash
+        run: |
+          set -euo pipefail
+          admin_password="$(php -r 'echo bin2hex(random_bytes(32));')"
+          echo "::add-mask::${admin_password}"
+          printf 'WEPLATFORM_ADMIN_BOOTSTRAP_PASSWORD=%s\n' "$admin_password" >> "$GITHUB_ENV"
+
+      - name: Bootstrap Admin browser administrator
+        run: php think admin:bootstrap --username=e2e-admin
+
+      - name: Test Admin production browser E2E
+        run: npm test --prefix frontend/admin/e2e
 
   release:
     name: R8D MySQL release gate

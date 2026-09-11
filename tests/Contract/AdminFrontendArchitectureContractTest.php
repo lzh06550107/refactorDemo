@@ -51,6 +51,19 @@ declare(strict_types=1);
         throw new RuntimeException('Local HTTP example must explicitly opt out of Secure Admin cookies');
     }
 
+    $logFile = $root . '/config/log.php';
+    if (!is_file($logFile)) {
+        throw new RuntimeException('ThinkPHP log configuration is required so CLI failures never resolve a NULL log driver');
+    }
+    /** @var array<string,mixed> $logConfig */
+    $logConfig = require $logFile;
+    if (($logConfig['default'] ?? null) !== 'file') {
+        throw new RuntimeException('ThinkPHP log default channel must be explicitly configured as file');
+    }
+    if (($logConfig['channels']['file']['type'] ?? null) !== 'File') {
+        throw new RuntimeException('ThinkPHP file log channel must use the File driver');
+    }
+
     $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root . '/frontend/admin/src'));
     foreach ($iterator as $file) {
         if (!$file->isFile() || preg_match('/\.(ts|vue)$/', $file->getFilename()) !== 1) {
@@ -85,3 +98,8 @@ declare(strict_types=1);
         }
     }
 })();
+
+require dirname(__DIR__) . '/Component/AdminUi/SpaControllerTest.php';
+require dirname(__DIR__) . '/Component/Iam/BootstrapFirstAdminTest.php';
+require dirname(__DIR__) . '/Component/Iam/ThinkPhpBootstrapAdminRepositoryTest.php';
+require __DIR__ . '/AdminFoundationCompletionContractTest.php';

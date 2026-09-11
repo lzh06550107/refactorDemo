@@ -38,6 +38,11 @@ try {
         'ThinkPHP console must expose openplatform:provisioning-worker.',
     );
     fwrite(STDOUT, "[PASS] Provisioning worker command gate\n");
+    releaseGateAssert(
+        str_contains($thinkList, 'admin:bootstrap'),
+        'ThinkPHP console must expose admin:bootstrap.',
+    );
+    fwrite(STDOUT, "[PASS] Admin bootstrap command gate\n");
 
     releaseRunCommand(
         [PHP_BINARY, $root . '/tests/Acceptance/run.php'],
