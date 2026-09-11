@@ -3,3 +3,5 @@ vendor/
 runtime/
 .env
 .phpunit.result.cache
+frontend/admin/node_modules/
+public/build/admin/

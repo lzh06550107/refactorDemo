@@ -7,6 +7,7 @@ require __DIR__ . '/bootstrap.php';
 require __DIR__ . '/AcceptanceHarnessContractTest.php';
 require __DIR__ . '/FinalConsistencyContractTest.php';
 require __DIR__ . '/FreshDatabaseMigrationTest.php';
+require __DIR__ . '/AdminBrowserAuthRuntimeTest.php';
 require __DIR__ . '/IamRuntimeTest.php';
 require __DIR__ . '/QuotaRuntimeTest.php';
 require __DIR__ . '/WorkerRuntimeTest.php';
@@ -55,6 +56,9 @@ try {
 
     acceptanceFreshDatabaseMigrationTest($runtime);
     fwrite(STDOUT, "[PASS] FreshDatabaseMigrationTest\n");
+
+    acceptanceAdminBrowserAuthRuntimeTest($runtime);
+    fwrite(STDOUT, "[PASS] AdminBrowserAuthRuntimeTest\n");
 
     acceptanceWorkerRuntimeTest($runtime);
     fwrite(STDOUT, "[PASS] WorkerRuntimeTest\n");

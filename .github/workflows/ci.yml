@@ -26,6 +26,13 @@ jobs:
           tools: composer:v2
           coverage: none
 
+      - name: Setup Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/admin/package-lock.json
+
       - name: Validate Composer manifest
         run: composer validate --strict
 
@@ -34,6 +41,18 @@ jobs:
 
       - name: Install locked dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Install locked Admin frontend dependencies
+        run: npm ci --prefix frontend/admin
+
+      - name: Typecheck Admin frontend
+        run: npm run typecheck --prefix frontend/admin
+
+      - name: Test Admin frontend
+        run: npm test --prefix frontend/admin
+
+      - name: Build Admin frontend
+        run: npm run build --prefix frontend/admin
 
       - name: Run offline contract suite
         run: php tests/run.php
@@ -102,6 +121,30 @@ jobs:
           php -r '$j=json_decode(file_get_contents("/tmp/health-web.json"), true); exit(($j["data"]["application"] ?? null) === "web" ? 0 : 1);'
           php -r '$j=json_decode(file_get_contents("/tmp/health-admin.json"), true); exit(($j["data"]["application"] ?? null) === "admin" ? 0 : 1);'
           php -r '$j=json_decode(file_get_contents("/tmp/health-api.json"), true); exit(($j["data"]["application"] ?? null) === "api" ? 0 : 1);'
+
+          admin_csrf_headers=/tmp/admin-csrf.headers
+          admin_csrf_body=/tmp/admin-csrf.json
+          admin_csrf_status="$(curl -sS -D "$admin_csrf_headers" -H 'Accept: application/json' -o "$admin_csrf_body" -w '%{http_code}' 'http://127.0.0.1:18080/admin-api/v1/auth/csrf' || true)"
+          if [ "$admin_csrf_status" != "200" ]; then
+            echo "GET /admin-api/v1/auth/csrf returned HTTP $admin_csrf_status, expected 200" >&2
+            cat "$admin_csrf_body" >&2 || true
+            cat /tmp/thinkphp-server.log >&2 || true
+            exit 1
+          fi
+          if ! grep -Eqi '^set-cookie:[[:space:]]*weplatform_admin_csrf=' "$admin_csrf_headers"; then
+            echo "GET /admin-api/v1/auth/csrf did not set weplatform_admin_csrf" >&2
+            cat "$admin_csrf_headers" >&2 || true
+            exit 1
+          fi
+
+          admin_me_body=/tmp/admin-me-unauthenticated.json
+          admin_me_status="$(request_json /admin-api/v1/auth/me "$admin_me_body")"
+          if [ "$admin_me_status" != "401" ]; then
+            echo "GET /admin-api/v1/auth/me returned HTTP $admin_me_status without a session, expected 401" >&2
+            cat "$admin_me_body" >&2 || true
+            cat /tmp/thinkphp-server.log >&2 || true
+            exit 1
+          fi
 
           admin_body=/tmp/r8d-admin-unauthenticated.json
           admin_status="$(request_json /api/v1/openplatform/provisionings/runtime-smoke "$admin_body")"
