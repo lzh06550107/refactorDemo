@@ -35,6 +35,7 @@ jobs:
           set -euo pipefail
           mkdir -p app/worker/command
           git mv app/command/OpenPlatformProvisioningWorkerCommand.php app/worker/command/OpenPlatformProvisioningWorkerCommand.php
+          rmdir app/command
 
           python3 <<'PY'
           from pathlib import Path
@@ -79,6 +80,7 @@ jobs:
           grep -F 'use modules\openplatform\application\AuthorizerProvisioningWorker;' app/worker/command/OpenPlatformProvisioningWorkerCommand.php
           grep -F "setName('openplatform:provisioning-worker')" app/worker/command/OpenPlatformProvisioningWorkerCommand.php
           grep -F 'use app\worker\command\OpenPlatformProvisioningWorkerCommand;' config/console.php
+          test ! -d app/command
 
       - name: Regenerate autoload and verify command discovery
         shell: bash
