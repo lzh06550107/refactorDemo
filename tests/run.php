@@ -91,6 +91,8 @@ $files = [
     __DIR__ . '/Unit/Theme/StyleSnapshotTest.php',
     __DIR__ . '/Component/Theme/ThemeReleaseServiceTest.php',
     __DIR__ . '/Component/Theme/FilesystemThemePackageRepositoryTest.php',
+    __DIR__ . '/Component/Theme/ThemePageRendererTest.php',
+    __DIR__ . '/Component/Theme/RenderThemePageTest.php',
     __DIR__ . '/Unit/Theme/SafeThemeRendererTest.php',
     __DIR__ . '/GoldenMaster/R20ThemeStyleSnapshotTest.php',
     __DIR__ . '/Unit/Member/ExternalIdentityTest.php',
