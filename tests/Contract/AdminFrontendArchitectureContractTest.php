@@ -87,4 +87,5 @@ declare(strict_types=1);
 })();
 
 require dirname(__DIR__) . '/Component/AdminUi/SpaControllerTest.php';
+require dirname(__DIR__) . '/Component/Iam/BootstrapFirstAdminTest.php';
 require __DIR__ . '/AdminFoundationCompletionContractTest.php';
