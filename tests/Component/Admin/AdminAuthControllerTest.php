@@ -214,4 +214,4 @@ foreach ([
 }
 expectTrue(str_contains($routes, "Route::group('v1/auth'"), 'admin auth endpoints are grouped under v1/auth');
 expectTrue(substr_count($routes, 'AdminCsrfMiddleware::class') === 2, 'csrf middleware protects login and logout only');
-expectTrue(substr_count($routes, 'AdminSessionCookieMiddleware::class') === 2, 'session middleware protects me and logout only');
+expectTrue(substr_count($routes, 'AdminSessionCookieMiddleware::class') === 3, 'session middleware protects me, logout, and dashboard');
