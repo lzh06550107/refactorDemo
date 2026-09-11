@@ -1,14 +1,10 @@
-import { defineComponent } from 'vue'
 import { createRouter, createWebHistory } from 'vue-router'
 
+import AdminLayout from '../layouts/AdminLayout.vue'
+import DashboardView from '../views/DashboardView.vue'
 import LoginView from '../views/LoginView.vue'
 import NotFoundView from '../views/NotFoundView.vue'
 import { adminAuthGuard } from './guards'
-
-const AdminHomePlaceholder = defineComponent({
-  name: 'AdminHomePlaceholder',
-  setup: () => () => null,
-})
 
 const router = createRouter({
   history: createWebHistory('/admin/'),
@@ -16,8 +12,15 @@ const router = createRouter({
     {
       path: '/',
       name: 'home',
-      component: AdminHomePlaceholder,
+      component: AdminLayout,
       meta: { requiresAuth: true },
+      children: [
+        {
+          path: '',
+          name: 'dashboard',
+          component: DashboardView,
+        },
+      ],
     },
     {
       path: '/login',
