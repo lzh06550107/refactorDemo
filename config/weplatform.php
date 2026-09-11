@@ -10,4 +10,6 @@ return [
     'trusted_proxies' => array_values(array_filter(explode(',', (string) env('WEPLATFORM_TRUSTED_PROXIES', '')))),
     'audit_channel' => env('WEPLATFORM_AUDIT_CHANNEL', 'file'),
     'admin_session_pepper' => env('WEPLATFORM_ADMIN_SESSION_PEPPER', ''),
+    'admin_cookie_secure' => (bool) env('WEPLATFORM_ADMIN_COOKIE_SECURE', false),
+    'admin_session_ttl_seconds' => (int) env('WEPLATFORM_ADMIN_SESSION_TTL_SECONDS', 28800),
 ];
