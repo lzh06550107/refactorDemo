@@ -159,6 +159,12 @@ declare(strict_types=1);
             throw new RuntimeException($message);
         }
     }
+    if (substr_count($ci, 'weplatform_admin_browser_test') < 2) {
+        throw new RuntimeException('Admin browser E2E must use the fail-closed test database name weplatform_admin_browser_test for both runtime and ThinkPHP environments');
+    }
+    if (str_contains($ci, 'weplatform_admin_browser_e2e')) {
+        throw new RuntimeException('Admin browser E2E database name must satisfy the acceptance safety policy');
+    }
 
     $buildAt = strpos($ci, 'npm run build --prefix frontend/admin');
     $browserAt = strpos($ci, 'Test Admin production browser E2E');
