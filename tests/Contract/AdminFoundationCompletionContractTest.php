@@ -11,6 +11,10 @@ declare(strict_types=1);
         '/app/worker/command/AdminBootstrapCommand.php' => 'Initial administrator bootstrap command is required',
         '/modules/iam/application/BootstrapFirstAdmin.php' => 'Initial administrator bootstrap application service is required',
         '/modules/iam/infrastructure/ThinkPhpBootstrapAdminRepository.php' => 'Initial administrator bootstrap MySQL repository is required',
+        '/frontend/admin/e2e/package.json' => 'Admin browser E2E package is required',
+        '/frontend/admin/e2e/package-lock.json' => 'Admin browser E2E lockfile is required',
+        '/frontend/admin/e2e/playwright.config.js' => 'Admin Playwright configuration is required',
+        '/frontend/admin/e2e/admin-login.e2e.js' => 'Admin production browser E2E specification is required',
     ] as $relative => $message) {
         if (!is_file($root . $relative)) {
             throw new RuntimeException($message . ': ' . $relative);
@@ -60,8 +64,15 @@ declare(strict_types=1);
     }
 
     $gitignore = (string) file_get_contents($root . '/.gitignore');
-    if (!str_contains($gitignore, 'public/admin/')) {
-        throw new RuntimeException('Generated Admin production output must be ignored');
+    foreach ([
+        'public/admin/' => 'Generated Admin production output must be ignored',
+        'frontend/admin/e2e/node_modules/' => 'Admin E2E node_modules must be ignored',
+        'frontend/admin/e2e/playwright-report/' => 'Admin E2E Playwright report must be ignored',
+        'frontend/admin/e2e/test-results/' => 'Admin E2E test results must be ignored',
+    ] as $needle => $message) {
+        if (!str_contains($gitignore, $needle)) {
+            throw new RuntimeException($message);
+        }
     }
 
     $repository = (string) file_get_contents($root . '/modules/iam/infrastructure/ThinkPhpBootstrapAdminRepository.php');
@@ -91,11 +102,67 @@ declare(strict_types=1);
         throw new RuntimeException('Admin bootstrap command must never expose a --password option');
     }
 
+    $package = json_decode(
+        (string) file_get_contents($root . '/frontend/admin/e2e/package.json'),
+        true,
+        512,
+        JSON_THROW_ON_ERROR,
+    );
+    if (($package['devDependencies']['@playwright/test'] ?? null) !== '1.63.0') {
+        throw new RuntimeException('Admin browser E2E must pin @playwright/test 1.63.0');
+    }
+    if (($package['scripts']['test'] ?? null) !== 'playwright test') {
+        throw new RuntimeException('Admin browser E2E npm test must run playwright test');
+    }
+
+    $playwright = (string) file_get_contents($root . '/frontend/admin/e2e/playwright.config.js');
+    foreach ([
+        'admin-login.e2e.js' => 'Admin Playwright testMatch must select admin-login.e2e.js',
+        'http://127.0.0.1:18080' => 'Admin Playwright must target the real ThinkPHP origin',
+        'php ../../../think run -p 18080' => 'Admin Playwright must start the real ThinkPHP server',
+        "trace: 'retain-on-failure'" => 'Admin Playwright must retain traces on failure',
+        "screenshot: 'only-on-failure'" => 'Admin Playwright must capture screenshots on failure',
+    ] as $needle => $message) {
+        if (!str_contains($playwright, $needle)) {
+            throw new RuntimeException($message);
+        }
+    }
+
+    $browserSpec = (string) file_get_contents($root . '/frontend/admin/e2e/admin-login.e2e.js');
+    foreach ([
+        '/admin/login' => 'Admin browser E2E must open the production login route',
+        'e2e-admin' => 'Admin browser E2E must use the bootstrapped administrator',
+        'page.reload()' => 'Admin browser E2E must verify session restoration after reload',
+        '退出登录' => 'Admin browser E2E must verify logout',
+    ] as $needle => $message) {
+        if (!str_contains($browserSpec, $needle)) {
+            throw new RuntimeException($message);
+        }
+    }
+
     $ci = (string) file_get_contents($root . '/.github/workflows/ci.yml');
     if (!str_contains($ci, "'admin:/admin-api/health'")) {
         throw new RuntimeException('CI multi-app smoke must probe Admin API health through /admin-api/health');
     }
     if (str_contains($ci, "'admin:/admin/health'")) {
         throw new RuntimeException('CI multi-app smoke must not probe Admin API health through the /admin UI prefix');
+    }
+    foreach ([
+        'frontend/admin/e2e/package-lock.json' => 'CI cache must include the Admin E2E lockfile',
+        'npm ci --prefix frontend/admin/e2e' => 'CI must install locked Admin browser E2E dependencies',
+        'Test Admin production browser E2E' => 'CI must contain the permanent Admin production browser gate',
+        'WEPLATFORM_ADMIN_BOOTSTRAP_PASSWORD' => 'CI must bootstrap the browser-test administrator without a command-line password',
+        'php think admin:bootstrap --username=e2e-admin' => 'CI must bootstrap a real administrator before Admin browser E2E',
+        'mysql:8.4' => 'Admin production browser E2E must run with a real MySQL 8.4 service',
+    ] as $needle => $message) {
+        if (!str_contains($ci, $needle)) {
+            throw new RuntimeException($message);
+        }
+    }
+
+    $buildAt = strpos($ci, 'npm run build --prefix frontend/admin');
+    $browserAt = strpos($ci, 'Test Admin production browser E2E');
+    if ($buildAt === false || $browserAt === false || $buildAt >= $browserAt) {
+        throw new RuntimeException('Admin production build must run before Admin production browser E2E');
     }
 })();
