@@ -5,7 +5,7 @@ declare(strict_types=1);
 $root = dirname(__DIR__, 2);
 $upPath = $root . '/database/migrations/20260907_004_site_theme_runtime_up.sql';
 $downPath = $root . '/database/migrations/20260907_004_site_theme_runtime_down.sql';
-$repoPath = $root . '/app/theme/infrastructure/ThinkPhpThemePublicationRepository.php';
+$repoPath = $root . '/modules/theme/infrastructure/ThinkPhpThemePublicationRepository.php';
 
 expectTrue(is_file($upPath), 'R6 site/theme up migration must exist');
 expectTrue(is_file($downPath), 'R6 site/theme down migration must exist');

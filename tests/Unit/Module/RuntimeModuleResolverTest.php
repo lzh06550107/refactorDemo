@@ -3,11 +3,11 @@
 declare(strict_types=1);
 
 use modules\account\domain\AccountType;
-use app\module\domain\AccountModuleConfig;
-use app\module\domain\ModuleDefinition;
-use app\module\domain\ModuleLifecycleStatus;
-use app\module\domain\ModuleSupportMatrix;
-use app\module\domain\RuntimeModuleResolver;
+use modules\module\domain\AccountModuleConfig;
+use modules\module\domain\ModuleDefinition;
+use modules\module\domain\ModuleLifecycleStatus;
+use modules\module\domain\ModuleSupportMatrix;
+use modules\module\domain\RuntimeModuleResolver;
 
 $resolver = new RuntimeModuleResolver();
 $definition = new ModuleDefinition(

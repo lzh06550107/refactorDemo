@@ -5,10 +5,10 @@ declare(strict_types=1);
 use modules\account\domain\LegacyAccountMapping;
 use app\legacy\contract\LegacyDatabase;
 use app\legacy\support\LegacySerializedValueDecoder;
-use app\module\compat\LegacyModuleAdapter;
-use app\module\domain\ModuleBindingType;
-use app\module\domain\ModuleLifecycleStatus;
-use app\module\infrastructure\R20ModuleRuntimeRepository;
+use modules\module\compat\LegacyModuleAdapter;
+use modules\module\domain\ModuleBindingType;
+use modules\module\domain\ModuleLifecycleStatus;
+use modules\module\infrastructure\R20ModuleRuntimeRepository;
 
 final class RuntimeRepoFakeDb implements LegacyDatabase
 {

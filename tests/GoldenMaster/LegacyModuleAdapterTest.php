@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 use modules\account\domain\AccountType;
-use app\module\compat\LegacyModuleAdapter;
-use app\module\domain\ModuleLifecycleStatus;
+use modules\module\compat\LegacyModuleAdapter;
+use modules\module\domain\ModuleLifecycleStatus;
 
 $adapter = new LegacyModuleAdapter();
 $definition = $adapter->definition([

@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use app\theme\rendering\SafeThemeRenderer;
-use app\theme\rendering\ViewContract;
+use modules\theme\rendering\SafeThemeRenderer;
+use modules\theme\rendering\ViewContract;
 
 $renderer = new SafeThemeRenderer();
 $contract = new ViewContract(['title', 'body']);

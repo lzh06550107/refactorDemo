@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 use app\common\error\AppException;
 use app\common\error\ErrorCode;
-use app\module\domain\BindingRouteKind;
-use app\module\domain\BindingRuntimeRouter;
-use app\module\domain\ModuleBinding;
-use app\module\domain\ModuleBindingType;
+use modules\module\domain\BindingRouteKind;
+use modules\module\domain\BindingRuntimeRouter;
+use modules\module\domain\ModuleBinding;
+use modules\module\domain\ModuleBindingType;
 
 $router = new BindingRuntimeRouter();
 $bindings = [

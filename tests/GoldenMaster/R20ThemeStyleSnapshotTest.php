@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use app\theme\compat\R20ThemeStyleSnapshotMapper;
+use modules\theme\compat\R20ThemeStyleSnapshotMapper;
 
 $mapper = new R20ThemeStyleSnapshotMapper();
 $snapshot = $mapper->map(

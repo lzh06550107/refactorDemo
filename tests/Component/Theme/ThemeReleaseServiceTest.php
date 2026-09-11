@@ -9,14 +9,14 @@ use app\common\contract\AuditLogger;
 use app\common\context\Principal;
 use app\common\context\RequestContext;
 use app\common\context\RuntimeType;
-use app\site\domain\Site;
-use app\site\domain\SiteStatus;
-use app\theme\application\ThemeReleaseService;
-use app\theme\contract\ThemePublicationRepository;
-use app\theme\domain\SiteThemeRelease;
-use app\theme\domain\StyleInstance;
-use app\theme\domain\ThemePublication;
-use app\theme\domain\ThemeVersion;
+use modules\site\domain\Site;
+use modules\site\domain\SiteStatus;
+use modules\theme\application\ThemeReleaseService;
+use modules\theme\contract\ThemePublicationRepository;
+use modules\theme\domain\SiteThemeRelease;
+use modules\theme\domain\StyleInstance;
+use modules\theme\domain\ThemePublication;
+use modules\theme\domain\ThemeVersion;
 
 $repo = new class implements ThemePublicationRepository {
     /** @var array<string,ThemePublication> */ public array $byIdempotency = [];

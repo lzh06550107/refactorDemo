@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use app\module\domain\ModulePluginRelation;
-use app\module\domain\RuntimeModuleContext;
+use modules\module\domain\ModulePluginRelation;
+use modules\module\domain\RuntimeModuleContext;
 
 $relation = new ModulePluginRelation('main_shop', 'plugin_coupon');
 expectSame('main_shop', $relation->mainModule(), 'main module');

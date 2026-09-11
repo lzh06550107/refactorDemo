@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use app\site\domain\Site;
-use app\site\domain\SiteStatus;
+use modules\site\domain\Site;
+use modules\site\domain\SiteStatus;
 
 $default = new Site('site-1', 'tenant-1', 'account-1', 'Default site', SiteStatus::ENABLED, true, null, 7);
 expectTrue($default->isEnabled(), 'default site should start enabled');
