@@ -20,7 +20,7 @@ async function decideNavigation(
   }
 
   if (to.name === 'login' && auth.status === 'authenticated') {
-    return { name: 'home' }
+    return { path: '/' }
   }
 
   if (to.meta.requiresAuth && auth.status !== 'authenticated') {
