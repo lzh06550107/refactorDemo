@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 use app\common\audit\AuditEvent;
 use app\common\contract\AuditLogger;
-use app\miniapp\contract\ComponentAccessTokenProvider as MiniAppComponentAccessTokenProvider;
-use app\miniapp\infrastructure\OpenPlatformComponentAccessTokenProvider;
+use modules\miniapp\contract\ComponentAccessTokenProvider as MiniAppComponentAccessTokenProvider;
+use modules\miniapp\infrastructure\OpenPlatformComponentAccessTokenProvider;
 use app\openplatform\application\ComponentAccessTokenService;
 use app\openplatform\contract\ComponentCredentialProvider;
 use app\openplatform\contract\ComponentPlatformRepository;

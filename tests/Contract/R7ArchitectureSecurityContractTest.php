@@ -5,13 +5,13 @@ declare(strict_types=1);
 $root = dirname(__DIR__, 2);
 
 $architectureRoots = [
-    $root . '/app/member/domain',
-    $root . '/app/member/application',
-    $root . '/app/oauth/domain',
-    $root . '/app/oauth/application',
-    $root . '/app/webhook/domain',
-    $root . '/app/webhook/application',
-    $root . '/app/webhook/security',
+    $root . '/modules/member/domain',
+    $root . '/modules/member/application',
+    $root . '/modules/oauth/domain',
+    $root . '/modules/oauth/application',
+    $root . '/modules/webhook/domain',
+    $root . '/modules/webhook/application',
+    $root . '/modules/webhook/security',
 ];
 
 $phpFiles = static function (array $roots): array {
@@ -38,9 +38,9 @@ foreach ($phpFiles($architectureRoots) as $file) {
 }
 
 $secretRoots = [
-    $root . '/app/member',
-    $root . '/app/oauth',
-    $root . '/app/webhook',
+    $root . '/modules/member',
+    $root . '/modules/oauth',
+    $root . '/modules/webhook',
     $root . '/tests/Unit/Member',
     $root . '/tests/Unit/OAuth',
     $root . '/tests/Unit/Webhook',

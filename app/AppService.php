@@ -16,7 +16,7 @@ use modules\iam\infrastructure\ThinkPhpAdminSessionRepository;
 use modules\iam\infrastructure\ThinkPhpAdminTenantAccess;
 use modules\iam\infrastructure\ThinkPhpPermissionAuthorizer;
 use modules\iam\security\SessionTokenHasher;
-use app\miniapp\infrastructure\OpenPlatformAuthorizerAccountBinding;
+use modules\miniapp\infrastructure\OpenPlatformAuthorizerAccountBinding;
 use app\openplatform\application\AuthorizationCompletionService;
 use app\openplatform\application\AuthorizationEventService;
 use app\openplatform\application\AuthorizationStartService;

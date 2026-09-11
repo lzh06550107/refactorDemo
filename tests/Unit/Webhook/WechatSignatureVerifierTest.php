@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use app\common\error\AppException;
 use app\common\error\ErrorCode;
-use app\webhook\security\WechatSignatureVerifier;
+use modules\webhook\security\WechatSignatureVerifier;
 
 $verifier = new WechatSignatureVerifier();
 $now = new \DateTimeImmutable('@1788840000');

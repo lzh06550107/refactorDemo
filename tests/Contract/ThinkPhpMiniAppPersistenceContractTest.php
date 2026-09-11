@@ -3,9 +3,9 @@
 declare(strict_types=1);
 
 $root = dirname(__DIR__, 2);
-$providerPath = $root . '/app/miniapp/infrastructure/ThinkPhpMiniAppProviderAccountRepository.php';
-$sessionPath = $root . '/app/miniapp/infrastructure/ThinkPhpMiniAppSessionRepository.php';
-$cipherPath = $root . '/app/miniapp/infrastructure/OpenSslSessionKeyCipher.php';
+$providerPath = $root . '/modules/miniapp/infrastructure/ThinkPhpMiniAppProviderAccountRepository.php';
+$sessionPath = $root . '/modules/miniapp/infrastructure/ThinkPhpMiniAppSessionRepository.php';
+$cipherPath = $root . '/modules/miniapp/infrastructure/OpenSslSessionKeyCipher.php';
 
 foreach ([$providerPath, $sessionPath, $cipherPath] as $path) {
     expectTrue(is_file($path), 'missing MiniApp persistence/security adapter: ' . $path);

@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 use app\common\error\AppException;
 use app\common\error\ErrorCode;
-use app\miniapp\application\MiniAppEncryptedDataService;
-use app\miniapp\application\MiniAppSessionService;
-use app\miniapp\contract\MiniAppDataDecryptor;
-use app\miniapp\contract\MiniAppProviderAccountRepository;
-use app\miniapp\contract\MiniAppSessionRepository;
-use app\miniapp\contract\SessionKeyCipher;
-use app\miniapp\domain\MiniAppConnectionMode;
-use app\miniapp\domain\MiniAppProviderAccount;
-use app\miniapp\domain\MiniAppSession;
-use app\miniapp\domain\ProtectedSessionKey;
-use app\miniapp\infrastructure\OpenSslMiniAppDataDecryptor;
+use modules\miniapp\application\MiniAppEncryptedDataService;
+use modules\miniapp\application\MiniAppSessionService;
+use modules\miniapp\contract\MiniAppDataDecryptor;
+use modules\miniapp\contract\MiniAppProviderAccountRepository;
+use modules\miniapp\contract\MiniAppSessionRepository;
+use modules\miniapp\contract\SessionKeyCipher;
+use modules\miniapp\domain\MiniAppConnectionMode;
+use modules\miniapp\domain\MiniAppProviderAccount;
+use modules\miniapp\domain\MiniAppSession;
+use modules\miniapp\domain\ProtectedSessionKey;
+use modules\miniapp\infrastructure\OpenSslMiniAppDataDecryptor;
 
 $now = new DateTimeImmutable('2026-09-08T06:35:00+00:00');
 $token = str_repeat('c', 64);

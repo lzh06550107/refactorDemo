@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 use app\common\error\AppException;
 use app\common\error\ErrorCode;
-use app\miniapp\application\MiniAppSessionService;
-use app\miniapp\contract\MiniAppSessionRepository;
-use app\miniapp\domain\MiniAppSession;
-use app\miniapp\domain\ProtectedSessionKey;
+use modules\miniapp\application\MiniAppSessionService;
+use modules\miniapp\contract\MiniAppSessionRepository;
+use modules\miniapp\domain\MiniAppSession;
+use modules\miniapp\domain\ProtectedSessionKey;
 
 $now = new DateTimeImmutable('2026-09-08T06:30:00+00:00');
 $token = str_repeat('a', 64);

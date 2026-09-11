@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 $root = dirname(__DIR__, 3);
-$adapterPath = $root . '/app/miniapp/infrastructure/OpenPlatformAuthorizerAccountBinding.php';
+$adapterPath = $root . '/modules/miniapp/infrastructure/OpenPlatformAuthorizerAccountBinding.php';
 expectTrue(is_file($adapterPath), 'OpenPlatform authorizer Account binding adapter must exist');
 $source = (string) file_get_contents($adapterPath);
 

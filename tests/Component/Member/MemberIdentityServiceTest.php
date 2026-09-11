@@ -5,12 +5,12 @@ declare(strict_types=1);
 use app\common\contract\TransactionManager;
 use app\common\error\AppException;
 use app\common\error\ErrorCode;
-use app\member\application\MemberIdentityService;
-use app\member\contract\MemberIdentityRepository;
-use app\member\domain\ExternalIdentity;
-use app\member\domain\Member;
-use app\member\domain\MemberIdentityResult;
-use app\member\domain\ProviderIdentity;
+use modules\member\application\MemberIdentityService;
+use modules\member\contract\MemberIdentityRepository;
+use modules\member\domain\ExternalIdentity;
+use modules\member\domain\Member;
+use modules\member\domain\MemberIdentityResult;
+use modules\member\domain\ProviderIdentity;
 
 $tx = new class implements TransactionManager {
     public int $runs = 0;

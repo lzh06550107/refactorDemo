@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 use app\common\error\AppException;
 use app\common\error\ErrorCode;
-use app\webhook\application\WechatWebhookService;
-use app\webhook\contract\ProviderEventDispatcher;
-use app\webhook\contract\WebhookInboxRepository;
-use app\webhook\domain\WechatWebhookEvent;
-use app\webhook\domain\WechatWebhookRequest;
-use app\webhook\domain\WebhookInboxResult;
-use app\webhook\security\WechatSignatureVerifier;
+use modules\webhook\application\WechatWebhookService;
+use modules\webhook\contract\ProviderEventDispatcher;
+use modules\webhook\contract\WebhookInboxRepository;
+use modules\webhook\domain\WechatWebhookEvent;
+use modules\webhook\domain\WechatWebhookRequest;
+use modules\webhook\domain\WebhookInboxResult;
+use modules\webhook\security\WechatSignatureVerifier;
 
 final class InMemoryWebhookInboxRepository implements WebhookInboxRepository
 {

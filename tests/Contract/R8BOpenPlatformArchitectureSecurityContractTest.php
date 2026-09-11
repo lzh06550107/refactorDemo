@@ -40,7 +40,7 @@ expectTrue(
 );
 expectTrue(!str_contains($controller, 'Repository'), 'ticket controller cannot access OpenPlatform repositories directly');
 
-$adapterPath = $root . '/app/miniapp/infrastructure/OpenPlatformComponentAccessTokenProvider.php';
+$adapterPath = $root . '/modules/miniapp/infrastructure/OpenPlatformComponentAccessTokenProvider.php';
 expectTrue(is_file($adapterPath), 'R8A OpenPlatform component access token adapter exists');
 $adapter = (string) file_get_contents($adapterPath);
 expectTrue(str_contains($adapter, 'ComponentAccessTokenService'), 'R8A adapter delegates to R8B public Application service');
@@ -64,7 +64,7 @@ $secretPatterns = [
     '/\bgithub_pat_[A-Za-z0-9_]{30,}\b/',
     '/\bAKIA[0-9A-Z]{16}\b/',
 ];
-$scanRoots = [$root . '/app/openplatform', $root . '/app/miniapp/infrastructure'];
+$scanRoots = [$root . '/app/openplatform', $root . '/modules/miniapp/infrastructure'];
 foreach (array_merge($phpFiles($scanRoots), [$root . '/database/migrations/20260908_007_openplatform_component_trust_up.sql']) as $file) {
     $source = (string) file_get_contents($file);
     foreach ($secretPatterns as $pattern) {
