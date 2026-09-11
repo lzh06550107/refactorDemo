@@ -219,15 +219,15 @@ After the migration, a clean `composer dump-autoload` / `composer install` must 
 
 No permanent `class_alias()` bridge is allowed. The release should fail if stale `app\\<business-module>\\...` references remain.
 
-## 9. Entry-layer contract
+## 9. Entry-layer and dependency contract
 
 The application layer owns delivery adapters only:
 
 ```text
-app/admin -> modules/* application services
-app/api   -> modules/* application services
-app/web   -> modules/* application services
-app/worker -> modules/* application services
+app/admin   -> modules/* application services
+app/api     -> modules/* application services
+app/web     -> modules/* application services
+app/worker  -> modules/* application services
 ```
 
 Entry applications MAY depend on `app/common` and `modules/*`.
@@ -239,7 +239,20 @@ Business modules MUST NOT depend on:
 - `app\\web\\...`
 - `app\\worker\\...`
 
-This keeps HTTP and CLI details outside business modules.
+Within each business module, dependency direction SHALL remain compatible with the V4 rule:
+
+```text
+Application -> Domain <- Infrastructure
+```
+
+In particular:
+
+- `modules/*/domain` MUST NOT import ThinkPHP/framework classes;
+- `modules/*/domain` MUST NOT import HTTP/CLI entry namespaces;
+- infrastructure adapters MAY depend on framework classes and SHALL implement/serve contracts needed by Application/Domain;
+- business code MAY use true shared-kernel contracts/value objects from `app/common`, but Domain MUST NOT reach into `app/common/infrastructure` or delivery middleware.
+
+This keeps HTTP/CLI/framework details outside the business domain.
 
 ## 10. Shared-kernel contract
 
@@ -260,6 +273,8 @@ php think openplatform:provisioning-worker
 ```
 
 The command continues delegating to the OpenPlatform application layer. Its business collaborators move to `modules\\openplatform\\...`.
+
+`config/console.php` currently registers `app\\command\\OpenPlatformProvisioningWorkerCommand`; it SHALL be updated to register `app\\worker\\command\\OpenPlatformProvisioningWorkerCommand` while preserving the external command name and options.
 
 `app/AppService.php` remains the release composition root for this slice. It SHALL be updated only as needed for moved namespaces/bindings. Splitting it into module-specific service providers is intentionally deferred.
 
@@ -309,9 +324,11 @@ It SHALL verify at least:
 3. `app/worker/command/OpenPlatformProvisioningWorkerCommand.php` exists.
 4. `composer.json` maps `app\\` to `app/` and `modules\\` to `modules/`.
 5. Moved source files declare `modules\\...` namespaces consistent with their paths.
-6. No project source/test/config references stale business namespaces under `app\\account`, `app\\iam`, `app\\openplatform`, etc.
-7. Business-module code does not import `app\\admin`, `app\\api`, `app\\web`, or `app\\worker`.
-8. The offline suite actually executes the architecture contract on `require`, avoiding the earlier Provider-E2E false-green pattern.
+6. No active source/test/config references stale business namespaces under `app\\account`, `app\\iam`, `app\\openplatform`, etc.
+7. `config/console.php` registers the worker command through `app\\worker\\command` and contains no stale `app\\command` registration.
+8. Business-module code does not import `app\\admin`, `app\\api`, `app\\web`, or `app\\worker`.
+9. `modules/*/domain` source does not import `think\\...`, `app\\common\\infrastructure`, or delivery middleware/entry namespaces.
+10. The offline suite actually executes the architecture contract on `require`, avoiding the earlier Provider-E2E false-green pattern.
 
 The contract may scan source text, but it must avoid false positives from archived design-source documents that intentionally describe historical paths. Runtime code, active tests, active config, and active README/release docs are the enforcement scope.
 
@@ -334,7 +351,7 @@ Perform the minimum structural migration needed to satisfy the contract:
 3. Update each moved file's namespace.
 4. Update all imports/references after each bounded-context move.
 5. Move the CLI command to `app/worker/command/`.
-6. Update `AppService`, service/command registration, tests, and active docs.
+6. Update `config/console.php`, `AppService`, tests, and active docs.
 7. Regenerate Composer autoload metadata.
 
 ### REFACTOR
@@ -355,8 +372,8 @@ D. identity/integration modules
    member / oauth / webhook / miniapp
 E. OpenPlatform + legacy integration runtime
    openplatform / integration/legacy
-F. CLI adapter
-   app/command -> app/worker/command
+F. CLI adapter + command registration
+   app/command -> app/worker/command + config/console.php
 G. composition root + registration cleanup
 H. stale namespace/path scan
 I. full release verification
@@ -388,7 +405,7 @@ The migrated exact HEAD must pass, in order:
 
 1. `composer validate --strict`
 2. committed `composer.lock` consistency
-3. `composer install` from the lock
+3. `composer install` from the lock and/or clean `composer dump-autoload`
 4. architecture contract RED evidence before migration, then GREEN after migration
 5. `php tests/run.php`
 6. PHPUnit bridge
