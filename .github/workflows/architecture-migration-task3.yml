@@ -1,0 +1,123 @@
+name: Architecture Migration Task 3
+
+on:
+  push:
+    branches:
+      - refactor/openplatform-authorizer-provisioning-r8d
+
+permissions:
+  contents: write
+
+jobs:
+  migrate-core-modules:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+          coverage: none
+
+      - name: Install locked dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Move core modules and rewrite namespaces
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p modules
+          git mv app/tenant modules/tenant
+          git mv app/account modules/account
+          git mv app/iam modules/iam
+          git mv app/entitlement modules/entitlement
+          git mv app/quota modules/quota
+
+          python3 <<'PY'
+          from pathlib import Path
+
+          namespace_mapping = {
+              'app\\tenant\\': 'modules\\tenant\\',
+              'app\\account\\': 'modules\\account\\',
+              'app\\iam\\': 'modules\\iam\\',
+              'app\\entitlement\\': 'modules\\entitlement\\',
+              'app\\quota\\': 'modules\\quota\\',
+          }
+          path_mapping = {
+              'app/tenant/': 'modules/tenant/',
+              'app/account/': 'modules/account/',
+              'app/iam/': 'modules/iam/',
+              'app/entitlement/': 'modules/entitlement/',
+              'app/quota/': 'modules/quota/',
+          }
+          excluded = Path('tests/Contract/AppModulesArchitectureContractTest.php')
+          for root_name in ('app', 'modules', 'tests', 'config'):
+              root = Path(root_name)
+              if not root.exists():
+                  continue
+              for path in root.rglob('*.php'):
+                  if path == excluded:
+                      continue
+                  before = path.read_text(encoding='utf-8')
+                  after = before
+                  for old, new in namespace_mapping.items():
+                      after = after.replace(old, new)
+                  for old, new in path_mapping.items():
+                      after = after.replace(old, new)
+                  if after != before:
+                      path.write_text(after, encoding='utf-8')
+          PY
+
+      - name: Regenerate autoload and lint moved code
+        shell: bash
+        run: |
+          set -euo pipefail
+          composer dump-autoload
+          find modules/tenant modules/account modules/iam modules/entitlement modules/quota -name '*.php' -print0 | xargs -0 -n1 php -l
+          php -l app/AppService.php
+
+      - name: Run focused core regressions
+        run: >-
+          php -r "require 'tests/Support/bootstrap.php';
+          require 'tests/Unit/Tenant/TenantTest.php';
+          require 'tests/Unit/Account/AccountTest.php';
+          require 'tests/Unit/Account/LegacyAccountMappingTest.php';
+          require 'tests/Unit/Iam/AdminUserTest.php';
+          require 'tests/Component/Iam/RestoreAdminSessionTest.php';
+          require 'tests/Unit/Entitlement/TenantModuleEntitlementTest.php';
+          require 'tests/Component/Entitlement/TenantModuleEntitlementServiceTest.php';
+          require 'tests/Unit/Quota/QuotaLedgerTest.php';
+          require 'tests/Component/Quota/QuotaServiceIdempotencyTest.php';
+          require 'tests/GoldenMaster/R20AccountQuotaSnapshotTest.php';"
+
+      - name: Verify architecture gate progressed and no other offline regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          php tests/run.php > /tmp/offline.out 2>&1
+          status=$?
+          set -e
+          cat /tmp/offline.out
+          test "$status" -eq 1
+          grep -F '[FAIL] AppModulesArchitectureContractTest.php:' /tmp/offline.out
+          test "$(grep -c '^\[FAIL\]' /tmp/offline.out)" -eq 1
+          ! grep -E 'app directory: (tenant|account|iam|entitlement|quota)$' /tmp/offline.out
+
+      - name: Commit verified Task 3 migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add app modules tests config
+          git diff --cached --check
+          git commit -m 'refactor: move core business modules out of app [architecture-migration-generated]'
+          git push origin HEAD:${GITHUB_REF_NAME}
