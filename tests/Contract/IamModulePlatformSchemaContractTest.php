@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-$path = dirname(__DIR__, 2) . '/database/migrations/20260907_002_iam_module_platform_up.sql';
+$path = dirname(__DIR__, 2) . '/database/schema/v1/20260907_002_iam_module_platform_up.sql';
 expectTrue(is_file($path), 'R3 IAM/module migration must exist');
 $sql = file_get_contents($path);
 expectTrue(is_string($sql) && $sql !== '', 'R3 migration must not be empty');
@@ -31,7 +31,7 @@ foreach ([
     expectTrue(str_contains($sql, $index), 'missing R3 index/constraint ' . $index);
 }
 
-$downPath = dirname(__DIR__, 2) . '/database/migrations/20260907_002_iam_module_platform_down.sql';
+$downPath = dirname(__DIR__, 2) . '/database/schema/v1/20260907_002_iam_module_platform_down.sql';
 expectTrue(is_file($downPath), 'R3 rollback migration must exist');
 $down = file_get_contents($downPath);
 foreach (array_reverse($tables) as $table) {

@@ -50,3 +50,5 @@ foreach ([
 expectTrue(str_contains($databaseConfig, "env('DATABASE_CHARSET', 'utf8mb4')"), 'database charset must default to utf8mb4');
 expectTrue(str_contains($databaseConfig, "'prefix' => ''"), 'platform database connection must not apply the legacy ims_ prefix');
 expectTrue(!str_contains($databaseConfig, 'change-me'), 'database config must not hard-code example credentials');
+
+require __DIR__ . '/DatabaseMigrationStandardizationContractTest.php';

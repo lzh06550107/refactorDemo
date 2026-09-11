@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 $root = dirname(__DIR__, 2);
-$upPath = $root . '/database/migrations/20260908_006_miniapp_identity_session_up.sql';
-$downPath = $root . '/database/migrations/20260908_006_miniapp_identity_session_down.sql';
+$upPath = $root . '/database/schema/v1/20260908_006_miniapp_identity_session_up.sql';
+$downPath = $root . '/database/schema/v1/20260908_006_miniapp_identity_session_down.sql';
 
 expectTrue(is_file($upPath), 'R8A MiniApp identity/session up migration must exist');
 expectTrue(is_file($downPath), 'R8A MiniApp identity/session down migration must exist');
