@@ -127,7 +127,7 @@ jobs:
             exit 1
           fi
 
-          for spec in 'admin:/admin/health' 'api:/api/v1/health'; do
+          for spec in 'admin:/admin-api/health' 'api:/api/v1/health'; do
             app="${spec%%:*}"
             path="${spec#*:}"
             body="/tmp/health-${app}.json"
