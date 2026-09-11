@@ -125,9 +125,10 @@ Administrative backend endpoints use a separate namespace:
 /admin-api/v1/*
 ```
 
-Examples:
+Foundation endpoints:
 
 ```text
+GET  /admin-api/v1/auth/csrf
 POST /admin-api/v1/auth/login
 POST /admin-api/v1/auth/logout
 GET  /admin-api/v1/auth/me
@@ -169,7 +170,7 @@ Existing `RestoreAdminSession` remains the session restoration authority.
 
 ### 5.1 New application use cases
 
-IAM will gain the minimum missing use cases required for browser login:
+IAM gains these explicit application use cases:
 
 ```text
 AuthenticateAdmin
@@ -177,7 +178,7 @@ CreateAdminSession
 LogoutAdminSession
 ```
 
-The concrete names may be adjusted during planning only if existing naming conventions require it; responsibilities may not be merged into controllers.
+Controllers remain delivery adapters and may not absorb these responsibilities.
 
 ### 5.2 Login flow
 
@@ -188,11 +189,14 @@ username + password
 POST /admin-api/v1/auth/login
         |
         v
-IAM authentication application service
+AuthenticateAdmin
         |
         +-- load active admin user
         +-- reject expired/banned user
         +-- password_verify()
+        v
+CreateAdminSession
+        |
         +-- generate cryptographically random session token
         +-- persist only SHA-256 token hash
         v
@@ -201,25 +205,72 @@ browser session established
 
 The raw session token must never be stored in the database or logs.
 
-### 5.3 Browser token transport
+### 5.3 Browser session transport
 
-For the browser Admin SPA, the default design is an **HttpOnly, Secure, SameSite=Lax cookie** for the raw admin session token.
+The Admin SPA uses a cookie named:
 
-Reasons:
+```text
+weplatform_admin_session
+```
 
-- JavaScript cannot read the token, reducing XSS token exfiltration risk.
-- Refresh/navigation naturally restores the session.
-- The backend remains the session authority.
+Production attributes:
 
-For local HTTP development, `Secure` may be disabled by environment-specific configuration only. Production must require HTTPS and Secure cookies.
+```text
+HttpOnly
+Secure
+SameSite=Lax
+Path=/
+```
+
+For local HTTP development, `Secure` is disabled by environment-specific configuration only. Production requires HTTPS and `Secure=true`.
 
 The Admin SPA must not persist the raw token in `localStorage` or `sessionStorage`.
 
-### 5.4 CSRF
+`GET /admin-api/v1/auth/me` restores browser identity by reading this cookie server-side and delegating validation to the existing IAM session restoration path.
 
-Because browser Admin authentication uses a cookie, state-changing Admin API requests must be protected against CSRF.
+### 5.4 CSRF contract
 
-Phase 1 will use same-site deployment plus an explicit CSRF token/header mechanism for mutating `/admin-api/v1/*` requests. Login/logout behavior and CSRF bootstrap details will be specified in the implementation plan and tests, but CSRF protection itself is mandatory and may not be omitted.
+Cookie-authenticated state-changing Admin API requests use a double-submit CSRF contract.
+
+CSRF cookie:
+
+```text
+name: weplatform_admin_csrf
+HttpOnly: false
+Secure: true in production; false only for local HTTP development
+SameSite: Lax
+Path: /admin-api/
+```
+
+Request header:
+
+```text
+X-CSRF-Token
+```
+
+Flow:
+
+```text
+GET /admin-api/v1/auth/csrf
+        |
+        +-- generate cryptographically random CSRF token
+        +-- set weplatform_admin_csrf cookie
+        v
+Vue reads CSRF cookie
+        |
+        v
+POST/PUT/PATCH/DELETE /admin-api/v1/*
+        |
+        +-- send identical token in X-CSRF-Token
+        v
+backend compares cookie and header with hash_equals()
+```
+
+`POST /admin-api/v1/auth/login` and `POST /admin-api/v1/auth/logout` are included in CSRF enforcement. The SPA obtains/refreshes the CSRF cookie before login when needed.
+
+A missing or mismatched CSRF token returns 403 and must not execute the requested mutation.
+
+The CSRF token is not an authentication credential; possession of it does not create or restore an administrator session.
 
 ## 6. Admin deployment model
 
@@ -332,7 +383,7 @@ themes/corporate/
 
 Themes consume prepared render data. They must not query the database directly or instantiate repositories.
 
-Theme resolution will integrate with the existing `modules/theme` and `modules/site` boundaries rather than introducing a parallel theme database model.
+Theme resolution integrates with the existing `modules/theme` and `modules/site` boundaries rather than introducing a parallel theme database model.
 
 ## 10. Design tokens and customization
 
@@ -389,7 +440,7 @@ This avoids turning public themes into Admin-style component trees.
 
 - 400/422: render field/global validation errors.
 - 401: clear browser session state and redirect to login.
-- 403: show permission-denied view without pretending the session expired.
+- 403: show permission-denied view without pretending the session expired; CSRF failures are also 403.
 - 404: Admin not-found view.
 - 5xx/network errors: common recoverable error notification; no raw stack traces.
 
@@ -405,8 +456,8 @@ Mandatory constraints:
 
 - no raw admin session token in localStorage/sessionStorage
 - no raw session token in DB or logs
-- password verification uses PHP password APIs; no custom crypto
-- state-changing cookie-auth Admin APIs require CSRF protection
+- password verification uses PHP password APIs; no custom password crypto
+- state-changing cookie-auth Admin APIs require the defined CSRF cookie/header check
 - Vue output and server templates must escape untrusted content by default
 - explicit sanitization policy is required before rendering trusted-rich HTML content
 - frontend code must not embed provider secrets, AppSecret, EncodingAESKey, access tokens or refresh tokens
@@ -443,7 +494,7 @@ TDD is required for:
 - session creation/token hashing
 - session restoration through cookie transport
 - logout invalidation
-- CSRF rejection/acceptance
+- CSRF missing/mismatch/valid cases
 - Admin `/auth/me`
 
 Existing release tests must remain green.
@@ -531,10 +582,11 @@ The frontend foundation is complete when all of the following are true:
 5. Invalid/expired sessions return to login.
 6. Logout invalidates the server-side session.
 7. Authenticated user can enter the Admin shell and Dashboard route.
-8. Public Web/H5 can render at least one complete HTML page through `app/web` and a theme template.
-9. Web/H5 JavaScript assets build through Vite without requiring a Node production runtime.
-10. Architecture/security tests enforce Admin SPA vs Web server-template boundaries.
-11. Existing R8D PHP/HTTP/MySQL release gates remain green.
+8. Cookie-authenticated mutations fail without a valid CSRF cookie/header pair and succeed with a valid pair.
+9. Public Web/H5 can render at least one complete HTML page through `app/web` and a theme template.
+10. Web/H5 JavaScript assets build through Vite without requiring a Node production runtime.
+11. Architecture/security tests enforce Admin SPA vs Web server-template boundaries.
+12. Existing R8D PHP/HTTP/MySQL release gates remain green.
 
 ## 20. Branch and release isolation
 
