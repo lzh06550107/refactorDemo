@@ -50,7 +50,8 @@
 
 - Create `modules/theme/domain/ThemeManifest.php`.
 - Create `modules/theme/domain/ResolvedThemePage.php`.
-- Create `modules/theme/domain/ThemePageNotFound.php`.
+- Create `modules/theme/domain/ThemePageNotFound.php` — missing theme/page condition.
+- Create `modules/theme/domain/InvalidThemePackage.php` — corrupt/unsafe trusted package condition.
 - Create `modules/theme/contract/ThemePackageRepository.php`.
 - Create `modules/theme/infrastructure/FilesystemThemePackageRepository.php`.
 - Create `modules/theme/rendering/ThemePageRenderer.php`.
@@ -60,6 +61,7 @@
 ### Web delivery
 
 - Create `app/web/support/WebAssetManifest.php`.
+- Create `app/web/support/WebErrorPage.php` — static safe HTML error responses with no filesystem/runtime detail.
 - Create `app/web/controller/HomeController.php`.
 - Modify `app/web/route/app.php`, `config/weplatform.php`, `.env.example`, and `app/AppService.php` for asset configuration/binding.
 
@@ -323,6 +325,7 @@ git commit -m "feat: add corporate web theme skeleton"
 - Create: `modules/theme/domain/ThemeManifest.php`
 - Create: `modules/theme/domain/ResolvedThemePage.php`
 - Create: `modules/theme/domain/ThemePageNotFound.php`
+- Create: `modules/theme/domain/InvalidThemePackage.php`
 - Create: `modules/theme/contract/ThemePackageRepository.php`
 - Create: `modules/theme/infrastructure/FilesystemThemePackageRepository.php`
 - Create: `tests/Unit/Theme/ThemeManifestTest.php`
@@ -333,6 +336,9 @@ git commit -m "feat: add corporate web theme skeleton"
 **Interfaces:**
 
 ```php
+final class ThemePageNotFound extends RuntimeException {}
+final class InvalidThemePackage extends RuntimeException {}
+
 interface ThemePackageRepository
 {
     public function resolve(string $themeKey, string $pageKey): ResolvedThemePage;
@@ -343,19 +349,19 @@ interface ThemePackageRepository
 
 - [ ] **Step 1: RED manifest tests**
 
-Reject malformed key, manifest key mismatch, missing `name/version/layout/pages/components`, missing `index`, missing header/footer, absolute paths, `..` traversal, NUL bytes, and non-string path values.
+Reject malformed key, manifest key mismatch, missing `name/version/layout/pages/components`, missing `index`, missing header/footer, absolute paths, `..` traversal, NUL bytes, and non-string path values with `InvalidThemePackage`.
 
 - [ ] **Step 2: Implement manifest value object**
 
-Use the same key regex as existing `ThemeDefinition`. Page/component keys use `^[A-Za-z0-9_-]+$`. Template paths are normalized forward-slash relative paths and may not start `/` or contain `..` segments.
+Use the same key regex as existing `ThemeDefinition`. Page/component keys use `^[A-Za-z0-9_-]+$`. Template paths are normalized forward-slash relative paths and may not start `/` or contain `..` segments. Invalid manifest structure/path values throw `InvalidThemePackage`.
 
 - [ ] **Step 3: RED filesystem tests**
 
-Cover valid `corporate/index`, unknown theme -> `ThemePageNotFound`, unknown page -> `ThemePageNotFound`, symlink/path escape -> rejection, missing declared file -> invalid package error.
+Cover valid `corporate/index`, unknown theme -> `ThemePageNotFound`, unknown page -> `ThemePageNotFound`, symlink/path escape -> `InvalidThemePackage`, missing declared file -> `InvalidThemePackage`.
 
 - [ ] **Step 4: Implement filesystem repository**
 
-Constructor receives absolute themes root. Resolve root with `realpath`; theme directory must exist directly below root. Every declared template gets `realpath`, and the resolved file path must begin with `$themeRoot . DIRECTORY_SEPARATOR` before reading.
+Constructor receives absolute themes root. Resolve root with `realpath`; theme directory must exist directly below root. Every declared template gets `realpath`, and the resolved file path must begin with `$themeRoot . DIRECTORY_SEPARATOR` before reading. Missing theme/page throws `ThemePageNotFound`; declared-file/path/package failures throw `InvalidThemePackage`.
 
 - [ ] **Step 5: Bind exact root in AppService**
 
@@ -432,7 +438,7 @@ The `@@...@@` fragment tokens remain untouched because they are not `{{...}}` pl
 
 - [ ] **Step 4: Insert only exact trusted tokens**
 
-After scalar rendering, replace exactly three tokens with pre-rendered fragment strings. If any token is missing or remains after replacement, throw an invalid-theme exception. Do not add a generic `raw` placeholder feature to `SafeThemeRenderer`.
+After scalar rendering, require all three tokens `@@HEADER_HTML@@`, `@@CONTENT_HTML@@`, `@@FOOTER_HTML@@`; replace exactly those tokens with the three pre-rendered fragments. Missing/duplicate/unresolved trusted fragment tokens throw `InvalidThemePackage`. Do not add a generic `raw` placeholder feature to `SafeThemeRenderer`.
 
 - [ ] **Step 5: Implement application use case**
 
@@ -595,34 +601,66 @@ git commit -m "feat: serve first web theme page"
 
 ---
 
-### Task 8: Controlled Theme/Page Failure Mapping
+### Task 8: Controlled HTML 404 for Missing Theme/Page
 
 **Files:**
+- Create: `app/web/support/WebErrorPage.php`
+- Create: `tests/Unit/Web/WebErrorPageTest.php`
 - Create: `tests/Component/Web/WebThemeNotFoundTest.php`
-- Modify: `modules/theme/domain/ThemePageNotFound.php`
-- Modify: `modules/theme/infrastructure/FilesystemThemePackageRepository.php`
-- Modify: `app/web/controller/HomeController.php` only if controller-level mapping is the established project convention; otherwise modify the central exception mapping used by `ExceptionHandle`.
+- Modify: `app/web/controller/HomeController.php`
+- Modify: `tests/run.php`
 
 **Interfaces:**
-- Unknown theme/page -> controlled 404.
-- Corrupt trusted theme package/rendering error -> controlled 500.
-- Public responses contain no absolute filesystem paths or stack traces.
 
-- [ ] **Step 1: RED not-found/error tests**
+```php
+final class WebErrorPage
+{
+    public static function notFound(): string;
+}
+```
 
-Test unknown theme, unknown page, missing declared template, and invalid template directive. Assert only unknown theme/page are 404; corrupt package/directive errors are 500.
+- `ThemePageNotFound` from `RenderThemePage` is mapped by `HomeController` to HTML 404.
+- `InvalidThemePackage` and rendering exceptions are deliberately not caught by `HomeController`; they remain server errors (500).
+- The 404 body is static trusted HTML and contains no exception text, filesystem paths, stack traces, IDs, or secrets.
 
-- [ ] **Step 2: Implement explicit exception types/mapping**
+- [ ] **Step 1: RED safe error-page test**
 
-`ThemePageNotFound` is the only not-found condition from theme lookup. Invalid manifest/path/template conditions remain invalid-package/render errors and map to 500 through the existing exception envelope/handler.
+Assert `WebErrorPage::notFound()` starts with `<!doctype html>`, contains a generic Chinese 404 title/message, and contains none of `Exception`, `trace`, `/var/`, `C:\\`, `themes/`, or PHP stack detail.
 
-- [ ] **Step 3: Verify and commit**
+- [ ] **Step 2: RED controller failure-mapping tests**
+
+Exercise a `RenderThemePage` wired to a fake/fixture `ThemePackageRepository` that throws `ThemePageNotFound`: controller response must be status 404, `Content-Type: text/html; charset=UTF-8`, and body exactly `WebErrorPage::notFound()`. Exercise `InvalidThemePackage`: assert it escapes the controller and therefore is available to the framework as a 500 rather than being converted to 404.
+
+- [ ] **Step 3: Implement static safe 404 page**
+
+`WebErrorPage::notFound()` returns a small complete HTML5 document containing only generic content such as `页面不存在` and `您访问的页面不存在或已被移除。`; no exception input is accepted.
+
+- [ ] **Step 4: Catch only the not-found domain condition**
+
+Wrap only the `RenderThemePage::execute(...)` call in `HomeController`:
+
+```php
+try {
+    $html = $this->renderThemePage->execute('corporate', 'index', $viewModel);
+} catch (ThemePageNotFound) {
+    return response(
+        WebErrorPage::notFound(),
+        404,
+        ['Content-Type' => 'text/html; charset=UTF-8'],
+    );
+}
+```
+
+Do not catch `InvalidThemePackage`, `InvalidArgumentException`, or generic `Throwable` here. Existing `config/app.php` keeps `show_error_msg=false`, so production framework 500 handling does not expose raw error detail.
+
+- [ ] **Step 5: Verify and commit**
 
 ```bash
+php tests/Unit/Web/WebErrorPageTest.php
 php tests/Component/Web/WebThemeNotFoundTest.php
 php tests/run.php
-git add modules/theme app/web tests
-git commit -m "feat: map web theme failures safely"
+git add app/web tests
+git commit -m "feat: render safe web not found page"
 ```
 
 ---
