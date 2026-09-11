@@ -57,6 +57,7 @@ $files = [
     __DIR__ . '/Component/Iam/CreateAdminSessionTest.php',
     __DIR__ . '/Component/Iam/LogoutAdminSessionTest.php',
     __DIR__ . '/Unit/Admin/AdminCookiePolicyTest.php',
+    __DIR__ . '/Unit/Web/WebAssetManifestTest.php',
     __DIR__ . '/Component/Admin/AdminCsrfMiddlewareTest.php',
     __DIR__ . '/Component/Admin/AdminSessionCookieMiddlewareTest.php',
     __DIR__ . '/Component/Admin/AdminAuthControllerTest.php',

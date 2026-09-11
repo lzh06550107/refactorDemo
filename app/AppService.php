@@ -9,6 +9,7 @@ use app\common\contract\AuditLogger;
 use app\common\contract\TransactionManager;
 use app\common\infrastructure\ThinkPhpTransactionManager;
 use app\common\security\SecretValue;
+use app\web\support\WebAssetManifest;
 use modules\iam\contract\AdminCredentialRepository;
 use modules\iam\contract\AdminSessionRepository;
 use modules\iam\contract\AdminSessionStore;
@@ -149,6 +150,14 @@ final class AppService extends Service
 
         $this->app->bind(ThemePackageRepository::class, function (): ThemePackageRepository {
             return new FilesystemThemePackageRepository($this->app->getRootPath() . 'themes');
+        });
+
+        $this->app->bind(WebAssetManifest::class, function (): WebAssetManifest {
+            return new WebAssetManifest(
+                $this->app->getRootPath() . 'public/build/web/manifest.json',
+                (bool) $this->app->config->get('weplatform.web_assets_dev', false),
+                (string) $this->app->config->get('weplatform.web_assets_dev_origin', 'http://127.0.0.1:5174'),
+            );
         });
 
         $this->registerSecurityFactories();
