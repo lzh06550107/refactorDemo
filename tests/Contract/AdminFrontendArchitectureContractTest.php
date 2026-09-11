@@ -42,6 +42,15 @@ declare(strict_types=1);
         throw new RuntimeException('admin must remain directly addressable; do not use admin as a scalar app_map value');
     }
 
+    $weplatformConfig = (string) file_get_contents($root . '/config/weplatform.php');
+    if (!str_contains($weplatformConfig, "env('WEPLATFORM_ADMIN_COOKIE_SECURE', true)")) {
+        throw new RuntimeException('Admin cookies must default to Secure=true when the environment override is absent');
+    }
+    $envExample = (string) file_get_contents($root . '/.env.example');
+    if (!str_contains($envExample, 'WEPLATFORM_ADMIN_COOKIE_SECURE=false')) {
+        throw new RuntimeException('Local HTTP example must explicitly opt out of Secure Admin cookies');
+    }
+
     $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root . '/frontend/admin/src'));
     foreach ($iterator as $file) {
         if (!$file->isFile() || preg_match('/\.(ts|vue)$/', $file->getFilename()) !== 1) {
