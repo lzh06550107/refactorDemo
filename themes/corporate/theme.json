@@ -1,0 +1,13 @@
+{
+  "key": "corporate",
+  "name": "Corporate",
+  "version": "1.0.0",
+  "layout": "layouts/default.html",
+  "pages": {
+    "index": "pages/index.html"
+  },
+  "components": {
+    "header": "components/header.html",
+    "footer": "components/footer.html"
+  }
+}
