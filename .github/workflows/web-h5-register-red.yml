@@ -1,0 +1,44 @@
+name: Register Web H5 RED contract
+
+on:
+  push:
+    branches:
+      - refactor/web-h5-template-foundation-v1
+    paths:
+      - .github/workflows/web-h5-register-red.yml
+
+permissions:
+  contents: write
+
+jobs:
+  register:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refactor/web-h5-template-foundation-v1
+          fetch-depth: 0
+      - name: Register contract in offline runner
+        shell: python
+        run: |
+          from pathlib import Path
+          path = Path('tests/run.php')
+          source = path.read_text()
+          anchor = "    __DIR__ . '/Contract/AdminFrontendArchitectureContractTest.php',\n"
+          insertion = anchor + "    __DIR__ . '/Contract/WebFrontendArchitectureContractTest.php',\n"
+          if "WebFrontendArchitectureContractTest.php" not in source:
+              if anchor not in source:
+                  raise SystemExit('Admin frontend contract anchor not found')
+              source = source.replace(anchor, insertion, 1)
+              path.write_text(source)
+      - name: Commit runner registration
+        run: |
+          if git diff --quiet -- tests/run.php; then
+            echo "No runner change needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tests/run.php
+          git commit -m "test: register web template architecture contract"
+          git push origin HEAD:refactor/web-h5-template-foundation-v1
