@@ -12,19 +12,19 @@ Standardize database schema lifecycle around `topthink/think-migration` so local
 After this feature:
 
 1. A clean checkout can initialize an empty MySQL database with `php think migrate:run`.
-2. `php think migrate:status` reports authoritative migration state.
+2. `php think migrate:status` is the authoritative migration-status command.
 3. `php think migrate:rollback` can safely roll back the V1 baseline in dependency-safe reverse order.
 4. Existing SQL migrations 001–009 remain the immutable source of truth for the already-validated V1 schema; their SQL semantics are not rewritten into approximate schema-builder calls.
 5. Existing databases previously initialized by the legacy 001–009 SQL path can be adopted only after strict schema/seed verification.
 6. Partial or drifted databases fail closed and are never silently marked migrated.
-7. Acceptance and Admin production browser E2E use the same real `migrate:run` path developers use.
+7. Acceptance and Admin production browser E2E use the same real migration path developers use.
 8. `admin:bootstrap` can run immediately after migration on a fresh database.
 
 ## 2. Scope
 
 ### In scope
 
-- Add and lock `topthink/think-migration` compatible with the repository's ThinkPHP 8 dependency graph.
+- Add `topthink/think-migration:^3.1` to the production dependency graph and commit the resulting exact `composer.lock` resolution.
 - Make `migrate:run`, `migrate:status`, and `migrate:rollback` part of the supported project workflow.
 - Preserve existing 001–009 SQL as an immutable V1 baseline.
 - Add nine thin compatibility migrations that execute the corresponding validated V1 up/down SQL.
@@ -32,7 +32,7 @@ After this feature:
 - Add strict existing-database V1 adoption.
 - Replace the custom fresh-database SQL execution path in acceptance tests with the real migration CLI/runtime path.
 - Make Admin production E2E prepare its database through the real migration system before `admin:bootstrap`.
-- Add migration contracts, real-MySQL acceptance coverage, rollback/re-run coverage, and documentation.
+- Add migration contracts, real-MySQL acceptance coverage, rollback/re-run coverage, and setup documentation.
 
 ### Out of scope
 
@@ -79,56 +79,46 @@ local / CI / acceptance / browser E2E
   -> one authoritative migration history
 ```
 
-## 4. Options considered
+## 4. Selected approach
 
-### Option A — Rewrite 001–009 as native schema-builder migrations
+Use nine compatibility migrations backed by immutable V1 SQL.
 
-Translate every current SQL file into PHP migration API calls.
+Rejected alternatives:
 
-Advantages:
+- Rewriting 001–009 as schema-builder migrations risks changing already-validated MySQL details such as foreign keys, index names, `datetime(6)`, JSON, charset/collation, ordering, and seed behavior.
+- Collapsing all 001–009 into one monolithic baseline loses the current nine-step domain/history boundary and makes rollback/diagnosis coarser.
 
-- Pure PHP migration representation.
-- New and old migrations use the same coding style.
+Selected model:
 
-Rejected for V1 because the existing SQL contains exact MySQL behavior including foreign keys, index names, `datetime(6)`, JSON, charset/collation, ordering, and seed statements. Rewriting creates unnecessary semantic-drift risk in already-validated schema.
+```text
+V001 PHP migration -> immutable 001 up/down SQL
+V002 PHP migration -> immutable 002 up/down SQL
+...
+V009 PHP migration -> immutable 009 up/down SQL
+```
 
-### Option B — One monolithic V1 baseline migration
-
-Create one migration that executes all 001–009 SQL.
-
-Advantages:
-
-- Small amount of migration wrapper code.
-
-Rejected because it loses the existing nine-step domain/history boundary and makes rollback/all-or-nothing diagnosis coarser than the current design.
-
-### Option C — Nine compatibility migrations backed by immutable V1 SQL — selected
-
-Create nine `think-migration` migrations, one for each current version. Each migration delegates `up` and `down` to the corresponding historical SQL file.
-
-Advantages:
-
-- Preserves validated SQL semantics exactly.
-- Preserves 001–009 history boundaries.
-- Gives developers/CI one migration command.
-- Supports reverse-order rollback.
-- Allows migration 010+ to use normal PHP migration APIs without extending the legacy SQL convention.
-
-Trade-off: V1 temporarily has a thin PHP wrapper plus SQL baseline files. This is intentional compatibility infrastructure, not the pattern for new migrations.
+Migration 010 and later should normally use native PHP migration APIs directly; the historical SQL-pair convention ends at V1/009.
 
 ## 5. Dependency and command contract
 
-Add `topthink/think-migration` to the production dependency graph and commit the resulting `composer.lock`.
-
-The supported operator commands become:
+Target Composer constraint:
 
 ```text
+topthink/think-migration:^3.1
+```
+
+At design time the current stable 3.1.x release is compatible with `topthink/framework:^8.0`; implementation must let Composer resolve and lock the exact compatible version in `composer.lock`.
+
+The project-supported commands are:
+
+```text
+php think migrate:create <Name>
 php think migrate:status
 php think migrate:run
 php think migrate:rollback
 ```
 
-The exact installed package version is determined and locked by Composer; `composer.json` should use the narrowest practical compatible constraint rather than an unbounded range.
+The installed v3.1 implementation uses the project-root `database/migrations` directory for create/discovery/run; the design follows that actual source behavior rather than the stale README path wording.
 
 `composer install` followed by `php think list` must expose the migration commands on a clean checkout.
 
@@ -138,7 +128,7 @@ No project-specific custom command may replace `migrate:run` as the normal fresh
 
 ### 6.1 Historical V1 SQL baseline
 
-Move the existing SQL pairs to:
+Move existing SQL pairs to:
 
 ```text
 database/schema/v1/
@@ -154,52 +144,48 @@ database/schema/v1/
 Rules:
 
 - These files are the immutable V1 baseline.
-- Their SQL semantics must not change as part of this feature except for a proven compatibility defect that has its own migration/regression story.
-- Contract tests should pin the expected V1 file set and, preferably, content hashes so future edits are explicit rather than accidental.
+- The expected V1 file set is fixed by contract tests.
+- The content hash of every baseline SQL file is fixed by contract tests so edits are explicit and require a deliberate migration-design change.
+- This feature must not change the SQL semantics of 001–009.
 
-### 6.2 Migration directory
+### 6.2 Authoritative migration directory
 
-`database/migrations/` becomes the authoritative `think-migration` PHP migration directory.
+`database/migrations/` becomes the authoritative `topthink/think-migration` PHP migration directory.
 
-V1 wrappers use ordered timestamps/names that preserve 001–009 ordering, for example:
+V1 wrappers use ordered versions that preserve 001–009 ordering. Exact filenames/classes must be generated or validated against the installed package naming rules and then pinned by tests.
+
+Conceptually:
 
 ```text
 database/migrations/
-  20260907000100_V001IamTenantAccount.php
-  20260907000200_V002IamModulePlatform.php
-  20260907000300_V003EntitlementQuota.php
-  20260907000400_V004SiteThemeRuntime.php
-  20260908000500_V005MemberOAuthWebhook.php
-  20260908000600_V006MiniAppIdentitySession.php
-  20260908000700_V007OpenPlatformComponentTrust.php
-  20260908000800_V008OpenPlatformAuthorizerLifecycle.php
-  20260909000900_V009OpenPlatformAuthorizerProvisioning.php
+  <version-001>_v001_iam_tenant_account.php
+  <version-002>_v002_iam_module_platform.php
+  ...
+  <version-009>_v009_openplatform_authorizer_provisioning.php
 ```
 
-The exact class/file naming must satisfy the installed `think-migration` conventions and be locked by tests.
+No historical `*_up.sql` or `*_down.sql` files remain in `database/migrations/` after conversion.
 
 ### 6.3 Future migrations
 
-Migration 010 and later should normally be written directly in PHP using the migration API.
+Migration 010+ should normally be written directly in PHP through `topthink/think-migration`/Phinx APIs.
 
-The legacy `*_up.sql` / `*_down.sql` pairing convention ends at V1/009.
+The V1 SQL execution adapter is compatibility infrastructure only.
 
 ## 7. V1 SQL execution adapter
 
-The nine wrapper migrations should share one focused helper rather than each duplicating file loading and SQL splitting.
+The nine wrapper migrations share one focused helper rather than duplicating SQL-file handling.
 
 Responsibilities:
 
-1. Resolve a baseline file only from the fixed repository-owned `database/schema/v1` directory.
-2. Reject missing, unreadable, or empty SQL files.
-3. Execute statements on the migration's active database connection.
+1. Resolve a baseline file only from fixed repository-owned `database/schema/v1`.
+2. Reject missing, unreadable, or empty baseline files.
+3. Execute statements on the migration's active adapter/connection rather than opening an unrelated connection.
 4. Preserve statement order.
-5. Surface the baseline filename and failing statement index in errors without leaking secrets.
-6. Never accept arbitrary user-provided file paths.
+5. Surface baseline filename and statement index in errors without leaking configured secrets.
+6. Never accept arbitrary user-provided paths.
 
-The helper is compatibility infrastructure for V1 only; new migration 010+ code must not be forced through SQL files.
-
-The implementation must use the connection semantics supported by the installed `think-migration`/Phinx version rather than opening a second unrelated connection that could break transaction or migration-state assumptions.
+Implementation must use APIs supported by the locked package version so transaction and migration-history semantics remain coherent.
 
 ## 8. Fresh database behavior
 
@@ -210,83 +196,54 @@ composer install
   -> php think migrate:status
   -> php think migrate:run
   -> V001 ... V009
-  -> migration history recorded by think-migration
-  -> schema + seeds verified
+  -> think-migration history recorded
+  -> schema + seed assertions
   -> php think admin:bootstrap --username=admin
 ```
 
-The fresh migration acceptance gate must verify at minimum the existing critical schema contracts, including:
+Fresh migration acceptance must verify the existing critical contracts, including at minimum:
 
-- `admin_users`
-- `admin_sessions`
-- `tenants`
-- IAM/module/permission tables
-- site/theme runtime tables
-- member OAuth/webhook tables
-- mini-app identity/session tables
-- OpenPlatform component-trust tables
-- authorizer lifecycle/provisioning tables
-- existing permission seed set such as `openplatform.*`
+- `admin_users`, `admin_sessions`, `tenants`;
+- IAM/module/permission tables;
+- site/theme runtime tables;
+- member OAuth/webhook tables;
+- mini-app identity/session tables;
+- OpenPlatform component-trust tables;
+- authorizer lifecycle/provisioning tables;
+- the expected `openplatform.*` permission seed set.
 
-The existing detailed schema contracts remain authoritative; migration standardization must not weaken them.
+Existing detailed schema contracts remain authoritative and must not be weakened.
 
 ## 9. Existing database adoption
 
-### 9.1 Why adoption is required
+### 9.1 Required states
 
-A database may already have been initialized by manually applying V1 SQL before `think-migration` existed. Such a database has business tables but no `think-migration` history.
+A target database is classified into exactly one state:
 
-Blindly running V001–V009 would attempt duplicate `CREATE TABLE` statements. Blindly inserting migration-history rows would risk certifying an incomplete or drifted schema.
+- `EMPTY`: no V1 business schema and no migration history. Action: normal `migrate:run`.
+- `MANAGED`: migration history exists and is consistent with the installed migration set. Action: normal `migrate:status/run`.
+- `LEGACY_V1_COMPLETE`: no migration history, but business schema and required seeds exactly satisfy the V1 fingerprint. Action: explicit adoption is allowed.
+- `DRIFTED_OR_PARTIAL`: partial objects exist, schema/seed fingerprint is wrong, or history/schema disagree. Action: fail closed.
 
-### 9.2 Database-state classification
+### 9.2 Adoption verifier
 
-Before adoption, classify the database into exactly one state:
-
-#### EMPTY
-
-No V1 business schema exists and no migration history exists.
-
-Action: normal `migrate:run`.
-
-#### MANAGED
-
-Migration history exists and is internally consistent with the installed migration set.
-
-Action: normal `migrate:status` / `migrate:run`.
-
-#### LEGACY_V1_COMPLETE
-
-No migration history exists, but the database matches the complete validated V1 schema and required seeds.
-
-Action: explicit adoption workflow may mark V001–V009 as applied without replaying DDL.
-
-#### DRIFTED_OR_PARTIAL
-
-Some expected V1 objects exist but the complete V1 fingerprint does not match, or history/schema disagree.
-
-Action: fail closed. Do not apply, repair, or mark history automatically.
-
-### 9.3 Adoption verifier
-
-The verifier must inspect more than table names. It must validate enough structural and seed evidence to distinguish a true V1 database from a partial/manual lookalike.
-
-Required evidence includes:
+The verifier must check more than table existence. Required evidence includes:
 
 - expected tables;
 - critical column names/types/nullability/defaults;
-- primary and unique keys;
+- primary/unique keys;
 - critical named indexes;
 - critical foreign keys;
 - expected V1 permission seeds;
-- any other existing acceptance assertions needed to prove compatibility.
+- existing acceptance assertions needed to prove V1 compatibility.
 
-The verifier should reuse or extract existing schema assertions where practical instead of creating a weaker duplicate definition.
+Reuse/extract current schema assertions where practical instead of creating a weaker duplicate definition.
 
-### 9.4 Adoption mutation
+### 9.3 Explicit adoption command
 
-Adoption is explicit, not automatic as a side effect of ordinary `migrate:run`.
+Adoption is never an automatic side effect of `migrate:run`.
 
-Recommended project command contract:
+Project command:
 
 ```text
 php think migration:adopt-v1
@@ -294,95 +251,92 @@ php think migration:adopt-v1
 
 Semantics:
 
-1. Connect to the configured database.
-2. Refuse if it is EMPTY (operator should use `migrate:run`).
-3. Refuse if it is already MANAGED.
-4. Run the complete V1 verifier.
-5. If and only if classification is `LEGACY_V1_COMPLETE`, write the exact migration-history rows expected for V001–V009 using a supported `think-migration` integration boundary.
-6. Re-run `migrate:status`/history verification after adoption.
-7. Never modify business tables during adoption.
+1. Connect to configured DB.
+2. Refuse `EMPTY` and direct operator to `migrate:run`.
+3. Refuse already `MANAGED` DB.
+4. Run complete V1 verification.
+5. Only for `LEGACY_V1_COMPLETE`, record exactly V001–V009 as applied without replaying DDL.
+6. Re-read migration history/status and verify the result.
+7. Never modify business tables/data during adoption.
 
-If the package does not expose a stable API for recording historical versions, the implementation may use a small repository-owned adapter around the package's migration-history table, but this must be pinned by tests to the installed package version/schema and must fail closed on mismatch.
+If v3.1 does not expose a stable public API for historical-version recording, use a small repository-owned adapter around the package migration-history table, pinned to the locked package version/schema by tests. Any unexpected package history schema must fail closed.
 
 ## 10. Rollback semantics
 
-Rollback is supported primarily for development/test databases.
+Rollback is primarily a development/test capability.
 
 Requirements:
 
-- V009 rolls back before V008, continuing in reverse order through V001.
+- V009 rolls back before V008, continuing in reverse order to V001.
 - Each wrapper executes its matching immutable `_down.sql`.
-- Foreign-key dependency order must remain valid.
-- A complete rollback leaves no V1 business tables created by 001–009.
-- Migration history reflects the rolled-back state.
-- A subsequent `migrate:run` recreates an equivalent V1 schema and seed set.
+- Foreign-key dependency order remains valid.
+- Full V1 rollback leaves no business tables created by 001–009.
+- Migration history reflects rolled-back state.
+- Subsequent `migrate:run` recreates an equivalent V1 schema and seed set.
 
-Production documentation must warn that rollback is destructive and is not a substitute for backup/restore or forward-fix deployment practices.
+Documentation must warn that rollback is destructive and is not a production backup/restore strategy.
 
-## 11. Test and TDD strategy
+## 11. TDD and test strategy
 
-Implementation follows strict RED → GREEN with exact-head evidence.
+Implementation follows strict RED -> GREEN with exact-head evidence.
 
 ### 11.1 Contract RED first
 
-The first implementation commit must add only tests/contracts requiring:
+The first implementation commit is test-only and requires:
 
-- `topthink/think-migration` dependency;
-- migration commands as the supported path;
-- nine PHP migration wrappers;
-- immutable V1 SQL baseline directory/file set;
-- no new `*_up.sql` migration convention under `database/migrations`;
-- acceptance and Admin browser database setup no longer use the custom `glob('*_up.sql')` runner.
+- Composer dependency `topthink/think-migration:^3.1`;
+- nine PHP migration wrappers under `database/migrations`;
+- immutable `database/schema/v1` file set and fixed content hashes;
+- no historical `*_up.sql`/`*_down.sql` files under `database/migrations`;
+- acceptance and Admin browser DB setup no longer rely on the custom `glob('*_up.sql')` runner;
+- setup docs use real migrate commands.
 
-The RED must fail because the feature is absent, not because of unrelated syntax/configuration problems.
+The RED must fail only because the migration-standardization feature is absent.
 
-### 11.2 Unit/component tests
+### 11.2 Unit/component coverage
 
-Cover the V1 SQL adapter:
+Cover V1 SQL adapter behavior:
 
 - missing file fails;
 - empty file fails;
-- ordered statements execute in order;
-- error identifies migration/baseline context;
-- path traversal/arbitrary paths are impossible;
-- adapter does not expose SQL content/secrets unnecessarily.
+- statement order is preserved;
+- failure identifies baseline/version context;
+- arbitrary/path-traversal access is impossible;
+- error output does not leak secrets.
 
-Cover adoption classification/verifier logic with focused fixtures or test doubles where real MySQL is not required.
+Cover adoption classification/verifier logic separately from CLI presentation.
 
 ### 11.3 Real MySQL fresh migration acceptance
 
-Against a fresh MySQL 8.4 database:
+Against fresh MySQL 8.4:
 
-1. Ensure target database starts empty.
-2. Run the real migration command/path equivalent to `php think migrate:run`.
-3. Assert migration status shows V001–V009 applied.
-4. Re-run all critical V1 schema/seed assertions.
-5. Run `admin:bootstrap` and verify the administrator can be read/authenticated through existing IAM persistence.
-6. Run `migrate:run` again and prove idempotent no-op behavior.
+1. Start with an empty guarded test DB.
+2. Run real `php think migrate:run` or the exact in-process command equivalent if required by the test harness.
+3. Assert V001–V009 are recorded as applied.
+4. Run all critical V1 schema/seed assertions.
+5. Run `admin:bootstrap` and prove the administrator is persisted/authenticatable.
+6. Run migration again and prove it is an idempotent no-op.
 
-### 11.4 Real MySQL rollback/re-run acceptance
-
-On an isolated test database:
+### 11.4 Real MySQL rollback/re-run
 
 1. Fresh migrate V001–V009.
-2. Roll back all V1 migrations through the supported command/path.
-3. Verify V1-created business tables are absent and history is consistent.
-4. Re-run migration.
-5. Verify schema/seed fingerprint matches the initial migrated state.
+2. Roll back all V1 migrations through the supported command path.
+3. Assert V1-created business tables are absent and history is coherent.
+4. Run migration again.
+5. Assert schema/seed fingerprint equals the first fresh-migrated fingerprint.
 
 ### 11.5 Legacy adoption acceptance
 
-Create a database by applying the immutable V1 SQL baseline without migration history, then:
+Build a DB by applying immutable V1 SQL directly with no migration history, then:
 
-1. Prove ordinary migration is not used to replay duplicate DDL.
-2. Run explicit V1 adoption.
-3. Verify business data/schema is unchanged.
-4. Verify V001–V009 history is recorded.
-5. Verify subsequent `migrate:run` is a no-op.
+1. Run explicit adoption.
+2. Prove business schema/data are unchanged.
+3. Prove V001–V009 history is recorded.
+4. Prove subsequent `migrate:run` is a no-op.
 
-Add negative cases:
+Negative matrix must include:
 
-- one table missing;
+- missing expected table;
 - critical column drift;
 - missing/incorrect unique index;
 - missing foreign key;
@@ -390,31 +344,31 @@ Add negative cases:
 - partial migration history;
 - history says applied while schema is missing.
 
-Every negative case must fail closed without writing adoption history.
+Every negative case must fail without writing adoption history.
 
 ### 11.6 Admin production browser E2E
 
-Replace custom/prepared schema setup with:
+Database setup becomes:
 
 ```text
 fresh MySQL 8.4
   -> real migrate:run
   -> admin:bootstrap
   -> production Admin build/server
-  -> Chromium login/dashboard/reload/logout
+  -> Chromium login -> dashboard -> reload/session restore -> logout
 ```
 
-The browser gate therefore proves the complete operator chain, not merely the UI/auth layer.
+This makes the browser gate prove the complete operator chain rather than only UI/auth behavior.
 
 ### 11.7 Full regression
 
-Same exact head must pass:
+The same exact head must pass:
 
 - Composer validation / locked install;
-- migration contract/unit/acceptance gates;
+- migration contracts/unit tests;
 - fresh migrate;
 - rollback/re-run;
-- legacy V1 adoption positive/negative matrix;
+- legacy-adoption positive/negative matrix;
 - Admin typecheck/Vitest/build;
 - Web unit/build/Chromium E2E;
 - Admin production Chromium E2E;
@@ -425,30 +379,30 @@ Same exact head must pass:
 
 ## 12. CI design
 
-Use MySQL 8.4, matching the repository's current real-database release/browser gates.
+Use MySQL 8.4, matching existing real-database gates.
 
-At least one permanent migration job must exercise:
+A permanent migration job must exercise:
 
 ```text
 composer install
-  -> fresh DB
+  -> fresh guarded test DB
   -> migrate:run
   -> schema/seed assertions
   -> admin:bootstrap smoke
   -> migrate no-op check
   -> rollback all
-  -> verify empty/expected state
+  -> verify rollback state
   -> migrate:run again
   -> schema/seed assertions again
 ```
 
-Legacy adoption should run in the same job or a separate isolated database in the same workflow. It must not share mutable state with the fresh-migration path.
+Legacy adoption runs against a separate isolated guarded DB and must not share mutable state with the fresh-migration path.
 
-CI database names must continue following the repository's fail-closed test-database naming policy.
+Destructive reset/rollback helpers must preserve the repository's fail-closed test-database naming policy.
 
 ## 13. Developer workflow after completion
 
-Fresh checkout/local setup becomes:
+Fresh checkout:
 
 ```text
 composer install
@@ -460,7 +414,7 @@ npm run build --prefix frontend/admin
 php think run -p 18080
 ```
 
-An operator with an old SQL-initialized complete V1 database uses:
+Existing complete legacy V1 DB:
 
 ```text
 php think migration:adopt-v1
@@ -468,62 +422,62 @@ php think migrate:status
 php think migrate:run
 ```
 
-A partial/drifted database must be repaired through an explicit, reviewed recovery process; the migration standardization feature does not guess or auto-repair it.
+Partial/drifted DBs are never auto-repaired. Recovery is a separate explicit reviewed operation.
 
-## 14. Security and safety requirements
+## 14. Security and safety
 
-- Migration/adoption commands must never print configured database passwords or unrelated environment secrets.
-- Production debug pages must not be required for diagnosing migration failures.
-- Adoption never modifies business data/schema; it only records history after successful verification.
-- Ordinary `migrate:run` must not implicitly adopt a legacy database.
+- Migration/adoption commands never print database passwords or unrelated environment secrets.
+- Production debug pages are not required for migration diagnosis.
+- Adoption never modifies business data/schema; it only writes history after complete verification.
+- Ordinary `migrate:run` never implicitly adopts legacy DBs.
 - Partial/drifted states fail closed.
-- Rollback documentation must identify destructive behavior.
-- Test/CI databases must be guarded so destructive reset/rollback operations cannot target an arbitrary production-like database name.
-- Historical V1 SQL cannot resolve user-controlled paths.
+- Rollback is clearly documented as destructive.
+- Destructive CI/test operations are restricted to guarded test database names.
+- V1 SQL loader cannot resolve user-controlled paths.
 
 ## 15. Documentation requirements
 
-Update project setup documentation so the normal path uses `migrate:run` rather than manual SQL commands.
+Update project setup docs to make `migrate:run` the normal schema bootstrap path.
 
 Document:
 
 - fresh install flow;
-- migration status/run/rollback commands;
-- V1 legacy adoption flow;
-- fail-closed partial/drift behavior;
+- migrate status/run/rollback;
+- legacy V1 adoption;
+- fail-closed drift behavior;
 - destructive rollback warning;
-- MySQL version expectation used by CI;
-- first-admin bootstrap order after migration.
+- MySQL 8.4 CI expectation;
+- `admin:bootstrap` order after migration.
 
-Manual execution of individual V1 SQL files should be documented only as historical/recovery internals, not the normal developer workflow.
+Manual execution of individual V1 SQL files becomes historical/recovery internals, not the normal developer workflow.
 
 ## 16. Acceptance criteria
 
-AC1. `topthink/think-migration` is present in the locked Composer dependency graph and migration commands are available after `composer install`.
+AC1. `topthink/think-migration:^3.1` is in `composer.json`, exact dependency resolution is committed in `composer.lock`, and migration commands are available after clean `composer install`.
 
-AC2. On a fresh MySQL 8.4 database, `php think migrate:run` alone applies V001–V009 and produces the current validated V1 schema/seeds.
+AC2. On a fresh MySQL 8.4 DB, `php think migrate:run` applies V001–V009 and produces the current validated V1 schema/seeds.
 
-AC3. V001–V009 preserve the existing historical SQL semantics through immutable baseline files; this feature does not approximate/rewrite the V1 schema through schema-builder calls.
+AC3. V001–V009 preserve historical SQL semantics through immutable baseline files whose file set and hashes are permanently contracted.
 
 AC4. `php think migrate:status` accurately reports V001–V009 after fresh migration.
 
 AC5. Re-running `migrate:run` after V001–V009 are applied performs no duplicate DDL and leaves schema/data unchanged.
 
-AC6. Full V1 rollback executes in dependency-safe reverse order, leaves expected V1-created business objects absent, and updates migration history correctly.
+AC6. Full V1 rollback executes in dependency-safe reverse order and updates history correctly.
 
-AC7. Re-running migration after full rollback recreates a schema/seed fingerprint equivalent to the initial fresh migration.
+AC7. Re-running migration after full rollback recreates an equivalent schema/seed fingerprint.
 
-AC8. A complete legacy V1 database with no migration history can be explicitly adopted without replaying DDL or modifying business data/schema.
+AC8. A complete legacy V1 DB with no migration history can be explicitly adopted without replaying DDL or changing business data/schema.
 
-AC9. Partial or drifted legacy databases are rejected fail-closed and no V1 migration history is written.
+AC9. Partial/drifted legacy DBs are rejected fail-closed and no migration history is written.
 
 AC10. Fresh migration followed by `php think admin:bootstrap --username=<name>` creates the initial administrator successfully.
 
-AC11. Admin production browser E2E prepares the database through the real migration path before bootstrap and still verifies login → Dashboard → reload/session restore → logout → old-session rejection.
+AC11. Admin production browser E2E prepares its DB through the real migration path before bootstrap and still proves login -> Dashboard -> reload/session restore -> logout -> old-session rejection.
 
-AC12. Existing Admin/Web/backend/R8D gates remain GREEN on the same exact head.
+AC12. Existing Admin/Web/backend/R8D quality gates remain GREEN on the same exact head.
 
-AC13. Human acceptance confirms the documented local flow works from a clean/empty database before the migration-standardization PR can be marked Ready.
+AC13. Human acceptance confirms the documented fresh local flow from an empty DB before the migration-standardization PR can be marked Ready.
 
 ## 17. Delivery and stacking
 
@@ -533,15 +487,15 @@ Develop only on:
 refactor/database-migration-standardization-v1
 ```
 
-Base exactly on the current Admin Foundation head at feature creation:
+The branch is based exactly on the current Admin Foundation head at feature creation:
 
 ```text
 refactor/admin-foundation-completion-v1
 8fbc4a615c717b9a61d9954dee4654f8630731f7
 ```
 
-Open a separate stacked Draft PR targeting `refactor/admin-foundation-completion-v1` only after the written spec and implementation plan are approved and implementation begins.
+Open a separate stacked Draft PR targeting `refactor/admin-foundation-completion-v1` only after written-spec review and implementation planning.
 
-Do not modify PR #7, #8, or #9. PR #10 remains independently subject to its existing Human Gate; this feature must not be used to mark PR #10 Ready without that explicit acceptance.
+Do not modify PR #7, #8, or #9. PR #10 remains independently subject to its existing Human Gate; this feature must not be used to mark PR #10 Ready without explicit acceptance.
 
 Do not mark the migration-standardization PR Ready or merge it until its exact-head automated gates and independent Human Gate are both GREEN.
