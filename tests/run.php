@@ -53,6 +53,8 @@ $files = [
     __DIR__ . '/Unit/Iam/BearerTokenParserTest.php',
     __DIR__ . '/Component/Iam/RestoreAdminSessionTest.php',
     __DIR__ . '/Component/Iam/AuthenticateAdminTest.php',
+    __DIR__ . '/Component/Iam/CreateAdminSessionTest.php',
+    __DIR__ . '/Component/Iam/LogoutAdminSessionTest.php',
     __DIR__ . '/Component/Iam/ThinkPhpAdminUserRepositoryTest.php',
     __DIR__ . '/Component/Iam/ThinkPhpAdminSessionRepositoryTest.php',
     __DIR__ . '/Component/Iam/OpenPlatformAdminContextMiddlewareTest.php',
