@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 $root = dirname(__DIR__, 2);
-$upPath = $root . '/database/migrations/20260908_005_member_oauth_webhook_up.sql';
-$downPath = $root . '/database/migrations/20260908_005_member_oauth_webhook_down.sql';
+$upPath = $root . '/database/schema/v1/20260908_005_member_oauth_webhook_up.sql';
+$downPath = $root . '/database/schema/v1/20260908_005_member_oauth_webhook_down.sql';
 
 expectTrue(is_file($upPath), 'R7 member/oauth/webhook up migration must exist');
 expectTrue(is_file($downPath), 'R7 member/oauth/webhook down migration must exist');
