@@ -9,6 +9,7 @@ return [
     'default_app' => 'web',
     'app_express' => true,
     'app_map' => [
+        'admin' => static fn ($app): string => 'adminui',
         'admin-api' => static fn ($app): string => 'admin',
     ],
     'domain_bind' => [],
