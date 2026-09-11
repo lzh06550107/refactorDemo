@@ -11,14 +11,20 @@ use app\common\infrastructure\ThinkPhpTransactionManager;
 use app\common\security\SecretValue;
 use modules\iam\contract\AdminCredentialRepository;
 use modules\iam\contract\AdminSessionRepository;
+use modules\iam\contract\AdminSessionStore;
 use modules\iam\contract\AdminUserRepository;
 use modules\iam\contract\AdminTenantAccess;
 use modules\iam\contract\PermissionAuthorizer;
+use modules\iam\contract\SessionIdGenerator;
+use modules\iam\contract\SessionTokenGenerator;
 use modules\iam\infrastructure\ThinkPhpAdminCredentialRepository;
 use modules\iam\infrastructure\ThinkPhpAdminSessionRepository;
+use modules\iam\infrastructure\ThinkPhpAdminSessionStore;
 use modules\iam\infrastructure\ThinkPhpAdminUserRepository;
 use modules\iam\infrastructure\ThinkPhpAdminTenantAccess;
 use modules\iam\infrastructure\ThinkPhpPermissionAuthorizer;
+use modules\iam\security\SecureSessionIdGenerator;
+use modules\iam\security\SecureSessionTokenGenerator;
 use modules\iam\security\SessionTokenHasher;
 use modules\miniapp\infrastructure\OpenPlatformAuthorizerAccountBinding;
 use modules\openplatform\application\AuthorizationCompletionService;
@@ -103,9 +109,12 @@ final class AppService extends Service
             AuditLogger::class => StructuredAuditLogger::class,
             AdminCredentialRepository::class => ThinkPhpAdminCredentialRepository::class,
             AdminSessionRepository::class => ThinkPhpAdminSessionRepository::class,
+            AdminSessionStore::class => ThinkPhpAdminSessionStore::class,
             AdminUserRepository::class => ThinkPhpAdminUserRepository::class,
             AdminTenantAccess::class => ThinkPhpAdminTenantAccess::class,
             PermissionAuthorizer::class => ThinkPhpPermissionAuthorizer::class,
+            SessionIdGenerator::class => SecureSessionIdGenerator::class,
+            SessionTokenGenerator::class => SecureSessionTokenGenerator::class,
             AuthorizationIntentRepository::class => ThinkPhpAuthorizationIntentRepository::class,
             AuthorizerAccountEligibility::class => ThinkPhpAuthorizerAccountEligibility::class,
             AuthorizerAccountBinding::class => OpenPlatformAuthorizerAccountBinding::class,
