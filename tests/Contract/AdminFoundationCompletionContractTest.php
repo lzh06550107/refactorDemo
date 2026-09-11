@@ -90,4 +90,12 @@ declare(strict_types=1);
     if (str_contains($command, "addOption('password'")) {
         throw new RuntimeException('Admin bootstrap command must never expose a --password option');
     }
+
+    $ci = (string) file_get_contents($root . '/.github/workflows/ci.yml');
+    if (!str_contains($ci, "'admin:/admin-api/health'")) {
+        throw new RuntimeException('CI multi-app smoke must probe Admin API health through /admin-api/health');
+    }
+    if (str_contains($ci, "'admin:/admin/health'")) {
+        throw new RuntimeException('CI multi-app smoke must not probe Admin API health through the /admin UI prefix');
+    }
 })();
