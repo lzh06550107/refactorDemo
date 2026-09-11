@@ -2,28 +2,32 @@
 
 declare(strict_types=1);
 
+use modules\account\domain\AccountType;
 use app\common\audit\AuditEvent;
 use app\common\contract\AuditLogger;
-use app\openplatform\application\AuthorizationStartService;
-use app\openplatform\application\ComponentAccessTokenService;
-use app\openplatform\contract\AuthorizationIntentRepository;
-use app\openplatform\contract\AuthorizerClient;
-use app\openplatform\contract\ComponentCredentialProvider;
-use app\openplatform\contract\ComponentPlatformRepository;
-use app\openplatform\contract\ComponentRefreshLeaseRepository;
-use app\openplatform\contract\ComponentTicketRepository;
-use app\openplatform\contract\ComponentTokenClient;
-use app\openplatform\contract\ComponentTokenRepository;
-use app\openplatform\domain\AuthorizationIntent;
-use app\openplatform\domain\AuthorizerAuthorizationResponse;
-use app\openplatform\domain\AuthorizerRefreshResponse;
-use app\openplatform\domain\ComponentAccessToken;
-use app\openplatform\domain\ComponentPlatform;
-use app\openplatform\domain\ComponentTicketWriteResult;
-use app\openplatform\domain\ComponentTokenRefreshLease;
-use app\openplatform\domain\ComponentTokenResponse;
-use app\openplatform\domain\ComponentVerifyTicket;
-use app\openplatform\domain\PreAuthCodeResponse;
+use modules\openplatform\application\AuthorizationStartService;
+use modules\openplatform\application\ComponentAccessTokenService;
+use modules\openplatform\contract\AuthorizationIntentRepository;
+use modules\openplatform\contract\AuthorizerAccountEligibility;
+use modules\openplatform\contract\AuthorizerClient;
+use modules\openplatform\contract\ComponentCredentialProvider;
+use modules\openplatform\contract\ComponentPlatformRepository;
+use modules\openplatform\contract\ComponentRefreshLeaseRepository;
+use modules\openplatform\contract\ComponentTicketRepository;
+use modules\openplatform\contract\ComponentTokenClient;
+use modules\openplatform\contract\ComponentTokenRepository;
+use modules\openplatform\domain\AuthorizationIntent;
+use modules\openplatform\domain\AuthorizationIntentMode;
+use modules\openplatform\domain\AuthorizerAuthorizationResponse;
+use modules\openplatform\domain\AuthorizerInfoResponse;
+use modules\openplatform\domain\AuthorizerRefreshResponse;
+use modules\openplatform\domain\ComponentAccessToken;
+use modules\openplatform\domain\ComponentPlatform;
+use modules\openplatform\domain\ComponentTicketWriteResult;
+use modules\openplatform\domain\ComponentTokenRefreshLease;
+use modules\openplatform\domain\ComponentTokenResponse;
+use modules\openplatform\domain\ComponentVerifyTicket;
+use modules\openplatform\domain\PreAuthCodeResponse;
 
 $now = new DateTimeImmutable('2026-09-08T09:30:00Z');
 $platform = new ComponentPlatform('platform-1', 'wx-component-1', 'secret/app', 'secret/verify', 'secret/aes', true);
@@ -55,6 +59,18 @@ $audit = new class implements AuditLogger { public function record(AuditEvent $e
 $componentTokens = new ComponentAccessTokenService($platforms, $ticketRepo, $componentTokenRepo, $leaseRepo, $credentials, $componentClient, $audit);
 
 $sequence = new ArrayObject();
+$eligibility = new class($sequence) implements AuthorizerAccountEligibility {
+    public function __construct(private ArrayObject $sequence) {}
+    public function assertTenantEligible(string $tenantId, string $componentPlatformId): void
+    {
+        throw new RuntimeException('existing-account start must validate the target Account');
+    }
+    public function assertExistingAccountEligible(string $tenantId, string $accountId, string $componentPlatformId): AccountType
+    {
+        $this->sequence[] = ['eligibility', $tenantId, $accountId, $componentPlatformId];
+        return AccountType::WECHAT_MINI_PROGRAM;
+    }
+};
 $authorizerClient = new class($sequence) implements AuthorizerClient {
     public function __construct(private ArrayObject $sequence) {}
     public function createPreAuthCode(string $componentAppId, string $componentAccessToken): PreAuthCodeResponse
@@ -64,6 +80,7 @@ $authorizerClient = new class($sequence) implements AuthorizerClient {
     }
     public function queryAuthorization(string $componentAppId, string $componentAccessToken, string $authorizationCode): AuthorizerAuthorizationResponse { throw new RuntimeException('start flow must not query authorization'); }
     public function refreshAuthorizerToken(string $componentAppId, string $componentAccessToken, string $authorizerAppId, string $authorizerRefreshToken): AuthorizerRefreshResponse { throw new RuntimeException('start flow must not refresh authorizer token'); }
+    public function getAuthorizerInfo(string $componentAppId, string $componentAccessToken, string $authorizerAppId): AuthorizerInfoResponse { throw new RuntimeException('start flow must not fetch authorizer metadata'); }
 };
 $intents = new class($sequence) implements AuthorizationIntentRepository {
     public ?AuthorizationIntent $inserted = null;
@@ -77,20 +94,30 @@ $intents = new class($sequence) implements AuthorizationIntentRepository {
 };
 
 $callbackUri = 'https://example.test/api/v1/openplatform/authorization/callback';
-$service = new AuthorizationStartService($componentTokens, $authorizerClient, $intents, $callbackUri, 600);
-$result = $service->start('platform-1', 'tenant-1', 'account-1', '1', $now);
+$service = new AuthorizationStartService($componentTokens, $authorizerClient, $intents, $eligibility, $callbackUri, 600);
+$result = $service->start(
+    'platform-1',
+    'tenant-1',
+    AuthorizationIntentMode::BIND_EXISTING_ACCOUNT,
+    'account-1',
+    '1',
+    $now,
+);
 
 expectSame(64, strlen($result->state()), 'authorization state encodes 32 random bytes as 64 hex characters');
 expectTrue(ctype_xdigit($result->state()), 'authorization state is opaque hex text');
 expectTrue($intents->inserted instanceof AuthorizationIntent, 'authorization intent is persisted only after provider pre-auth succeeds');
+expectSame(AuthorizationIntentMode::BIND_EXISTING_ACCOUNT, $intents->inserted?->mode(), 'persisted intent carries explicit bind mode');
 expectSame(hash('sha256', $result->state()), $intents->inserted?->stateHash(), 'repository receives only SHA-256 state hash');
 expectSame(hash('sha256', 'pre-auth-secret'), $intents->inserted?->preAuthCodeHash(), 'repository receives only SHA-256 pre-auth-code hash');
 expectSame($now->modify('+300 seconds')->getTimestamp(), $intents->inserted?->providerPreAuthExpiresAt()->getTimestamp(), 'provider pre-auth expiry is recorded');
 expectSame($now->modify('+300 seconds')->getTimestamp(), $result->expiresAt()->getTimestamp(), 'provider expiry shortens 600-second local intent TTL');
-expectSame('provider', $sequence[0][0] ?? null, 'provider pre-auth network call occurs before intent insert');
-expectSame('insert', $sequence[1][0] ?? null, 'intent persistence follows provider call');
-expectSame('wx-component-1', $sequence[0][1] ?? null, 'start passes trusted component AppId from R8B component token');
-expectSame('component-token-secret', $sequence[0][2] ?? null, 'start passes current component access token to provider client');
+expectSame('eligibility', $sequence[0][0] ?? null, 'local eligibility runs before any provider access');
+expectSame(['eligibility', 'tenant-1', 'account-1', 'platform-1'], $sequence[0], 'eligibility receives trusted Tenant, Account and Component Platform');
+expectSame('provider', $sequence[1][0] ?? null, 'provider pre-auth network call occurs after local eligibility');
+expectSame('insert', $sequence[2][0] ?? null, 'intent persistence follows provider call');
+expectSame('wx-component-1', $sequence[1][1] ?? null, 'start passes trusted component AppId from R8B component token');
+expectSame('component-token-secret', $sequence[1][2] ?? null, 'start passes current component access token to provider client');
 
 $url = parse_url($result->authorizationUrl());
 expectSame('https', $url['scheme'] ?? null, 'authorization URL uses HTTPS');

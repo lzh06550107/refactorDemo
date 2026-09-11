@@ -16,7 +16,7 @@ $phpFiles = static function (array $roots): array {
     return $files;
 };
 
-foreach ($phpFiles([$root . '/app/openplatform/domain', $root . '/app/openplatform/application']) as $file) {
+foreach ($phpFiles([$root . '/modules/openplatform/domain', $root . '/modules/openplatform/application']) as $file) {
     $source = (string) file_get_contents($file);
     expectTrue(!str_contains($source, 'think\\facade\\'), 'R8C domain/application must not import ThinkPHP Facades: ' . $file);
     expectTrue(!str_contains($source, 'Db::'), 'R8C domain/application must not depend on ThinkPHP Db: ' . $file);

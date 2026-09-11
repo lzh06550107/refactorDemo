@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-use app\account\domain\AccountType;
-use app\module\domain\LegacyModulePermissionCatalog;
-use app\module\domain\ModuleBinding;
-use app\module\domain\ModuleBindingType;
-use app\module\domain\ModuleCustomPermission;
-use app\module\domain\ModuleDefinition;
-use app\module\domain\ModuleLifecycleStatus;
-use app\module\domain\ModuleSupportMatrix;
+use modules\account\domain\AccountType;
+use modules\module\domain\LegacyModulePermissionCatalog;
+use modules\module\domain\ModuleBinding;
+use modules\module\domain\ModuleBindingType;
+use modules\module\domain\ModuleCustomPermission;
+use modules\module\domain\ModuleDefinition;
+use modules\module\domain\ModuleLifecycleStatus;
+use modules\module\domain\ModuleSupportMatrix;
 
 $module = new ModuleDefinition(
     name: 'demo', title: 'Demo', version: '1', system: false,

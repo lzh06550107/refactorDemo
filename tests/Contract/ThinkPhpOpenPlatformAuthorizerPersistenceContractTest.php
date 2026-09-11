@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 $root = dirname(__DIR__, 2);
 $files = [
-    'intent' => $root . '/app/openplatform/infrastructure/ThinkPhpAuthorizationIntentRepository.php',
-    'authorization' => $root . '/app/openplatform/infrastructure/ThinkPhpAuthorizerAuthorizationRepository.php',
-    'token' => $root . '/app/openplatform/infrastructure/ThinkPhpAuthorizerTokenRepository.php',
-    'lease' => $root . '/app/openplatform/infrastructure/ThinkPhpAuthorizerRefreshLeaseRepository.php',
-    'eventInbox' => $root . '/app/openplatform/infrastructure/ThinkPhpComponentEventInboxRepository.php',
+    'intent' => $root . '/modules/openplatform/infrastructure/ThinkPhpAuthorizationIntentRepository.php',
+    'authorization' => $root . '/modules/openplatform/infrastructure/ThinkPhpAuthorizerAuthorizationRepository.php',
+    'token' => $root . '/modules/openplatform/infrastructure/ThinkPhpAuthorizerTokenRepository.php',
+    'lease' => $root . '/modules/openplatform/infrastructure/ThinkPhpAuthorizerRefreshLeaseRepository.php',
+    'eventInbox' => $root . '/modules/openplatform/infrastructure/ThinkPhpComponentEventInboxRepository.php',
 ];
 foreach ($files as $name => $file) {
     expectTrue(is_file($file), 'R8C ThinkPHP ' . $name . ' repository must exist');

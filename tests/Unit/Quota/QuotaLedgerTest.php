@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-use app\account\domain\AccountType;
-use app\quota\domain\QuotaBalance;
-use app\quota\domain\QuotaChargeAllocator;
-use app\quota\domain\QuotaGrantSource;
-use app\quota\domain\QuotaLedgerEntry;
-use app\quota\domain\QuotaResource;
+use modules\account\domain\AccountType;
+use modules\quota\domain\QuotaBalance;
+use modules\quota\domain\QuotaChargeAllocator;
+use modules\quota\domain\QuotaGrantSource;
+use modules\quota\domain\QuotaLedgerEntry;
+use modules\quota\domain\QuotaResource;
 
 $at = new DateTimeImmutable('2026-09-07T12:00:00+00:00');
 $resource = QuotaResource::accountCreate(AccountType::OFFICIAL_ACCOUNT);

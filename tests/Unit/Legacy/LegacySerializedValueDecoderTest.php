@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use app\legacy\support\LegacySerializedValueDecoder;
+use modules\integration\legacy\support\LegacySerializedValueDecoder;
 
 $decoder = new LegacySerializedValueDecoder();
 expectSame(['a' => 1], $decoder->array(serialize(['a' => 1])), 'serialized array');

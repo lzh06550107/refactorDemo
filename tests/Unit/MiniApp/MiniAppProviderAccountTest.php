@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use app\miniapp\domain\MiniAppConnectionMode;
-use app\miniapp\domain\MiniAppProviderAccount;
+use modules\miniapp\domain\MiniAppConnectionMode;
+use modules\miniapp\domain\MiniAppProviderAccount;
 
 $manual = new MiniAppProviderAccount('tenant-1', 'account-1', 'wx-app-1', MiniAppConnectionMode::MANUAL, 'secret-ref-1', null);
 expectSame('tenant-1', $manual->tenantId(), 'manual provider tenant');

@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-use app\openplatform\contract\AuthorizationIntentRepository;
-use app\openplatform\contract\AuthorizerAuthorizationRepository;
-use app\openplatform\contract\AuthorizerRefreshLeaseRepository;
-use app\openplatform\contract\AuthorizerTokenRepository;
-use app\openplatform\domain\AuthorizerAccessToken;
-use app\openplatform\domain\AuthorizerAuthorizationResponse;
-use app\openplatform\domain\AuthorizerRefreshResponse;
-use app\openplatform\domain\AuthorizerTokenRefreshLease;
-use app\openplatform\domain\PreAuthCodeResponse;
+use modules\openplatform\contract\AuthorizationIntentRepository;
+use modules\openplatform\contract\AuthorizerAuthorizationRepository;
+use modules\openplatform\contract\AuthorizerRefreshLeaseRepository;
+use modules\openplatform\contract\AuthorizerTokenRepository;
+use modules\openplatform\domain\AuthorizerAccessToken;
+use modules\openplatform\domain\AuthorizerAuthorizationResponse;
+use modules\openplatform\domain\AuthorizerRefreshResponse;
+use modules\openplatform\domain\AuthorizerTokenRefreshLease;
+use modules\openplatform\domain\PreAuthCodeResponse;
 
 $requiredClasses = [
     AuthorizerAccessToken::class,

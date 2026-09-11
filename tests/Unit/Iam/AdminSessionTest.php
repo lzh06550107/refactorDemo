@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use app\iam\domain\AdminSession;
+use modules\iam\domain\AdminSession;
 
 $issued = new DateTimeImmutable('2026-09-07T00:00:00+00:00');
 $expires = new DateTimeImmutable('2026-09-07T01:00:00+00:00');

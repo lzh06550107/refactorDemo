@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use app\iam\domain\LegacyAccountRole;
-use app\iam\domain\LegacyAccountRoleResolver;
-use app\iam\domain\LegacyAdminState;
+use modules\iam\domain\LegacyAccountRole;
+use modules\iam\domain\LegacyAccountRoleResolver;
+use modules\iam\domain\LegacyAdminState;
 
 $resolver = new LegacyAccountRoleResolver();
 

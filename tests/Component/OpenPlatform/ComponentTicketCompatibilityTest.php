@@ -6,17 +6,17 @@ use app\common\audit\AuditEvent;
 use app\common\contract\AuditLogger;
 use app\common\error\AppException;
 use app\common\error\ErrorCode;
-use app\openplatform\application\ComponentTicketService;
-use app\openplatform\contract\ComponentCredentialProvider;
-use app\openplatform\contract\ComponentPlatformRepository;
-use app\openplatform\contract\ComponentTicketRepository;
-use app\openplatform\domain\ComponentPlatform;
-use app\openplatform\domain\ComponentTicketWriteResult;
-use app\openplatform\domain\ComponentVerifyTicket;
-use app\openplatform\security\WechatComponentCallbackAuthenticator;
-use app\openplatform\security\WechatComponentEnvelopeParser;
-use app\openplatform\security\WechatComponentMessageDecryptor;
-use app\openplatform\security\WechatComponentSignatureVerifier;
+use modules\openplatform\application\ComponentTicketService;
+use modules\openplatform\contract\ComponentCredentialProvider;
+use modules\openplatform\contract\ComponentPlatformRepository;
+use modules\openplatform\contract\ComponentTicketRepository;
+use modules\openplatform\domain\ComponentPlatform;
+use modules\openplatform\domain\ComponentTicketWriteResult;
+use modules\openplatform\domain\ComponentVerifyTicket;
+use modules\openplatform\security\WechatComponentCallbackAuthenticator;
+use modules\openplatform\security\WechatComponentEnvelopeParser;
+use modules\openplatform\security\WechatComponentMessageDecryptor;
+use modules\openplatform\security\WechatComponentSignatureVerifier;
 
 $platform = new ComponentPlatform('platform-1', 'wx-component-1', 'secret/app', 'secret/verify', 'secret/aes', true);
 $platforms = new class($platform) implements ComponentPlatformRepository {

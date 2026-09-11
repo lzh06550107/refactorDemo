@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use app\quota\domain\AccountCreationQuotaPolicy;
+use modules\quota\domain\AccountCreationQuotaPolicy;
 
 $policy = new AccountCreationQuotaPolicy();
 

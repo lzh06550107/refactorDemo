@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use app\site\domain\DomainName;
+use modules\site\domain\DomainName;
 
 expectSame('example.com', DomainName::fromHostOrUrl('HTTPS://Example.COM/')->value(), 'URL domains normalize to lower-case host');
 expectSame('www.example.com', DomainName::fromHostOrUrl('www.Example.com.')->value(), 'raw hosts normalize trailing dot');

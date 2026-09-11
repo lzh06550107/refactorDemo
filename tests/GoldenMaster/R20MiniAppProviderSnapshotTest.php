@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use app\legacy\contract\LegacyDatabase;
-use app\miniapp\compat\R20MiniAppProviderSnapshotRepository;
-use app\miniapp\domain\MiniAppConnectionMode;
+use modules\integration\legacy\contract\LegacyDatabase;
+use modules\miniapp\compat\R20MiniAppProviderSnapshotRepository;
+use modules\miniapp\domain\MiniAppConnectionMode;
 
 $db = new class implements LegacyDatabase {
     public function fetchOne(string $table, array $where): ?array

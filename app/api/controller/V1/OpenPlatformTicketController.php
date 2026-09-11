@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace app\api\controller\V1;
 
 use app\common\context\RequestContext;
-use app\openplatform\application\OpenPlatformEventService;
+use modules\openplatform\application\OpenPlatformEventService;
 use DateTimeImmutable;
 use DateTimeZone;
 use think\Request;

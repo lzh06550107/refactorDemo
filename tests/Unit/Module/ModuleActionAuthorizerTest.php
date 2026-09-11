@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-use app\account\domain\AccountType;
-use app\iam\domain\LegacyPermissionAssignment;
-use app\iam\domain\Permission;
-use app\module\domain\ModuleActionAuthorizer;
-use app\module\domain\ModuleDefinition;
-use app\module\domain\ModuleLifecycleStatus;
-use app\module\domain\ModuleSupportMatrix;
-use app\module\domain\RuntimeModule;
+use modules\account\domain\AccountType;
+use modules\iam\domain\LegacyPermissionAssignment;
+use modules\iam\domain\Permission;
+use modules\module\domain\ModuleActionAuthorizer;
+use modules\module\domain\ModuleDefinition;
+use modules\module\domain\ModuleLifecycleStatus;
+use modules\module\domain\ModuleSupportMatrix;
+use modules\module\domain\RuntimeModule;
 
 $authorizer = new ModuleActionAuthorizer();
 $activeDefinition = new ModuleDefinition(

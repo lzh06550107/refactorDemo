@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use app\openplatform\domain\AuthorizerAuthorization;
+use modules\openplatform\domain\AuthorizerAuthorization;
 
 $now = new DateTimeImmutable('2026-09-08T09:00:00Z', new DateTimeZone('UTC'));
 $refreshHash = hash('sha256', 'refresh-token');

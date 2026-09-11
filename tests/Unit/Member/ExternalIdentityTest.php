@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use app\member\domain\ExternalIdentity;
-use app\member\domain\ProviderIdentity;
+use modules\member\domain\ExternalIdentity;
+use modules\member\domain\ProviderIdentity;
 
 $wechatA = new ProviderIdentity('wechat_official', 'account-provider-a', 'same-openid', 'union-1');
 $wechatB = new ProviderIdentity('wechat_official', 'account-provider-b', 'same-openid', 'union-1');

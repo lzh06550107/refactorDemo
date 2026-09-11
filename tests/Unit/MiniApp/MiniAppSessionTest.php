@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use app\miniapp\domain\MiniAppSession;
-use app\miniapp\domain\ProtectedSessionKey;
+use modules\miniapp\domain\MiniAppSession;
+use modules\miniapp\domain\ProtectedSessionKey;
 
 $issuedAt = new DateTimeImmutable('2026-09-08T05:00:00Z');
 $protected = new ProtectedSessionKey('ciphertext', 'key-v1');

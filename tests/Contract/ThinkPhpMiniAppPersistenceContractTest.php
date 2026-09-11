@@ -3,9 +3,9 @@
 declare(strict_types=1);
 
 $root = dirname(__DIR__, 2);
-$providerPath = $root . '/app/miniapp/infrastructure/ThinkPhpMiniAppProviderAccountRepository.php';
-$sessionPath = $root . '/app/miniapp/infrastructure/ThinkPhpMiniAppSessionRepository.php';
-$cipherPath = $root . '/app/miniapp/infrastructure/OpenSslSessionKeyCipher.php';
+$providerPath = $root . '/modules/miniapp/infrastructure/ThinkPhpMiniAppProviderAccountRepository.php';
+$sessionPath = $root . '/modules/miniapp/infrastructure/ThinkPhpMiniAppSessionRepository.php';
+$cipherPath = $root . '/modules/miniapp/infrastructure/OpenSslSessionKeyCipher.php';
 
 foreach ([$providerPath, $sessionPath, $cipherPath] as $path) {
     expectTrue(is_file($path), 'missing MiniApp persistence/security adapter: ' . $path);
@@ -13,8 +13,8 @@ foreach ([$providerPath, $sessionPath, $cipherPath] as $path) {
 
 $provider = (string) file_get_contents($providerPath);
 expectTrue(str_contains($provider, "Db::table('miniapp_provider_accounts')"), 'provider repository must query miniapp_provider_accounts');
-expectTrue(str_contains($provider, "'tenant_id' => $tenantId"), 'provider lookup must include tenant id');
-expectTrue(str_contains($provider, "'account_id' => $accountId"), 'provider lookup must include account id');
+expectTrue(str_contains($provider, "'tenant_id' => \$tenantId"), 'provider lookup must include tenant id');
+expectTrue(str_contains($provider, "'account_id' => \$accountId"), 'provider lookup must include account id');
 expectTrue(str_contains($provider, "'enabled' => 1"), 'provider lookup must reject disabled rows');
 expectTrue(str_contains($provider, 'MiniAppConnectionMode::from'), 'provider repository must restore explicit connection mode');
 

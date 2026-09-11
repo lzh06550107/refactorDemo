@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 $root = dirname(__DIR__, 2);
-$ticketPath = $root . '/app/openplatform/infrastructure/ThinkPhpComponentTicketRepository.php';
+$ticketPath = $root . '/modules/openplatform/infrastructure/ThinkPhpComponentTicketRepository.php';
 expectTrue(is_file($ticketPath), 'R8B ticket repository must exist for replay ordering contract');
 $source = (string) file_get_contents($ticketPath);
 $acceptStart = strpos($source, 'public function accept(');

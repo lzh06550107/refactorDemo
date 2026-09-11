@@ -7,37 +7,40 @@ use app\common\contract\AuditLogger;
 use app\common\contract\TransactionManager;
 use app\common\error\AppException;
 use app\common\error\ErrorCode;
-use app\openplatform\application\AuthorizationCallbackService;
-use app\openplatform\application\AuthorizationCompletionService;
-use app\openplatform\application\ComponentAccessTokenService;
-use app\openplatform\contract\AuthorizationIntentRepository;
-use app\openplatform\contract\AuthorizerAccountBinding;
-use app\openplatform\contract\AuthorizerAuthorizationRepository;
-use app\openplatform\contract\AuthorizerClient;
-use app\openplatform\contract\ComponentCredentialProvider;
-use app\openplatform\contract\ComponentPlatformRepository;
-use app\openplatform\contract\ComponentRefreshLeaseRepository;
-use app\openplatform\contract\ComponentTicketRepository;
-use app\openplatform\contract\ComponentTokenClient;
-use app\openplatform\contract\ComponentTokenRepository;
-use app\openplatform\domain\AuthorizationIntent;
-use app\openplatform\domain\AuthorizerAccessToken;
-use app\openplatform\domain\AuthorizerAuthorization;
-use app\openplatform\domain\AuthorizerAuthorizationResponse;
-use app\openplatform\domain\AuthorizerRefreshResponse;
-use app\openplatform\domain\ComponentAccessToken;
-use app\openplatform\domain\ComponentPlatform;
-use app\openplatform\domain\ComponentTicketWriteResult;
-use app\openplatform\domain\ComponentTokenRefreshLease;
-use app\openplatform\domain\ComponentTokenResponse;
-use app\openplatform\domain\ComponentVerifyTicket;
-use app\openplatform\domain\PreAuthCodeResponse;
+use modules\openplatform\application\AuthorizationCallbackService;
+use modules\openplatform\application\AuthorizationCompletionService;
+use modules\openplatform\application\ComponentAccessTokenService;
+use modules\openplatform\contract\AuthorizationIntentRepository;
+use modules\openplatform\contract\AuthorizerAccountBinding;
+use modules\openplatform\contract\AuthorizerAuthorizationRepository;
+use modules\openplatform\contract\AuthorizerClient;
+use modules\openplatform\contract\ComponentCredentialProvider;
+use modules\openplatform\contract\ComponentPlatformRepository;
+use modules\openplatform\contract\ComponentRefreshLeaseRepository;
+use modules\openplatform\contract\ComponentTicketRepository;
+use modules\openplatform\contract\ComponentTokenClient;
+use modules\openplatform\contract\ComponentTokenRepository;
+use modules\openplatform\domain\AuthorizationIntent;
+use modules\openplatform\domain\AuthorizationIntentMode;
+use modules\openplatform\domain\AuthorizerAccessToken;
+use modules\openplatform\domain\AuthorizerAuthorization;
+use modules\openplatform\domain\AuthorizerAuthorizationResponse;
+use modules\openplatform\domain\AuthorizerInfoResponse;
+use modules\openplatform\domain\AuthorizerRefreshResponse;
+use modules\openplatform\domain\ComponentAccessToken;
+use modules\openplatform\domain\ComponentPlatform;
+use modules\openplatform\domain\ComponentTicketWriteResult;
+use modules\openplatform\domain\ComponentTokenRefreshLease;
+use modules\openplatform\domain\ComponentTokenResponse;
+use modules\openplatform\domain\ComponentVerifyTicket;
+use modules\openplatform\domain\PreAuthCodeResponse;
 
 $now = new DateTimeImmutable('2026-09-08T09:50:00Z');
 $intent = AuthorizationIntent::pending(
     'intent-callback',
     'platform-1',
     'tenant-1',
+    AuthorizationIntentMode::BIND_EXISTING_ACCOUNT,
     'account-1',
     hash('sha256', 'opaque-browser-state'),
     hash('sha256', 'pre-callback'),
@@ -105,6 +108,7 @@ $authorizerClient = new class implements AuthorizerClient {
         return new AuthorizerAuthorizationResponse('wx-authorizer-callback', 'access-secret', 'refresh-secret', 7200, ['17']);
     }
     public function refreshAuthorizerToken(string $componentAppId, string $componentAccessToken, string $authorizerAppId, string $authorizerRefreshToken): AuthorizerRefreshResponse { throw new RuntimeException('not used'); }
+    public function getAuthorizerInfo(string $componentAppId, string $componentAccessToken, string $authorizerAppId): AuthorizerInfoResponse { throw new RuntimeException('callback completion must not fetch authorizer metadata'); }
 };
 $authorizations = new class implements AuthorizerAuthorizationRepository {
     public function current(string $componentPlatformId, string $authorizerAppId): ?AuthorizerAuthorization { return null; }

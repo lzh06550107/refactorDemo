@@ -1,0 +1,32 @@
+<?php
+
+declare(strict_types=1);
+
+namespace modules\entitlement\application;
+
+use app\common\error\AppException;
+use app\common\error\ErrorCode;
+use modules\entitlement\contract\TenantModuleEntitlementRepository;
+use modules\entitlement\domain\TenantModuleEntitlement;
+use DateTimeImmutable;
+use InvalidArgumentException;
+
+final readonly class TenantModuleEntitlementService
+{
+    public function __construct(private TenantModuleEntitlementRepository $repository) {}
+
+    public function requireActive(string $tenantId, string $moduleId, DateTimeImmutable $at): TenantModuleEntitlement
+    {
+        if (trim($tenantId) === '' || trim($moduleId) === '') {
+            throw new InvalidArgumentException('tenantId and moduleId must not be empty.');
+        }
+        $entitlement = $this->repository->findForTenantModule($tenantId, $moduleId);
+        if ($entitlement === null || !$entitlement->isActiveAt($at)) {
+            throw new AppException(ErrorCode::FORBIDDEN, 'Module entitlement is not active.', 403, [
+                'tenant_id' => $tenantId,
+                'module_id' => $moduleId,
+            ]);
+        }
+        return $entitlement;
+    }
+}

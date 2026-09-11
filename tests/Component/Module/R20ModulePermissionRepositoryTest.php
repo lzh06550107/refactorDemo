@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use app\account\domain\LegacyAccountMapping;
-use app\iam\domain\Permission;
-use app\legacy\contract\LegacyDatabase;
-use app\module\infrastructure\R20ModulePermissionRepository;
+use modules\account\domain\LegacyAccountMapping;
+use modules\iam\domain\Permission;
+use modules\integration\legacy\contract\LegacyDatabase;
+use modules\module\infrastructure\R20ModulePermissionRepository;
 
 final class PermissionRepoFakeDb implements LegacyDatabase
 {

@@ -3,12 +3,12 @@
 declare(strict_types=1);
 
 use app\common\error\AppException;
-use app\miniapp\infrastructure\OpenSslSessionKeyCipher;
+use modules\miniapp\infrastructure\OpenSslSessionKeyCipher;
 
 $root = dirname(__DIR__, 2);
 $architectureRoots = [
-    $root . '/app/miniapp/domain',
-    $root . '/app/miniapp/application',
+    $root . '/modules/miniapp/domain',
+    $root . '/modules/miniapp/application',
 ];
 
 $phpFiles = static function (array $roots): array {
@@ -35,7 +35,7 @@ foreach ($phpFiles($architectureRoots) as $file) {
     expectTrue(!str_contains($source, 'pdo_'), 'MiniApp domain/application must not depend on legacy pdo helpers: ' . $file);
 }
 
-$sessionService = (string) file_get_contents($root . '/app/miniapp/application/MiniAppSessionService.php');
+$sessionService = (string) file_get_contents($root . '/modules/miniapp/application/MiniAppSessionService.php');
 expectTrue(!str_contains(strtolower($sessionService), 'openid'), 'MiniApp session authentication must not accept client openid evidence');
 
 $migration = (string) file_get_contents($root . '/database/migrations/20260908_006_miniapp_identity_session_up.sql');
@@ -64,7 +64,7 @@ $tampered = base64_decode($first->ciphertext(), true);
 expectTrue(is_string($tampered) && strlen($tampered) > 30, 'ciphertext fixture is valid base64 payload');
 $tampered[30] = chr(ord($tampered[30]) ^ 1);
 try {
-    $cipher->reveal(new app\miniapp\domain\ProtectedSessionKey(base64_encode($tampered), 'k1'));
+    $cipher->reveal(new modules\miniapp\domain\ProtectedSessionKey(base64_encode($tampered), 'k1'));
     throw new RuntimeException('tampered GCM ciphertext must fail authentication');
 } catch (AppException) {
 }
@@ -76,7 +76,7 @@ $secretPatterns = [
     '/\bgithub_pat_[A-Za-z0-9_]{30,}\b/',
     '/\bAKIA[0-9A-Z]{16}\b/',
 ];
-foreach (array_merge($phpFiles([$root . '/app/miniapp']), [$root . '/database/migrations/20260908_006_miniapp_identity_session_up.sql']) as $file) {
+foreach (array_merge($phpFiles([$root . '/modules/miniapp']), [$root . '/database/migrations/20260908_006_miniapp_identity_session_up.sql']) as $file) {
     $source = (string) file_get_contents($file);
     foreach ($secretPatterns as $pattern) {
         expectTrue(preg_match($pattern, $source) !== 1, 'possible committed secret detected in R8A source: ' . $file);

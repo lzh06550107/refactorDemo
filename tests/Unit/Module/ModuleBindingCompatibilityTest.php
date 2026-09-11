@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use app\module\domain\ModuleBinding;
-use app\module\domain\ModuleBindingType;
+use modules\module\domain\ModuleBinding;
+use modules\module\domain\ModuleBindingType;
 
 $page = new ModuleBinding('demo', ModuleBindingType::PAGE, '', 'Page', 'pages/index/index');
 expectSame('', $page->do(), 'page allows empty do');

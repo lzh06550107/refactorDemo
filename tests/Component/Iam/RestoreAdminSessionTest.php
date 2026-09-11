@@ -5,10 +5,10 @@ declare(strict_types=1);
 use app\common\error\AppException;
 use app\common\error\ErrorCode;
 use app\common\security\SecretValue;
-use app\iam\application\RestoreAdminSession;
-use app\iam\contract\AdminSessionRepository;
-use app\iam\domain\AdminSession;
-use app\iam\security\SessionTokenHasher;
+use modules\iam\application\RestoreAdminSession;
+use modules\iam\contract\AdminSessionRepository;
+use modules\iam\domain\AdminSession;
+use modules\iam\security\SessionTokenHasher;
 
 $hasher = new SessionTokenHasher(new SecretValue('pepper-123'));
 $token = 'opaque-session-token';

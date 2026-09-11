@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use app\account\domain\AccountCapability;
-use app\account\domain\AccountType;
-use app\account\domain\LegacyAccountTypeMap;
+use modules\account\domain\AccountCapability;
+use modules\account\domain\AccountType;
+use modules\account\domain\LegacyAccountTypeMap;
 
 $expected = [
     1 => AccountType::OFFICIAL_ACCOUNT,

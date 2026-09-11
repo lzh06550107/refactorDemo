@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 use app\common\error\AppException;
 use app\common\error\ErrorCode;
-use app\openplatform\contract\OpenPlatformHttpTransport;
-use app\openplatform\domain\ComponentPlatform;
-use app\openplatform\infrastructure\OpenSslOpenPlatformSecretCipher;
-use app\openplatform\infrastructure\WechatComponentTokenClient;
+use modules\openplatform\contract\OpenPlatformHttpTransport;
+use modules\openplatform\domain\ComponentPlatform;
+use modules\openplatform\infrastructure\OpenSslOpenPlatformSecretCipher;
+use modules\openplatform\infrastructure\WechatComponentTokenClient;
 
 $transport = new class implements OpenPlatformHttpTransport {
     public array $requests = [];

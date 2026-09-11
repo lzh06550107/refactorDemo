@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use app\theme\domain\StyleInstance;
-use app\theme\domain\StyleSnapshot;
+use modules\theme\domain\StyleInstance;
+use modules\theme\domain\StyleSnapshot;
 
 $style = new StyleInstance('style-1', 'tenant-1', 'version-1', 'Blue', 3, ['accent-color' => '#00f', 'logo' => 'a.png']);
 $snapshotA = StyleSnapshot::capture('snap-a', $style);

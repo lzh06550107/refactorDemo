@@ -1,0 +1,38 @@
+{
+  "authorizer_info": {
+    "nick_name": "金亚包装小程序",
+    "head_img": "https://example.test/miniapp-head.png",
+    "service_type_info": {"id": 0},
+    "verify_type_info": {"id": 0},
+    "user_name": "gh_miniapp_fixture",
+    "principal_name": "南昌金亚包装有限公司",
+    "alias": "jinya-mini",
+    "business_info": {
+      "open_store": 0,
+      "open_scan": 0,
+      "open_pay": 1,
+      "open_card": 0,
+      "open_shake": 0
+    },
+    "qrcode_url": "https://example.test/miniapp-qrcode.png",
+    "MiniProgramInfo": {
+      "visit_status": 0,
+      "network": {
+        "RequestDomain": ["https://api.example.test"],
+        "WsRequestDomain": [],
+        "UploadDomain": ["https://upload.example.test"],
+        "DownloadDomain": ["https://download.example.test"]
+      },
+      "categories": [
+        {"first": "工具", "second": "办公"}
+      ]
+    }
+  },
+  "authorization_info": {
+    "authorizer_appid": "wx-miniapp-fixture",
+    "func_info": [
+      {"funcscope_category": {"id": 17}},
+      {"funcscope_category": {"id": 18}}
+    ]
+  }
+}

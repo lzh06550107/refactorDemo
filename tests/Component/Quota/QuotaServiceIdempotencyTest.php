@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-use app\account\domain\AccountType;
+use modules\account\domain\AccountType;
 use app\common\error\AppException;
 use app\common\error\ErrorCode;
-use app\quota\application\QuotaService;
-use app\quota\contract\QuotaLedgerRepository;
-use app\quota\domain\QuotaAvailability;
-use app\quota\domain\QuotaGrant;
-use app\quota\domain\QuotaGrantSource;
-use app\quota\domain\QuotaLedgerEntry;
-use app\quota\domain\QuotaResource;
+use modules\quota\application\QuotaService;
+use modules\quota\contract\QuotaLedgerRepository;
+use modules\quota\domain\QuotaAvailability;
+use modules\quota\domain\QuotaGrant;
+use modules\quota\domain\QuotaGrantSource;
+use modules\quota\domain\QuotaLedgerEntry;
+use modules\quota\domain\QuotaResource;
 
 $at = new DateTimeImmutable('2026-09-07T12:00:00+00:00');
 $resource = QuotaResource::accountCreate(AccountType::OFFICIAL_ACCOUNT);

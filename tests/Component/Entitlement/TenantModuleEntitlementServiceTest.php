@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 use app\common\error\AppException;
 use app\common\error\ErrorCode;
-use app\entitlement\application\TenantModuleEntitlementService;
-use app\entitlement\contract\TenantModuleEntitlementRepository;
-use app\entitlement\domain\ModuleEntitlementSource;
-use app\entitlement\domain\ModuleEntitlementStatus;
-use app\entitlement\domain\TenantModuleEntitlement;
+use modules\entitlement\application\TenantModuleEntitlementService;
+use modules\entitlement\contract\TenantModuleEntitlementRepository;
+use modules\entitlement\domain\ModuleEntitlementSource;
+use modules\entitlement\domain\ModuleEntitlementStatus;
+use modules\entitlement\domain\TenantModuleEntitlement;
 
 $now = new DateTimeImmutable('2026-09-07T12:00:00+00:00');
 $entitlement = new TenantModuleEntitlement(

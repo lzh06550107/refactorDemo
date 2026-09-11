@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 $root = dirname(__DIR__, 2);
 $transactionPath = $root . '/app/common/infrastructure/ThinkPhpTransactionManager.php';
-$memberPath = $root . '/app/member/infrastructure/ThinkPhpMemberIdentityRepository.php';
-$statePath = $root . '/app/oauth/infrastructure/ThinkPhpOAuthStateRepository.php';
-$bindingPath = $root . '/app/oauth/infrastructure/ThinkPhpOAuthBindingRepository.php';
+$memberPath = $root . '/modules/member/infrastructure/ThinkPhpMemberIdentityRepository.php';
+$statePath = $root . '/modules/oauth/infrastructure/ThinkPhpOAuthStateRepository.php';
+$bindingPath = $root . '/modules/oauth/infrastructure/ThinkPhpOAuthBindingRepository.php';
 
 foreach ([$transactionPath, $memberPath, $statePath, $bindingPath] as $path) {
     expectTrue(is_file($path), 'missing ThinkPHP persistence adapter: ' . $path);

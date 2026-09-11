@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 use app\common\error\AppException;
 use app\common\error\ErrorCode;
-use app\miniapp\contract\ComponentAccessTokenProvider;
-use app\miniapp\contract\MiniAppCredentialProvider;
-use app\miniapp\contract\MiniAppHttpTransport;
-use app\miniapp\domain\ComponentAccessToken;
-use app\miniapp\domain\MiniAppConnectionMode;
-use app\miniapp\domain\MiniAppProviderAccount;
-use app\miniapp\infrastructure\WechatMiniAppCodeExchangeClient;
+use modules\miniapp\contract\ComponentAccessTokenProvider;
+use modules\miniapp\contract\MiniAppCredentialProvider;
+use modules\miniapp\contract\MiniAppHttpTransport;
+use modules\miniapp\domain\ComponentAccessToken;
+use modules\miniapp\domain\MiniAppConnectionMode;
+use modules\miniapp\domain\MiniAppProviderAccount;
+use modules\miniapp\infrastructure\WechatMiniAppCodeExchangeClient;
 
 $transport = new class implements MiniAppHttpTransport {
     public array $requests = [];

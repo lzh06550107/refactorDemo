@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use app\site\compat\R20SiteSnapshotMapper;
-use app\site\domain\DomainBindingSource;
-use app\site\domain\SiteStatus;
+use modules\site\compat\R20SiteSnapshotMapper;
+use modules\site\domain\DomainBindingSource;
+use modules\site\domain\SiteStatus;
 
 $mapper = new R20SiteSnapshotMapper();
 $default = $mapper->fromSiteMulti([

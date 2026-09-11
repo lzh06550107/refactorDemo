@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use app\theme\domain\ThemeDefinition;
-use app\theme\domain\ThemeVersion;
+use modules\theme\domain\ThemeDefinition;
+use modules\theme\domain\ThemeVersion;
 
 $theme = new ThemeDefinition('theme-1', 'default_mobile', 'Default Mobile', true);
 expectSame('default_mobile', $theme->key(), 'theme key is preserved');

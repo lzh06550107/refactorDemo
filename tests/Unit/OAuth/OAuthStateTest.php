@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use app\oauth\domain\OAuthState;
+use modules\oauth\domain\OAuthState;
 
 $issuedAt = new \DateTimeImmutable('2026-09-08T10:00:00+08:00');
 $expiresAt = $issuedAt->modify('+10 minutes');

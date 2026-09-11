@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use app\common\error\AppException;
 use app\common\error\ErrorCode;
-use app\openplatform\security\WechatComponentMessageDecryptor;
+use modules\openplatform\security\WechatComponentMessageDecryptor;
 
 $decryptor = new WechatComponentMessageDecryptor();
 $rawKey = random_bytes(32);
@@ -43,9 +43,25 @@ try {
     expectSame(403, $e->httpStatus(), 'framed receiver mismatch maps to 403');
 }
 
-$badPaddingCipher = base64_decode($encrypted, true);
-expectTrue(is_string($badPaddingCipher), 'encrypted fixture is valid base64');
-$badPaddingCipher[strlen($badPaddingCipher) - 1] = chr(ord($badPaddingCipher[strlen($badPaddingCipher) - 1]) ^ 1);
+$validCipher = base64_decode($encrypted, true);
+expectTrue(is_string($validCipher), 'encrypted fixture is valid base64');
+$badPaddingPlain = openssl_decrypt(
+    $validCipher,
+    'aes-256-cbc',
+    $rawKey,
+    OPENSSL_RAW_DATA | OPENSSL_ZERO_PADDING,
+    substr($rawKey, 0, 16),
+);
+expectTrue(is_string($badPaddingPlain) && $badPaddingPlain !== '', 'test fixture can be decrypted for deterministic corruption');
+$badPaddingPlain[strlen($badPaddingPlain) - 1] = chr(0);
+$badPaddingCipher = openssl_encrypt(
+    $badPaddingPlain,
+    'aes-256-cbc',
+    $rawKey,
+    OPENSSL_RAW_DATA | OPENSSL_ZERO_PADDING,
+    substr($rawKey, 0, 16),
+);
+expectTrue(is_string($badPaddingCipher), 'deterministic malformed padding fixture encrypts');
 
 foreach ([
     ['payload' => 'not-base64***', 'key' => $encodingAesKey],

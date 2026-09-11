@@ -5,7 +5,7 @@ declare(strict_types=1);
 $root = dirname(__DIR__, 2);
 $upPath = $root . '/database/migrations/20260907_003_entitlement_quota_up.sql';
 $downPath = $root . '/database/migrations/20260907_003_entitlement_quota_down.sql';
-$repoPath = $root . '/app/quota/infrastructure/ThinkPhpQuotaLedgerRepository.php';
+$repoPath = $root . '/modules/quota/infrastructure/ThinkPhpQuotaLedgerRepository.php';
 
 expectTrue(is_file($upPath), 'R5 entitlement/quota up migration must exist');
 expectTrue(is_file($downPath), 'R5 entitlement/quota down migration must exist');

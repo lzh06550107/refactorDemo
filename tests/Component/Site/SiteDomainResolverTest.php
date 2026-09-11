@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 use app\common\error\AppException;
 use app\common\error\ErrorCode;
-use app\site\application\SiteDomainResolver;
-use app\site\contract\DomainBindingRepository;
-use app\site\contract\SiteRepository;
-use app\site\domain\DomainBinding;
-use app\site\domain\DomainBindingSource;
-use app\site\domain\DomainName;
-use app\site\domain\Site;
-use app\site\domain\SiteStatus;
+use modules\site\application\SiteDomainResolver;
+use modules\site\contract\DomainBindingRepository;
+use modules\site\contract\SiteRepository;
+use modules\site\domain\DomainBinding;
+use modules\site\domain\DomainBindingSource;
+use modules\site\domain\DomainName;
+use modules\site\domain\Site;
+use modules\site\domain\SiteStatus;
 
 $binding = new DomainBinding('bind-1', 'tenant-1', 'account-1', 'site-1', DomainName::fromHostOrUrl('site.example.com'), DomainBindingSource::R20_SITE_MULTI, 5, null);
 $site = new Site('site-1', 'tenant-1', 'account-1', 'Main', SiteStatus::ENABLED, true, null, 5);

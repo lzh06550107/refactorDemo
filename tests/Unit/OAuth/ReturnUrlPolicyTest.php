@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use app\common\error\AppException;
 use app\common\error\ErrorCode;
-use app\oauth\domain\ReturnUrlPolicy;
+use modules\oauth\domain\ReturnUrlPolicy;
 
 $policy = new ReturnUrlPolicy(['https://allowed.example', 'https://portal.example:8443']);
 expectSame('/member/home?tab=profile', $policy->validate('/member/home?tab=profile'), 'relative application path is accepted');

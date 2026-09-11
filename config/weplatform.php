@@ -9,4 +9,5 @@ return [
     'trusted_hosts' => array_values(array_filter(explode(',', (string) env('WEPLATFORM_TRUSTED_HOSTS', '')))),
     'trusted_proxies' => array_values(array_filter(explode(',', (string) env('WEPLATFORM_TRUSTED_PROXIES', '')))),
     'audit_channel' => env('WEPLATFORM_AUDIT_CHANNEL', 'file'),
+    'admin_session_pepper' => env('WEPLATFORM_ADMIN_SESSION_PEPPER', ''),
 ];

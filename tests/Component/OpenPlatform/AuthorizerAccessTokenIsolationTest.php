@@ -4,30 +4,31 @@ declare(strict_types=1);
 
 use app\common\audit\AuditEvent;
 use app\common\contract\AuditLogger;
-use app\openplatform\application\AuthorizerAccessTokenService;
-use app\openplatform\application\ComponentAccessTokenService;
-use app\openplatform\contract\AuthorizerAuthorizationCredentialRepository;
-use app\openplatform\contract\AuthorizerRefreshLeaseRepository;
-use app\openplatform\contract\AuthorizerTokenRepository;
-use app\openplatform\contract\AuthorizerClient;
-use app\openplatform\contract\ComponentCredentialProvider;
-use app\openplatform\contract\ComponentPlatformRepository;
-use app\openplatform\contract\ComponentRefreshLeaseRepository;
-use app\openplatform\contract\ComponentTicketRepository;
-use app\openplatform\contract\ComponentTokenClient;
-use app\openplatform\contract\ComponentTokenRepository;
-use app\openplatform\domain\AuthorizerAccessToken;
-use app\openplatform\domain\AuthorizerAuthorization;
-use app\openplatform\domain\AuthorizerAuthorizationResponse;
-use app\openplatform\domain\AuthorizerRefreshResponse;
-use app\openplatform\domain\AuthorizerTokenRefreshLease;
-use app\openplatform\domain\ComponentAccessToken;
-use app\openplatform\domain\ComponentPlatform;
-use app\openplatform\domain\ComponentTicketWriteResult;
-use app\openplatform\domain\ComponentTokenRefreshLease;
-use app\openplatform\domain\ComponentTokenResponse;
-use app\openplatform\domain\ComponentVerifyTicket;
-use app\openplatform\domain\PreAuthCodeResponse;
+use modules\openplatform\application\AuthorizerAccessTokenService;
+use modules\openplatform\application\ComponentAccessTokenService;
+use modules\openplatform\contract\AuthorizerAuthorizationCredentialRepository;
+use modules\openplatform\contract\AuthorizerRefreshLeaseRepository;
+use modules\openplatform\contract\AuthorizerTokenRepository;
+use modules\openplatform\contract\AuthorizerClient;
+use modules\openplatform\contract\ComponentCredentialProvider;
+use modules\openplatform\contract\ComponentPlatformRepository;
+use modules\openplatform\contract\ComponentRefreshLeaseRepository;
+use modules\openplatform\contract\ComponentTicketRepository;
+use modules\openplatform\contract\ComponentTokenClient;
+use modules\openplatform\contract\ComponentTokenRepository;
+use modules\openplatform\domain\AuthorizerAccessToken;
+use modules\openplatform\domain\AuthorizerAuthorization;
+use modules\openplatform\domain\AuthorizerAuthorizationResponse;
+use modules\openplatform\domain\AuthorizerInfoResponse;
+use modules\openplatform\domain\AuthorizerRefreshResponse;
+use modules\openplatform\domain\AuthorizerTokenRefreshLease;
+use modules\openplatform\domain\ComponentAccessToken;
+use modules\openplatform\domain\ComponentPlatform;
+use modules\openplatform\domain\ComponentTicketWriteResult;
+use modules\openplatform\domain\ComponentTokenRefreshLease;
+use modules\openplatform\domain\ComponentTokenResponse;
+use modules\openplatform\domain\ComponentVerifyTicket;
+use modules\openplatform\domain\PreAuthCodeResponse;
 
 $now = new DateTimeImmutable('2026-09-08T10:25:00Z');
 $platformA = new ComponentPlatform('platform-A', 'wx-component-A', 'a/app', 'a/verify', 'a/aes', true);
@@ -83,7 +84,13 @@ $authorizations = new class($now) implements AuthorizerAuthorizationCredentialRe
     public function compareAndSetRefresh(AuthorizerAuthorization $authorization, AuthorizerAccessToken $token, string $refreshToken, string $holderId, int $expectedAuthorizationVersion, int $expectedTokenVersion, DateTimeImmutable $now): bool { return false; }
 };
 $leases = new class implements AuthorizerRefreshLeaseRepository { public int $calls = 0; public function tryAcquire(string $componentPlatformId, string $authorizerAppId, string $holderId, DateTimeImmutable $now, int $leaseSeconds): ?AuthorizerTokenRefreshLease { $this->calls++; return null; } public function release(string $componentPlatformId, string $authorizerAppId, string $holderId): void {} };
-$provider = new class implements AuthorizerClient { public int $refreshCalls = 0; public function createPreAuthCode(string $componentAppId, string $componentAccessToken): PreAuthCodeResponse { throw new RuntimeException('not used'); } public function queryAuthorization(string $componentAppId, string $componentAccessToken, string $authorizationCode): AuthorizerAuthorizationResponse { throw new RuntimeException('not used'); } public function refreshAuthorizerToken(string $componentAppId, string $componentAccessToken, string $authorizerAppId, string $authorizerRefreshToken): AuthorizerRefreshResponse { $this->refreshCalls++; throw new RuntimeException('fresh isolation tokens must not refresh'); } };
+$provider = new class implements AuthorizerClient {
+    public int $refreshCalls = 0;
+    public function createPreAuthCode(string $componentAppId, string $componentAccessToken): PreAuthCodeResponse { throw new RuntimeException('not used'); }
+    public function queryAuthorization(string $componentAppId, string $componentAccessToken, string $authorizationCode): AuthorizerAuthorizationResponse { throw new RuntimeException('not used'); }
+    public function refreshAuthorizerToken(string $componentAppId, string $componentAccessToken, string $authorizerAppId, string $authorizerRefreshToken): AuthorizerRefreshResponse { $this->refreshCalls++; throw new RuntimeException('fresh isolation tokens must not refresh'); }
+    public function getAuthorizerInfo(string $componentAppId, string $componentAccessToken, string $authorizerAppId): AuthorizerInfoResponse { throw new RuntimeException('isolation token reads must not fetch authorizer metadata'); }
+};
 $service = new AuthorizerAccessTokenService($platforms, $authorizations, $tokenRepo, $leases, $componentTokens, $provider, $audit, 300, 30);
 
 expectSame('A-shared-token', $service->forAuthorizer('platform-A', 'wx-shared', $now)->accessToken(), 'same authorizer AppId on platform A resolves only platform A token');

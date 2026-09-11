@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use app\common\security\SecretValue;
-use app\iam\security\SessionTokenHasher;
+use modules\iam\security\SessionTokenHasher;
 
 $hasher = new SessionTokenHasher(new SecretValue('pepper-123'));
 $first = $hasher->hash('opaque-session-token');

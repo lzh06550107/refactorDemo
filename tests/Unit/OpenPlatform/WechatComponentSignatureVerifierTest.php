@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 use app\common\error\AppException;
 use app\common\error\ErrorCode;
-use app\openplatform\security\WechatComponentSignatureVerifier;
-use DateTimeImmutable;
-use DateTimeZone;
+use modules\openplatform\security\WechatComponentSignatureVerifier;
 
 $verifier = new WechatComponentSignatureVerifier();
 $now = new DateTimeImmutable('2026-09-08T08:00:00Z', new DateTimeZone('UTC'));

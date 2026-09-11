@@ -2,22 +2,22 @@
 
 declare(strict_types=1);
 
-use app\account\domain\AccountType;
-use app\account\domain\LegacyAccountMapping;
-use app\iam\domain\LegacyPermissionAssignment;
-use app\iam\domain\LegacyPermissionPolicy;
-use app\iam\domain\Permission;
-use app\module\application\ModuleAuthorizationService;
-use app\module\application\RuntimeModuleService;
-use app\module\contract\ModulePermissionRepository;
-use app\module\contract\ModuleRuntimeRepository;
-use app\module\domain\AccountModuleConfig;
-use app\module\domain\BindingRuntimeRouter;
-use app\module\domain\ModuleDefinition;
-use app\module\domain\ModuleLifecycleStatus;
-use app\module\domain\ModulePluginRelation;
-use app\module\domain\ModuleSupportMatrix;
-use app\module\domain\RuntimeModuleResolver;
+use modules\account\domain\AccountType;
+use modules\account\domain\LegacyAccountMapping;
+use modules\iam\domain\LegacyPermissionAssignment;
+use modules\iam\domain\LegacyPermissionPolicy;
+use modules\iam\domain\Permission;
+use modules\module\application\ModuleAuthorizationService;
+use modules\module\application\RuntimeModuleService;
+use modules\module\contract\ModulePermissionRepository;
+use modules\module\contract\ModuleRuntimeRepository;
+use modules\module\domain\AccountModuleConfig;
+use modules\module\domain\BindingRuntimeRouter;
+use modules\module\domain\ModuleDefinition;
+use modules\module\domain\ModuleLifecycleStatus;
+use modules\module\domain\ModulePluginRelation;
+use modules\module\domain\ModuleSupportMatrix;
+use modules\module\domain\RuntimeModuleResolver;
 
 final class AuthorizationRuntimeFakeRepo implements ModuleRuntimeRepository
 {
