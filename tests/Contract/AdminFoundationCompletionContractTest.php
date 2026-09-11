@@ -165,6 +165,17 @@ declare(strict_types=1);
     if (str_contains($ci, 'weplatform_admin_browser_e2e')) {
         throw new RuntimeException('Admin browser E2E database name must satisfy the acceptance safety policy');
     }
+    if (preg_match('/^\s+WEPLATFORM_ADMIN_BOOTSTRAP_PASSWORD:\s*(?!\$\{\{)[^\r\n#]+/m', $ci) === 1) {
+        throw new RuntimeException('Admin browser E2E password must not be committed as a fixed workflow environment value');
+    }
+    foreach ([
+        '::add-mask::' => 'CI must mask the generated Admin browser E2E password before later steps run',
+        'GITHUB_ENV' => 'CI must pass the generated Admin browser E2E password to later steps through GITHUB_ENV',
+    ] as $needle => $message) {
+        if (!str_contains($ci, $needle)) {
+            throw new RuntimeException($message);
+        }
+    }
 
     $buildAt = strpos($ci, 'npm run build --prefix frontend/admin');
     $browserAt = strpos($ci, 'Test Admin production browser E2E');
