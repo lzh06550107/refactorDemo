@@ -1,0 +1,23 @@
+name: Web H5 Task 2 RED
+
+on:
+  push:
+    branches:
+      - refactor/web-h5-template-foundation-v1
+    paths:
+      - .github/workflows/web-h5-task2-red.yml
+
+jobs:
+  red:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refactor/web-h5-template-foundation-v1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install Web dependencies
+        run: npm install --prefix frontend/web
+      - name: Run focused RED test
+        run: npm test --prefix frontend/web -- src/js/__tests__/navigation.test.js
