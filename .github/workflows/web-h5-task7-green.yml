@@ -1,0 +1,96 @@
+name: Web H5 Task 7 GREEN
+
+on:
+  push:
+    branches:
+      - refactor/web-h5-template-foundation-v1
+    paths:
+      - .github/workflows/web-h5-task7-green.yml
+
+permissions:
+  contents: write
+
+jobs:
+  green:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refactor/web-h5-template-foundation-v1
+          fetch-depth: 0
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Register root route and Task 7 test
+        shell: python
+        run: |
+          from pathlib import Path
+
+          route = Path('app/web/route/app.php')
+          source = route.read_text()
+          line = "Route::get('/', 'HomeController/index');\n"
+          if line not in source:
+              anchor = "Route::get('health', 'HealthController/index');\n"
+              if anchor not in source:
+                  raise SystemExit('web health route anchor not found')
+              source = source.replace(anchor, line + anchor, 1)
+          route.write_text(source)
+
+          runner = Path('tests/run.php')
+          source = runner.read_text()
+          anchor = "    __DIR__ . '/Unit/Web/WebAssetManifestTest.php',\n"
+          line = "    __DIR__ . '/Component/Web/HomeControllerTest.php',\n"
+          if line not in source:
+              if anchor not in source:
+                  raise SystemExit('web unit test anchor not found')
+              source = source.replace(anchor, anchor + line, 1)
+          runner.write_text(source)
+      - name: Install locked Composer dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Install locked Web frontend dependencies
+        run: npm ci --prefix frontend/web
+      - name: Build Web assets
+        run: npm run build --prefix frontend/web
+      - name: Verify generated Web manifest
+        run: test -f public/build/web/manifest.json
+      - name: Lint Task 7 PHP
+        run: |
+          php -l app/web/controller/HomeController.php
+          php -l app/web/route/app.php
+      - name: Run focused HomeController test
+        run: php -r "require 'tests/Support/bootstrap.php'; require 'tests/Component/Web/HomeControllerTest.php';"
+      - name: Run complete offline suite
+        run: php tests/run.php
+      - name: Runtime smoke root HTML and health JSON
+        env:
+          WEPLATFORM_WEB_ASSETS_DEV: 'false'
+        run: |
+          php think run -p 18080 > /tmp/weplatform-web.log 2>&1 &
+          server_pid=$!
+          trap 'kill $server_pid 2>/dev/null || true; cat /tmp/weplatform-web.log || true' EXIT
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:18080/ >/tmp/home.html; then
+              break
+            fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:18080/ >/tmp/home.html
+          grep -q '^<!doctype html>' /tmp/home.html
+          grep -q '<h1>WePlatform</h1>' /tmp/home.html
+          grep -q '/build/web/assets/' /tmp/home.html
+          curl -fsS http://127.0.0.1:18080/health >/tmp/health.json
+          grep -q '"application":"web"' /tmp/health.json
+      - name: Commit Task 7 route and runner registration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/web/route/app.php tests/run.php
+          if git diff --cached --quiet; then
+            echo "No Task 7 registration changes"
+            exit 0
+          fi
+          git commit -m "feat: serve first web theme page"
+          git push origin HEAD:refactor/web-h5-template-foundation-v1
