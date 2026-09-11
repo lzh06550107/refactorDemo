@@ -2,37 +2,37 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make `topthink/think-migration` the single supported schema lifecycle for local development, CI, acceptance, and Admin browser E2E while preserving the already-validated V1 SQL 001–009 exactly and safely adopting legacy V1 databases.
+**Goal:** Make `topthink/think-migration` the single supported schema lifecycle for local development, CI, acceptance, and Admin browser E2E while preserving the validated V1 SQL 001–009 exactly and safely adopting legacy V1 databases.
 
-**Architecture:** Historical SQL 001–009 moves unchanged to `database/schema/v1/` and becomes an immutable baseline guarded by a SHA-256 manifest. Nine thin `think-migration` wrappers under `database/migrations/` execute those baseline files through the active Phinx adapter. Fresh databases use real `migrate:run`; legacy complete V1 databases use an explicit fail-closed `migration:adopt-v1` command that verifies schema/seed fingerprints before recording versions through the locked migration adapter.
+**Architecture:** Move the existing 001–009 SQL byte-for-byte to `database/schema/v1/`, pin it with a SHA-256 manifest, and add nine thin PHP migrations under `database/migrations/`. Those migrations execute baseline SQL through the active Phinx adapter. Fresh databases use `php think migrate:run`; pre-standardization V1 databases use an explicit `php think migration:adopt-v1` path that verifies schema/history/seeds first and records all nine versions atomically through the same locked migration adapter.
 
-**Tech Stack:** PHP 8.2+, ThinkPHP 8.1.3, `topthink/think-migration:^3.1` locked by Composer, bundled Phinx runtime, MySQL 8.4 acceptance, PHPUnit/offline contract runner, GitHub Actions, existing Admin Playwright Chromium E2E.
+**Tech Stack:** PHP 8.2+, ThinkPHP 8.1.3, `topthink/think-migration:^3.1` locked by Composer, bundled Phinx runtime, MySQL 8.4, existing offline/PHPUnit/release gates, GitHub Actions, Admin Playwright Chromium E2E.
 
 **Spec:** `docs/superpowers/specs/2026-09-11-database-migration-standardization-v1-design.md`
 
 ## Global Constraints
 
-- Base branch state is `refactor/admin-foundation-completion-v1` at `8fbc4a615c717b9a61d9954dee4654f8630731f7`.
-- Work only on `refactor/database-migration-standardization-v1`.
-- Keep PR #10 (`Admin Foundation Completion`) unchanged; its Human Gate remains independent and pending.
-- Add `topthink/think-migration` with Composer constraint `^3.1`; commit the exact resolved `composer.lock`.
-- `topthink/think-migration` 3.1 source code uses `database/migrations` for migration discovery/creation; do not relocate PHP migrations to `phinx/Migration`.
-- Existing SQL 001–009 semantics must not change; move them byte-for-byte to `database/schema/v1/` and pin them with SHA-256 manifest checks.
-- V1 wrappers must execute SQL through the active migration adapter (`Migrator::execute()` / underlying Phinx adapter), never through a second independent database connection.
-- Migration 010+ uses normal PHP migrations; no new `*_up.sql`/`*_down.sql` convention after V1/009.
-- Legacy adoption is explicit through `php think migration:adopt-v1`; ordinary `migrate:run` must not silently mark existing schema as migrated.
-- Partial/drifted/history-inconsistent databases fail closed; no automatic repair and no history writes on failed verification.
-- Real database verification uses MySQL 8.4 and repository acceptance database safety rules (`WEPLATFORM_ACCEPTANCE=1`, local host, database name contains `acceptance` or ends in `_test`).
+- Base is `refactor/admin-foundation-completion-v1` at `8fbc4a615c717b9a61d9954dee4654f8630731f7`.
+- Work only on `refactor/database-migration-standardization-v1`; do not modify PR #10's branch/head.
+- Add `topthink/think-migration` with Composer constraint exactly `^3.1`; commit the resolved `composer.lock`.
+- `topthink/think-migration` 3.1 discovers and creates migrations in project `database/migrations`.
+- Existing V1 SQL 001–009 is immutable in this Feature: move it byte-for-byte only. If a real rollback test proves a historical SQL defect, STOP this plan and amend the design rather than editing the baseline silently.
+- V1 wrappers execute statements through the active migration adapter; never open a second PDO/ThinkPHP DB connection inside migration classes.
+- Migration 010+ uses normal PHP migration classes; no new `*_up.sql` / `*_down.sql` convention after V1/009.
+- Legacy adoption is explicit; ordinary `migrate:run` never auto-adopts an existing business schema.
+- Adoption must be atomic: verification failure writes no history, and a mid-history-write failure rolls back all history writes.
+- Partial/drifted/history-inconsistent databases fail closed; no automatic repair.
+- Real database tests use MySQL 8.4 and existing safety rules: `WEPLATFORM_ACCEPTANCE=1`, local DB host, safe test DB name.
 - Automated gates do not replace Human Acceptance.
 
 ---
 
 ## File Structure
 
-### New production files
+### Production
 
-- `database/schema/v1/*.sql` — immutable V1 SQL baseline moved from the current `database/migrations/*.sql` files.
-- `database/schema/v1/manifest.sha256` — exactly 18 SHA-256 entries, one for every V1 up/down SQL file.
+- `database/schema/v1/*.sql` — the 18 immutable V1 up/down SQL files.
+- `database/schema/v1/manifest.sha256` — exactly 18 SHA-256 entries.
 - `database/migrations/20260907000100_v001_iam_tenant_account.php`
 - `database/migrations/20260907000200_v002_iam_module_platform.php`
 - `database/migrations/20260907000300_v003_entitlement_quota.php`
@@ -42,12 +42,15 @@
 - `database/migrations/20260908000700_v007_openplatform_component_trust.php`
 - `database/migrations/20260908000800_v008_openplatform_authorizer_lifecycle.php`
 - `database/migrations/20260909000900_v009_openplatform_authorizer_provisioning.php`
-- `app/common/migration/V1BaselineSql.php` — fixed-directory loader/splitter for immutable baseline SQL.
-- `app/common/migration/V1DatabaseState.php` — enum-like values `EMPTY`, `MANAGED`, `LEGACY_V1_COMPLETE`, `DRIFTED_OR_PARTIAL`.
-- `app/common/migration/V1SchemaVerifier.php` — schema/history/seed classifier and fingerprint verifier.
-- `app/worker/command/MigrationAdoptV1Command.php` — explicit legacy adoption command, built on the locked think-migration adapter.
+- `app/common/migration/V1BaselineSql.php` — fixed-directory SQL loader/splitter.
+- `app/common/migration/V1SqlMigration.php` — shared active-adapter execution base for V1 wrappers.
+- `app/common/migration/V1DatabaseState.php` — `EMPTY|MANAGED|LEGACY_V1_COMPLETE|DRIFTED_OR_PARTIAL`.
+- `app/common/migration/V1SchemaInspector.php` — read-only inspection contract.
+- `app/common/migration/PdoV1SchemaInspector.php` — MySQL/PDO inspection implementation.
+- `app/common/migration/V1SchemaVerifier.php` — state classifier/fingerprint verifier.
+- `app/worker/command/MigrationAdoptV1Command.php` — explicit atomic legacy adoption command.
 
-### New test files
+### Tests
 
 - `tests/Contract/DatabaseMigrationStandardizationContractTest.php`
 - `tests/Unit/Migration/V1BaselineSqlTest.php`
@@ -55,252 +58,149 @@
 - `tests/Acceptance/DatabaseMigrationRuntimeTest.php`
 - `tests/Acceptance/V1AdoptionRuntimeTest.php`
 
-### Modified files
+### Modified
 
-- `composer.json`, `composer.lock` — add/lock think-migration.
-- `config/console.php` — register `MigrationAdoptV1Command` only; package migration commands remain service-discovered.
-- `tests/run.php` — include new contract/unit/component tests.
-- `tests/Acceptance/bootstrap.php` — add a safe child-process runner for real `php think ...` commands.
-- `tests/Acceptance/FreshDatabaseMigrationTest.php` — stop parsing SQL itself; assert schema after real migration runtime.
-- `tests/Acceptance/run.php` — include fresh migration, rollback/re-run, bootstrap smoke, and adoption tests.
-- `tests/E2E/PrepareAdminBrowserDatabase.php` — prepare DB via real `migrate:run` instead of custom SQL runner.
-- `tests/Release/run.php` — require migration commands in `php think list` and keep real acceptance gate authoritative.
-- `.github/workflows/ci.yml` — add permanent MySQL migration-standardization job and switch Admin browser DB setup to real migration CLI.
-- `README.md` — document the supported fresh-install path and destructive rollback warning.
+- `composer.json`, `composer.lock`
+- `config/console.php`
+- `tests/run.php`
+- `tests/Acceptance/bootstrap.php`
+- `tests/Acceptance/FreshDatabaseMigrationTest.php`
+- `tests/Acceptance/run.php`
+- `tests/E2E/PrepareAdminBrowserDatabase.php`
+- `tests/Release/run.php`
+- `.github/workflows/ci.yml`
+- `README.md`
 
 ---
 
-### Task 1: Architecture Contract RED
+## Task 1 — Architecture Contract RED
 
-**Files:**
+**Files**
 - Create: `tests/Contract/DatabaseMigrationStandardizationContractTest.php`
 - Modify: `tests/run.php`
 
-**Interfaces:**
-- Consumes: current repository layout and `composer.json`.
-- Produces: permanent fail-closed contract `databaseMigrationStandardizationContractTest(string $root): void`.
+**Produces**
+- `databaseMigrationStandardizationContractTest(string $root): void`
 
-- [ ] **Step 1: Write the failing contract**
-
-Create `tests/Contract/DatabaseMigrationStandardizationContractTest.php` with assertions in this order so the initial RED is deterministic:
+- [ ] Write the contract so its first assertion is the missing dependency:
 
 ```php
-<?php
-
-declare(strict_types=1);
-
-function databaseMigrationStandardizationContractTest(string $root): void
-{
-    $composer = json_decode((string) file_get_contents($root . '/composer.json'), true, 512, JSON_THROW_ON_ERROR);
-    $required = $composer['require']['topthink/think-migration'] ?? null;
-    if ($required !== '^3.1') {
-        throw new RuntimeException('topthink/think-migration:^3.1 is required.');
-    }
-
-    $expectedPhpMigrations = [
-        '20260907000100_v001_iam_tenant_account.php',
-        '20260907000200_v002_iam_module_platform.php',
-        '20260907000300_v003_entitlement_quota.php',
-        '20260907000400_v004_site_theme_runtime.php',
-        '20260908000500_v005_member_oauth_webhook.php',
-        '20260908000600_v006_miniapp_identity_session.php',
-        '20260908000700_v007_openplatform_component_trust.php',
-        '20260908000800_v008_openplatform_authorizer_lifecycle.php',
-        '20260909000900_v009_openplatform_authorizer_provisioning.php',
-    ];
-    $actualPhpMigrations = array_map('basename', glob($root . '/database/migrations/*.php') ?: []);
-    sort($actualPhpMigrations);
-    if ($actualPhpMigrations !== $expectedPhpMigrations) {
-        throw new RuntimeException('database/migrations must contain exactly the nine V1 PHP wrappers.');
-    }
-
-    if ((glob($root . '/database/migrations/*_up.sql') ?: []) !== []
-        || (glob($root . '/database/migrations/*_down.sql') ?: []) !== []) {
-        throw new RuntimeException('Legacy SQL files must not remain under database/migrations.');
-    }
-
-    $manifest = $root . '/database/schema/v1/manifest.sha256';
-    if (!is_file($manifest)) {
-        throw new RuntimeException('Immutable V1 SHA-256 manifest is required.');
-    }
-
-    $fresh = (string) file_get_contents($root . '/tests/Acceptance/FreshDatabaseMigrationTest.php');
-    if (str_contains($fresh, "glob($directory . '/*_up.sql')") || str_contains($fresh, 'PDO::exec')) {
-        throw new RuntimeException('Fresh acceptance must use the real migration runtime, not the legacy SQL runner.');
-    }
-
-    $browser = (string) file_get_contents($root . '/tests/E2E/PrepareAdminBrowserDatabase.php');
-    if (!str_contains($browser, "'migrate:run'")) {
-        throw new RuntimeException('Admin browser database setup must execute real migrate:run.');
-    }
+$composer = json_decode((string) file_get_contents($root . '/composer.json'), true, 512, JSON_THROW_ON_ERROR);
+if (($composer['require']['topthink/think-migration'] ?? null) !== '^3.1') {
+    throw new RuntimeException('topthink/think-migration:^3.1 is required.');
 }
 ```
 
-Append to `tests/run.php` immediately after the Admin/Web architecture contracts:
+Then require the exact nine PHP migration filenames listed above, forbid `database/migrations/*_up.sql` and `*_down.sql`, require `database/schema/v1/manifest.sha256`, require `tests/Acceptance/FreshDatabaseMigrationTest.php` not to contain its old `glob('*_up.sql')`/manual SQL execution path, and require Admin browser DB preparation to contain `migrate:run`.
 
-```php
-__DIR__ . '/Contract/DatabaseMigrationStandardizationContractTest.php',
-```
+- [ ] Register the contract in `tests/run.php` immediately after the frontend architecture contracts.
 
-The file is a normal offline contract file: execute its function at file load using the repository root, matching the existing contract-test style.
-
-- [ ] **Step 2: Run the offline suite and prove RED**
-
-Run:
+- [ ] Run:
 
 ```bash
 php tests/run.php
 ```
 
-Expected: existing tests remain PASS and this contract fails first with:
+Expected: existing tests stay healthy and this contract fails with exactly `topthink/think-migration:^3.1 is required.`
 
-```text
-topthink/think-migration:^3.1 is required.
-```
-
-- [ ] **Step 3: Commit test-only RED**
+- [ ] Commit only the test/runner:
 
 ```bash
 git add tests/Contract/DatabaseMigrationStandardizationContractTest.php tests/run.php
 git commit -m "test: contract migration standardization"
 ```
 
-- [ ] **Step 4: Push and capture exact-head CI RED evidence**
-
-Push the branch and record the workflow run where the offline contract fails for the expected missing dependency while pre-existing Admin/Web gates remain healthy.
+- [ ] Push and record an exact-head CI RED run before implementation.
 
 ---
 
-### Task 2: Locked Dependency, Immutable Baseline, and V1 Wrapper Runtime
+## Task 2 — Dependency, Immutable Baseline, and Nine V1 Wrappers
 
-**Files:**
-- Modify: `composer.json`, `composer.lock`
-- Move byte-for-byte: current 18 `database/migrations/*_up.sql` / `*_down.sql` files → `database/schema/v1/`
+**Files**
+- Modify: `composer.json`, `composer.lock`, `tests/run.php`
+- Move byte-for-byte: current 18 SQL files → `database/schema/v1/`
 - Create: `database/schema/v1/manifest.sha256`
 - Create: `app/common/migration/V1BaselineSql.php`
-- Create: nine PHP migration wrappers listed in File Structure
+- Create: `app/common/migration/V1SqlMigration.php`
+- Create: nine migration wrapper files
 - Create: `tests/Unit/Migration/V1BaselineSqlTest.php`
-- Modify: `tests/run.php`
 
-**Interfaces:**
-- Produces: `V1BaselineSql::__construct(string $directory)` and `V1BaselineSql::statements(string $file): array<int,string>`.
-- Produces: nine migration classes extending `think\migration\Migrator`, each exposing `up(): void` and `down(): void`.
-- Later tasks rely on migration versions `20260907000100` through `20260909000900` exactly.
-
-- [ ] **Step 1: Add unit RED for fixed-path SQL loading**
-
-Test these exact behaviors in `tests/Unit/Migration/V1BaselineSqlTest.php`:
-
-```php
-$loader = new V1BaselineSql($fixtureDir);
-assert($loader->statements('001_up.sql') === ['CREATE TABLE a (id INT)', 'INSERT INTO a VALUES (1)']);
-```
-
-Also assert:
-
-```php
-$loader->statements('../outside.sql'); // throws RuntimeException: Invalid V1 baseline filename.
-$loader->statements('missing.sql');    // throws RuntimeException naming missing.sql
-$loader->statements('empty.sql');      // throws RuntimeException naming empty.sql
-```
-
-Use a temporary directory created by the test and remove it in `finally`.
-
-- [ ] **Step 2: Run the unit test and verify RED**
-
-Run:
-
-```bash
-php tests/Unit/Migration/V1BaselineSqlTest.php
-```
-
-Expected: FAIL because `app/common/migration/V1BaselineSql.php` does not exist.
-
-- [ ] **Step 3: Add the package and lock it**
-
-Run:
-
-```bash
-composer require topthink/think-migration:^3.1 --no-interaction
-composer validate --strict
-```
-
-Verify:
-
-```bash
-php think list | grep -E 'migrate:(create|run|rollback|status)'
-```
-
-Expected: all four commands are present.
-
-- [ ] **Step 4: Move the V1 SQL without semantic edits and generate manifest**
-
-Move all 18 current SQL files into `database/schema/v1/` without changing bytes. Then generate the manifest from the moved files:
-
-```bash
-php -r '$files=glob("database/schema/v1/*.sql"); sort($files); foreach($files as $f){echo hash_file("sha256", $f)."  ".basename($f).PHP_EOL;}' > database/schema/v1/manifest.sha256
-```
-
-Verify exactly 18 lines:
-
-```bash
-php -r '$l=file("database/schema/v1/manifest.sha256", FILE_IGNORE_NEW_LINES|FILE_SKIP_EMPTY_LINES); exit(count($l)===18?0:1);'
-```
-
-Update the architecture contract so it parses every manifest line with:
-
-```php
-preg_match('/^[a-f0-9]{64}  ([A-Za-z0-9_]+\.sql)$/', $line, $m)
-```
-
-and verifies `hash_file('sha256', $path) === $hash` for all 18 entries.
-
-- [ ] **Step 5: Implement `V1BaselineSql` minimally**
-
-Implementation contract:
+**Produces**
 
 ```php
 final class V1BaselineSql
 {
-    public function __construct(private readonly string $directory) {}
-
+    public function __construct(string $directory);
     /** @return list<string> */
-    public function statements(string $file): array
-    {
-        if (basename($file) !== $file || preg_match('/^[A-Za-z0-9_]+\.sql$/', $file) !== 1) {
-            throw new RuntimeException('Invalid V1 baseline filename.');
-        }
-        $path = $this->directory . DIRECTORY_SEPARATOR . $file;
-        $sql = @file_get_contents($path);
-        if (!is_string($sql) || trim($sql) === '') {
-            throw new RuntimeException('V1 baseline SQL is missing or empty: ' . $file);
-        }
-        $parts = preg_split('/;\s*(?:\R|$)/', trim($sql));
-        $statements = array_values(array_filter(array_map(
-            static fn (string $value): string => trim($value),
-            is_array($parts) ? $parts : [],
-        ), static fn (string $value): bool => $value !== ''));
-        if ($statements === []) {
-            throw new RuntimeException('V1 baseline SQL has no executable statements: ' . $file);
-        }
-        return $statements;
+    public function statements(string $file): array;
+}
+
+abstract class V1SqlMigration extends \think\migration\Migrator
+{
+    final protected function runBaseline(string $file): void;
+}
+```
+
+- [ ] Add a unit RED proving `V1BaselineSql` rejects path traversal, rejects missing/empty files, and preserves ordered statements. Example success assertion:
+
+```php
+$loader = new V1BaselineSql($fixtureDir);
+assert($loader->statements('001_up.sql') === [
+    'CREATE TABLE a (id INT)',
+    'INSERT INTO a VALUES (1)',
+]);
+```
+
+- [ ] Run `php tests/Unit/Migration/V1BaselineSqlTest.php`; expected RED because the class is absent.
+
+- [ ] Install/lock the package:
+
+```bash
+composer require topthink/think-migration:^3.1 --no-interaction
+composer validate --strict
+php think list
+```
+
+Expected console commands include `migrate:create`, `migrate:run`, `migrate:rollback`, `migrate:status`.
+
+- [ ] Move all 18 SQL files byte-for-byte to `database/schema/v1/`; do not edit SQL text.
+
+- [ ] Generate the immutable manifest:
+
+```bash
+php -r '$files=glob("database/schema/v1/*.sql"); sort($files); foreach($files as $f){echo hash_file("sha256",$f)."  ".basename($f).PHP_EOL;}' > database/schema/v1/manifest.sha256
+```
+
+Assert exactly 18 entries. Extend the contract to parse each line with `/^[a-f0-9]{64}  ([A-Za-z0-9_]+\.sql)$/` and verify `hash_file('sha256', $file)` equals the manifest hash.
+
+- [ ] Implement `V1BaselineSql::statements()` with this validation behavior:
+
+```php
+if (basename($file) !== $file || preg_match('/^[A-Za-z0-9_]+\.sql$/', $file) !== 1) {
+    throw new RuntimeException('Invalid V1 baseline filename.');
+}
+```
+
+Read only `$directory . DIRECTORY_SEPARATOR . $file`; missing/empty/no-statements throws a safe `RuntimeException` naming only the baseline filename. Split current baseline statements with the repository's existing `'/;\s*(?:\R|$)/'` rule.
+
+- [ ] Implement `V1SqlMigration::runBaseline()` once:
+
+```php
+final protected function runBaseline(string $file): void
+{
+    $loader = new V1BaselineSql(dirname(__DIR__, 3) . '/database/schema/v1');
+    foreach ($loader->statements($file) as $statement) {
+        $this->execute($statement);
     }
 }
 ```
 
-- [ ] **Step 6: Add nine thin wrappers using the active migration adapter**
+If the relative root above is wrong in the real class location, use `dirname(__DIR__, 3)` only after verifying it resolves to repository root in a focused test; do not open another connection.
 
-Use the exact file/class mapping implied by Phinx filename mapping. Example V001:
+- [ ] Create the nine wrappers. Example:
 
 ```php
-<?php
-
-declare(strict_types=1);
-
-use app\common\migration\V1BaselineSql;
-use think\migration\Migrator;
-
-final class V001IamTenantAccount extends Migrator
+final class V001IamTenantAccount extends V1SqlMigration
 {
     public function up(): void
     {
@@ -311,22 +211,12 @@ final class V001IamTenantAccount extends Migrator
     {
         $this->runBaseline('20260907_001_iam_tenant_account_down.sql');
     }
-
-    private function runBaseline(string $file): void
-    {
-        $loader = new V1BaselineSql(dirname(__DIR__) . '/schema/v1');
-        foreach ($loader->statements($file) as $statement) {
-            $this->execute($statement);
-        }
-    }
 }
 ```
 
-Repeat with the matching V002–V009 class/file/baseline names. Do not open PDO/ThinkPHP DB inside wrappers.
+Use corresponding V002–V009 names/files and versions exactly.
 
-- [ ] **Step 7: Run focused and offline GREEN checks**
-
-Run:
+- [ ] Run:
 
 ```bash
 php tests/Unit/Migration/V1BaselineSqlTest.php
@@ -334,51 +224,24 @@ php tests/run.php
 php think migrate:status
 ```
 
-Expected: loader unit PASS; offline contract advances past dependency/layout checks; `migrate:status` discovers exactly nine migrations without class-name or duplicate-version errors.
+Expected: unit/contract GREEN; `migrate:status` discovers exactly nine migration classes without duplicate/class-name errors.
 
-- [ ] **Step 8: Commit**
+- [ ] Commit:
 
 ```bash
-git add composer.json composer.lock database app/common/migration/V1BaselineSql.php tests
+git add composer.json composer.lock database app/common/migration tests
 git commit -m "feat: add V1 think-migration wrappers"
 ```
 
 ---
 
-### Task 3: Real Fresh Migration Runtime and Admin Bootstrap Smoke
+## Task 3 — Real Fresh Migration Runtime and Bootstrap Smoke
 
-**Files:**
-- Modify: `tests/Acceptance/bootstrap.php`
-- Rewrite: `tests/Acceptance/FreshDatabaseMigrationTest.php`
+**Files**
+- Modify: `tests/Acceptance/bootstrap.php`, `tests/Acceptance/FreshDatabaseMigrationTest.php`, `tests/Acceptance/run.php`, `tests/Release/run.php`
 - Create: `tests/Acceptance/DatabaseMigrationRuntimeTest.php`
-- Modify: `tests/Acceptance/run.php`
-- Modify: `tests/Release/run.php`
 
-**Interfaces:**
-- Produces: `AcceptanceCommandResult` with `exitCode`, `stdout`, `stderr`.
-- Produces: `AcceptanceRuntime::runThink(array $arguments, array $extraEnvironment = []): AcceptanceCommandResult`.
-- Produces: reusable `acceptanceAssertV1Schema(PDO $db, AcceptanceConfig $config): void` extracted from the old fresh-migration assertions.
-
-- [ ] **Step 1: Add RED for real `migrate:run`**
-
-In `DatabaseMigrationRuntimeTest.php`, require:
-
-```php
-$runtime->resetDatabase();
-$result = $runtime->runThink(['migrate:run']);
-acceptanceAssert($result->exitCode === 0, 'migrate:run failed: ' . $result->stderr);
-acceptanceAssertV1Schema($runtime->reconnectDatabase(), $runtime->config);
-$status = $runtime->runThink(['migrate:status']);
-acceptanceAssert(substr_count($status->stdout, 'up') >= 9, 'Expected nine applied migrations.');
-$again = $runtime->runThink(['migrate:run']);
-acceptanceAssert($again->exitCode === 0, 'Second migrate:run must be a no-op success.');
-```
-
-The test must fail initially because `runThink()` / reconnect support is absent.
-
-- [ ] **Step 2: Add safe child-process support**
-
-Add:
+**Produces**
 
 ```php
 final readonly class AcceptanceCommandResult
@@ -389,64 +252,38 @@ final readonly class AcceptanceCommandResult
         public string $stderr,
     ) {}
 }
+
+AcceptanceRuntime::runThink(array $arguments, array $extraEnvironment = []): AcceptanceCommandResult
+AcceptanceRuntime::reconnectDatabase(): PDO
+acceptanceAssertV1Schema(PDO $db, AcceptanceConfig $config): void
 ```
 
-Implement `runThink()` using `proc_open([PHP_BINARY, $root.'/think', ...$arguments], ..., $root, array_merge($config->childEnvironment(), $extraEnvironment))`. Capture stdout/stderr, close pipes, return the result; never inject secrets into command arguments.
+- [ ] Add RED that resets the safe test DB, invokes `runThink(['migrate:run'])`, asserts exit 0, reconnects, verifies V1 schema/seeds, invokes `migrate:status`, then invokes `migrate:run` a second time and requires no-op success.
 
-Add `reconnectDatabase(): PDO` that opens the configured test database without dropping it and stores the new PDO in `$this->database`.
+- [ ] Implement `runThink()` with `proc_open([PHP_BINARY, $root.'/think', ...$arguments], ...)`, repository root cwd, and `array_merge($config->childEnvironment(), $extraEnvironment)`. Capture stdout/stderr/exit code. Never pass secrets as CLI args.
 
-- [ ] **Step 3: Remove the custom SQL executor from `FreshDatabaseMigrationTest.php`**
+- [ ] Add `reconnectDatabase()` that reconnects to the configured already-existing test database without dropping it.
 
-Keep schema/seed assertions, but extract them into:
+- [ ] Rewrite `FreshDatabaseMigrationTest.php`: remove SQL discovery/splitting/execution; keep its schema/seed assertions as `acceptanceAssertV1Schema()`.
 
-```php
-function acceptanceAssertV1Schema(PDO $db, AcceptanceConfig $config): void
-```
-
-Delete all logic that discovers `*_up.sql`, splits statements, and calls `$db->exec($statement)`.
-
-- [ ] **Step 4: Add real bootstrap smoke after migration**
-
-In `DatabaseMigrationRuntimeTest.php`, generate a per-test password:
+- [ ] After fresh migration, prove real bootstrap compatibility:
 
 ```php
 $password = bin2hex(random_bytes(16));
-$bootstrap = $runtime->runThink(
+$result = $runtime->runThink(
     ['admin:bootstrap', '--username=migration-test-admin'],
     ['WEPLATFORM_ADMIN_BOOTSTRAP_PASSWORD' => $password],
 );
-acceptanceAssert($bootstrap->exitCode === 0, 'admin:bootstrap must succeed after fresh migration.');
+acceptanceAssert($result->exitCode === 0, 'admin:bootstrap failed after migrate:run.');
 ```
 
-Then assert one active `admin_users` row exists and `password_verify($password, $hash)` is true. Never print `$password`.
+Query the row and require `status='active'` and `password_verify($password, $passwordHash) === true`. Never print `$password`.
 
-- [ ] **Step 5: Require migration commands in release gate**
+- [ ] Extend `tests/Release/run.php` so `php think list` must expose all four migration commands.
 
-After current `admin:bootstrap` assertion in `tests/Release/run.php`, assert `php think list` contains all of:
+- [ ] Run MySQL 8.4 acceptance using a safe DB such as `weplatform_migration_test`; expected fresh migrate/status/no-op/schema/bootstrap all PASS.
 
-```text
-migrate:create
-migrate:run
-migrate:rollback
-migrate:status
-```
-
-- [ ] **Step 6: Run real MySQL acceptance GREEN**
-
-Against an isolated MySQL 8.4 database:
-
-```bash
-WEPLATFORM_ACCEPTANCE=1 \
-DATABASE_HOSTNAME=127.0.0.1 \
-DATABASE_DATABASE=weplatform_migration_test \
-DATABASE_USERNAME=root \
-DATABASE_PASSWORD='<local-test-password>' \
-php tests/Acceptance/run.php
-```
-
-Expected: fresh `migrate:run`, status, no-op re-run, schema/seed assertions, and `admin:bootstrap` smoke all PASS.
-
-- [ ] **Step 7: Commit**
+- [ ] Commit:
 
 ```bash
 git add tests/Acceptance tests/Release/run.php
@@ -455,68 +292,47 @@ git commit -m "test: run fresh database through migration CLI"
 
 ---
 
-### Task 4: Destructive Rollback and Re-run Acceptance
+## Task 4 — Full Rollback and Re-run
 
-**Files:**
-- Extend: `tests/Acceptance/DatabaseMigrationRuntimeTest.php`
-- Modify: `tests/Acceptance/run.php`
+**Files**
+- Extend: `tests/Acceptance/DatabaseMigrationRuntimeTest.php`, `tests/Acceptance/run.php`
 
-**Interfaces:**
-- Consumes: `AcceptanceRuntime::runThink()`, `acceptanceAssertV1Schema()`.
-- Produces: permanent proof of V009→V001 reverse rollback and deterministic rebuild.
+**Consumes**
+- `AcceptanceRuntime::runThink()` and `acceptanceAssertV1Schema()`.
 
-- [ ] **Step 1: Add rollback RED**
-
-After a fresh migration, execute:
+- [ ] After fresh migration, run:
 
 ```php
 $rollback = $runtime->runThink(['migrate:rollback', '--target=0']);
-acceptanceAssert($rollback->exitCode === 0, 'Full rollback failed: ' . $rollback->stderr);
+acceptanceAssert($rollback->exitCode === 0, 'Full V1 rollback failed: ' . $rollback->stderr);
 ```
 
-Then assert every V1 business table checked by `acceptanceAssertV1Schema()` is absent. `phinxlog` may remain because it belongs to the migration framework; assert it contains zero applied migration rows.
+- [ ] Assert V1 business tables are absent and migration history contains zero applied V1 versions. The framework-owned history table may remain.
 
-- [ ] **Step 2: Run acceptance and capture first dependency-order failure if any**
+- [ ] Run `migrate:run` again and require the same V1 schema/seed assertions and exact ordered `openplatform.*` permission set.
 
-Run the isolated acceptance command from Task 3. Expected before any wrapper/down correction: either PASS or a precise first down-SQL dependency error. Do not reorder/drop unrelated objects speculatively.
+- [ ] If rollback fails because an immutable historical `_down.sql` is defective, STOP. Do not edit baseline SQL in this Task. Record the precise MySQL failure and amend the design before continuing.
 
-- [ ] **Step 3: Fix only proven rollback defects**
-
-If a down file fails because of dependency order, change only the corresponding V1 `_down.sql` if and only if the defect is proven by the real MySQL test and record that change as an explicit baseline compatibility correction in the manifest diff. Otherwise leave SQL bytes unchanged.
-
-- [ ] **Step 4: Re-run migration and compare schema/seed fingerprint**
-
-After full rollback:
-
-```php
-$rerun = $runtime->runThink(['migrate:run']);
-acceptanceAssert($rerun->exitCode === 0, 'Re-run after rollback failed.');
-acceptanceAssertV1Schema($runtime->reconnectDatabase(), $runtime->config);
-```
-
-Also assert the exact ordered `openplatform.*` permission seed set remains identical to the pre-rollback set.
-
-- [ ] **Step 5: Commit**
+- [ ] Run the real MySQL acceptance gate to GREEN and commit only test/runtime changes:
 
 ```bash
-git add tests/Acceptance database/schema/v1/manifest.sha256 database/schema/v1/*_down.sql
+git add tests/Acceptance
 git commit -m "test: verify V1 rollback and rebuild"
 ```
 
-Only include baseline SQL in the commit if a real defect required a correction; otherwise commit only tests.
-
 ---
 
-### Task 5: V1 Database State Classifier and Strict Schema Verifier
+## Task 5 — V1 State Classifier and Strict Fingerprint Verifier
 
-**Files:**
+**Files**
 - Create: `app/common/migration/V1DatabaseState.php`
+- Create: `app/common/migration/V1SchemaInspector.php`
+- Create: `app/common/migration/PdoV1SchemaInspector.php`
 - Create: `app/common/migration/V1SchemaVerifier.php`
 - Create: `tests/Component/Migration/V1SchemaVerifierTest.php`
 - Modify: `tests/run.php`
 
-**Interfaces:**
-- Produces enum:
+**Produces**
 
 ```php
 enum V1DatabaseState: string
@@ -526,178 +342,147 @@ enum V1DatabaseState: string
     case LEGACY_V1_COMPLETE = 'legacy_v1_complete';
     case DRIFTED_OR_PARTIAL = 'drifted_or_partial';
 }
+
+interface V1SchemaInspector
+{
+    /** @return list<int> */
+    public function appliedMigrationVersions(): array;
+    /** @return list<string> */
+    public function tables(): array;
+    public function columnSignature(string $table, string $column): ?string;
+    public function hasIndex(string $table, string $index): bool;
+    public function hasForeignKey(string $table, string $constraint): bool;
+    /** @return list<string> */
+    public function openPlatformPermissions(): array;
+}
+
+final class V1SchemaVerifier
+{
+    public function __construct(V1SchemaInspector $inspector);
+    public function classify(): V1DatabaseState;
+    public function assertLegacyV1Complete(): void;
+}
 ```
 
-- Produces `V1SchemaVerifier::classify(PDO $db, string $database): V1DatabaseState`.
-- Produces `V1SchemaVerifier::assertLegacyV1Complete(PDO $db, string $database): void`.
-
-- [ ] **Step 1: Add classifier RED using focused fake-query fixtures**
-
-Cover these exact cases:
+- [ ] Unit/component RED must cover exactly:
 
 ```text
-no phinx versions + no V1 tables -> EMPTY
-nine expected phinx versions     -> MANAGED
-no phinx versions + full V1      -> LEGACY_V1_COMPLETE
-some V1 tables/columns missing   -> DRIFTED_OR_PARTIAL
-non-empty unexpected phinx set   -> DRIFTED_OR_PARTIAL
+no applied versions + no V1 business tables -> EMPTY
+exact nine applied versions + valid fingerprint -> MANAGED
+no applied versions + valid complete fingerprint -> LEGACY_V1_COMPLETE
+some business schema but incomplete/mismatched -> DRIFTED_OR_PARTIAL
+unexpected/partial migration versions -> DRIFTED_OR_PARTIAL
 ```
 
-The component test can use a lightweight fake inspection gateway extracted inside `V1SchemaVerifier` only if direct PDO mocking becomes unreadable. Do not weaken real-MySQL acceptance in Task 6.
+- [ ] Implement `PdoV1SchemaInspector` using read-only `information_schema` queries plus permission seed query. `columnSignature()` returns a deterministic string such as `varchar(64)|NO||` containing type/nullability/default/extra needed by the verifier.
 
-- [ ] **Step 2: Implement structural fingerprint checks**
-
-At minimum verify through `information_schema`:
+- [ ] The verifier must at minimum require critical tables and these invariants:
 
 ```text
-expected V1 table set
 admin_users.id varchar(64) NOT NULL primary key
-admin_users.username varchar(64) NOT NULL unique key uk_admin_users_username
-admin_sessions.admin_user_id FK -> admin_users.id
-accounts.tenant_id FK -> tenants.id
-critical OpenPlatform provisioning tables
-critical named indexes already asserted by existing schema contract tests
+admin_users.username varchar(64) NOT NULL
+uk_admin_users_username exists
+fk_admin_sessions_user exists
+fk_accounts_tenant exists
+critical component/authorizer/provisioning tables exist
+exact six openplatform.* permission seeds exist
 ```
 
-Verify seeds through the application database:
+Reuse stronger existing schema-contract expectations where available; do not weaken them.
 
-```sql
-SELECT permission_key
-FROM permissions
-WHERE permission_key LIKE 'openplatform.%'
-ORDER BY permission_key
-```
+- [ ] `assertLegacyV1Complete()` succeeds only for `LEGACY_V1_COMPLETE`; all other states throw a safe `RuntimeException` without environment/credential dumps.
 
-Expected exactly:
-
-```text
-openplatform.authorizer.bind
-openplatform.authorizer.provision
-openplatform.authorizer.read
-openplatform.authorizer.refresh_metadata
-openplatform.authorizer.retry_provision
-openplatform.authorizer.start
-```
-
-Use the nine exact migration versions from Task 2 when inspecting migration history.
-
-- [ ] **Step 3: Fail closed on ambiguity**
-
-`assertLegacyV1Complete()` must throw a safe `RuntimeException` for anything except `LEGACY_V1_COMPLETE`. The error may list missing/mismatched object names but must not dump credentials or full environment state.
-
-- [ ] **Step 4: Run focused/offline tests**
+- [ ] Run focused + offline GREEN:
 
 ```bash
 php tests/Component/Migration/V1SchemaVerifierTest.php
 php tests/run.php
 ```
 
-Expected: PASS.
-
-- [ ] **Step 5: Commit**
+- [ ] Commit:
 
 ```bash
 git add app/common/migration tests/Component/Migration tests/run.php
-git commit -m "feat: classify V1 database migration state"
+git commit -m "feat: verify V1 migration state"
 ```
 
 ---
 
-### Task 6: Explicit Legacy V1 Adoption Through the Locked Migration Adapter
+## Task 6 — Atomic Explicit Legacy Adoption
 
-**Files:**
+**Files**
 - Create: `app/worker/command/MigrationAdoptV1Command.php`
-- Modify: `config/console.php`
+- Modify: `config/console.php`, `tests/Acceptance/run.php`, `tests/Release/run.php`
 - Create: `tests/Acceptance/V1AdoptionRuntimeTest.php`
-- Modify: `tests/Acceptance/run.php`
-- Modify: `tests/Release/run.php`
 
-**Interfaces:**
-- Produces CLI `php think migration:adopt-v1`.
-- Command extends `think\migration\command\Migrate` so it can reuse protected `getMigrations()` and `getAdapter()` from the pinned package runtime.
-- Consumes `V1SchemaVerifier` and exactly nine wrapper migration objects.
+**Produces**
+- CLI: `php think migration:adopt-v1`
 
-- [ ] **Step 1: Add command-contract RED**
+- [ ] Add RED requiring the command in `php think list` and requiring complete legacy V1 adoption without DDL replay.
 
-Require `php think list` to contain:
-
-```text
-migration:adopt-v1
-```
-
-Add acceptance that a complete legacy database with no applied migration history becomes managed without replaying DDL.
-
-- [ ] **Step 2: Implement the command on the package integration boundary**
-
-Command shape:
+- [ ] Implement `MigrationAdoptV1Command` by extending `think\migration\command\Migrate`. In `execute()`:
 
 ```php
-final class MigrationAdoptV1Command extends \think\migration\command\Migrate
-{
-    protected function configure(): void
-    {
-        $this->setName('migration:adopt-v1')
-            ->setDescription('Adopt a verified legacy V1 schema into think-migration history');
-    }
+$adapter = $this->getAdapter();
+if (!$adapter instanceof \Phinx\Db\Adapter\PdoAdapter) {
+    throw new RuntimeException('V1 adoption requires a PDO migration adapter.');
+}
 
-    protected function execute(Input $input, Output $output): void
-    {
-        // 1. classify with V1SchemaVerifier
-        // 2. refuse EMPTY / MANAGED / DRIFTED_OR_PARTIAL
-        // 3. require exactly the nine expected migrations
-        // 4. call $this->getAdapter()->migrated($migration, MigrationInterface::UP, $now, $now)
-        // 5. re-read adapter versions and assert exact nine-version set
+$pdo = $adapter->getConnection();
+$verifier = new V1SchemaVerifier(new PdoV1SchemaInspector($pdo));
+$verifier->assertLegacyV1Complete();
+
+$migrations = $this->getMigrations();
+$expected = [
+    20260907000100, 20260907000200, 20260907000300, 20260907000400,
+    20260908000500, 20260908000600, 20260908000700, 20260908000800,
+    20260909000900,
+];
+if (array_keys($migrations) !== $expected) {
+    throw new RuntimeException('Installed V1 migration set does not match adoption contract.');
+}
+
+$now = date('Y-m-d H:i:s');
+$pdo->beginTransaction();
+try {
+    foreach ($migrations as $migration) {
+        $adapter->migrated($migration, \Phinx\Migration\MigrationInterface::UP, $now, $now);
     }
+    $actual = $adapter->getVersions();
+    sort($actual);
+    if ($actual !== $expected) {
+        throw new RuntimeException('V1 adoption history verification failed.');
+    }
+    $pdo->commit();
+} catch (Throwable $error) {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+    throw $error;
 }
 ```
 
-Replace the comments above with executable code in implementation; they describe the exact required sequence. Do not insert `phinxlog` rows with project SQL.
+Configure name `migration:adopt-v1` and register it in `config/console.php`. Output only a non-secret success summary after commit.
 
-Return non-zero by throwing a safe exception on refusal/failure; do not change business tables.
+- [ ] In `V1AdoptionRuntimeTest.php`, simulate a legacy installation by applying the immutable 001–009 baseline directly in test setup only, without migration history. Snapshot business-table counts and permission seeds, run `migration:adopt-v1`, and assert: exit 0, exact nine versions recorded, business data unchanged, later `migrate:run` no-op.
 
-- [ ] **Step 3: Build real legacy database fixtures from immutable SQL**
-
-In `V1AdoptionRuntimeTest.php`, create the test database via `resetDatabase()`, then apply the immutable baseline SQL directly only to simulate a pre-standardization legacy installation. This is the one test-only place where direct baseline application remains allowed.
-
-After applying 001–009, record table/row fingerprints, run:
-
-```php
-$adopt = $runtime->runThink(['migration:adopt-v1']);
-```
-
-Assert:
+- [ ] Add negative real-MySQL cases. Recreate the fixture before each case and require non-zero exit plus zero adopted versions:
 
 ```text
-exitCode == 0
-nine expected migration versions recorded
-business table count unchanged
-permission seeds unchanged
-subsequent migrate:run is a no-op
+one required table missing
+admin_users.username signature changed
+uk_admin_users_username missing
+critical foreign key missing
+one required openplatform permission missing
+partial/unexpected migration history
+history claims V1 but admin_users missing
 ```
 
-- [ ] **Step 4: Add the negative adoption matrix**
+- [ ] Extend release command assertions for `migration:adopt-v1`.
 
-For each case, rebuild a fresh legacy fixture and prove adoption exits non-zero and migration history remains empty:
+- [ ] Run real MySQL adoption matrix GREEN.
 
-```text
-drop one required table
-alter admin_users.username away from varchar(64)
-drop uk_admin_users_username
-remove one critical foreign key
-remove openplatform.authorizer.start permission seed
-insert only one unexpected migration-history version
-create migration history claiming V001–V009 while drop admin_users
-```
-
-- [ ] **Step 5: Register and release-gate the command**
-
-Add `MigrationAdoptV1Command::class` to `config/console.php` project commands. Add `migration:adopt-v1` to `tests/Release/run.php` console assertions.
-
-- [ ] **Step 6: Run real MySQL adoption GREEN**
-
-Run `tests/Acceptance/run.php` against MySQL 8.4. Expected: positive adoption and all negative fail-closed cases PASS.
-
-- [ ] **Step 7: Commit**
+- [ ] Commit:
 
 ```bash
 git add app/worker/command/MigrationAdoptV1Command.php config/console.php tests/Acceptance tests/Release/run.php
@@ -706,20 +491,18 @@ git commit -m "feat: adopt verified legacy V1 databases"
 
 ---
 
-### Task 7: Admin Browser E2E and Permanent CI Use Real Migration CLI
+## Task 7 — Admin Browser E2E and Permanent CI Use Real Migration
 
-**Files:**
+**Files**
 - Rewrite: `tests/E2E/PrepareAdminBrowserDatabase.php`
-- Modify: `.github/workflows/ci.yml`
 - Extend: `tests/Contract/DatabaseMigrationStandardizationContractTest.php`
+- Modify: `.github/workflows/ci.yml`
 
-**Interfaces:**
-- Admin browser setup becomes: reset safe DB → `php think migrate:run` → schema assertion → existing randomized/masked `admin:bootstrap` → Playwright.
-- Adds permanent job `Database migration V1 gate` on MySQL 8.4.
+**Produces**
+- Permanent MySQL 8.4 job named `Database migration V1 gate`.
+- Admin browser DB chain: safe reset → `migrate:run` → schema assertion → existing masked `admin:bootstrap` → Playwright.
 
-- [ ] **Step 1: Add CI/E2E contract RED**
-
-Require the workflow to contain these literal step/job names:
+- [ ] Add contract RED requiring workflow strings:
 
 ```text
 Database migration V1 gate
@@ -727,71 +510,30 @@ Run fresh migrate rollback adoption gate
 Prepare Admin browser database with migrate:run
 ```
 
-Require `tests/E2E/PrepareAdminBrowserDatabase.php` not to require/call the old `acceptanceFreshDatabaseMigrationTest()` executor.
+and forbidding Admin browser setup from calling the old custom fresh-SQL executor.
 
-- [ ] **Step 2: Rewrite Admin browser DB setup**
-
-Use `AcceptanceRuntime` only for safety/reset/process execution:
+- [ ] Rewrite Admin browser preparation:
 
 ```php
 $runtime->resetDatabase();
-$migrate = $runtime->runThink(['migrate:run']);
-acceptanceAssert($migrate->exitCode === 0, 'Admin browser migrate:run failed: ' . $migrate->stderr);
+$result = $runtime->runThink(['migrate:run']);
+acceptanceAssert($result->exitCode === 0, 'Admin browser migrate:run failed: ' . $result->stderr);
 acceptanceAssertV1Schema($runtime->reconnectDatabase(), $config);
+fwrite(STDOUT, "[PASS] Admin browser database prepared by migrate:run\n");
 ```
 
-Print only:
-
-```text
-[PASS] Admin browser database prepared by migrate:run
-```
-
-- [ ] **Step 3: Add dedicated MySQL 8.4 migration job**
-
-Add CI job with safe test DB names, for example:
-
-```yaml
-migration-v1:
-  name: Database migration V1 gate
-  needs: test
-  runs-on: ubuntu-latest
-  services:
-    mysql:
-      image: mysql:8.4
-      env:
-        MYSQL_ROOT_PASSWORD: ci-root-password
-  env:
-    WEPLATFORM_ACCEPTANCE: '1'
-    DATABASE_HOSTNAME: 127.0.0.1
-    DATABASE_DATABASE: weplatform_migration_test
-    DATABASE_USERNAME: root
-    DATABASE_PASSWORD: ci-root-password
-    DATABASE_HOSTPORT: '3306'
-```
-
-After checkout/setup/composer install, run:
+- [ ] Add CI job `migration-v1` using MySQL `8.4`, DB `weplatform_migration_test`, Composer locked install, and:
 
 ```yaml
 - name: Run fresh migrate rollback adoption gate
   run: php tests/Acceptance/run.php
 ```
 
-If runtime is too broad for this job, introduce an explicit `tests/Acceptance/run_migration.php` only if execution evidence shows unacceptable duplicate runtime; do not preemptively split it.
+Keep acceptance safety env vars explicit.
 
-- [ ] **Step 4: Rename Admin setup step and retain secret handling**
+- [ ] Rename existing Admin browser preparation step to `Prepare Admin browser database with migrate:run`. Preserve the existing runtime-generated random password, `::add-mask::`, and `GITHUB_ENV`; do not reintroduce a fixed password.
 
-Change existing Admin browser workflow step to:
-
-```yaml
-- name: Prepare Admin browser database with migrate:run
-  run: php tests/E2E/PrepareAdminBrowserDatabase.php
-```
-
-Keep the existing per-run random admin password generation, `::add-mask::`, and `GITHUB_ENV` propagation unchanged.
-
-- [ ] **Step 5: Run exact-head CI and inspect all jobs**
-
-Expected GREEN on the same head:
+- [ ] Push and require exact-head GREEN for all four jobs:
 
 ```text
 main test
@@ -800,9 +542,9 @@ Admin production browser E2E
 R8D MySQL release gate
 ```
 
-Inspect Admin browser logs to confirm sequence is real migration → bootstrap → browser login/dashboard/reload/logout, with password masked.
+Inspect Admin browser logs to confirm migration → bootstrap → login/dashboard/reload/logout and masked password.
 
-- [ ] **Step 6: Commit**
+- [ ] Commit:
 
 ```bash
 git add tests/E2E/PrepareAdminBrowserDatabase.php tests/Contract/DatabaseMigrationStandardizationContractTest.php .github/workflows/ci.yml
@@ -811,19 +553,14 @@ git commit -m "ci: gate real database migration lifecycle"
 
 ---
 
-### Task 8: Operator Documentation and Final Exact-Head Verification
+## Task 8 — Documentation, Diff Review, and Final Exact-Head Gate
 
-**Files:**
+**Files**
 - Modify: `README.md`
-- Modify: `docs/superpowers/specs/2026-09-11-database-migration-standardization-v1-design.md` only if implementation evidence required a factual correction; otherwise leave the approved spec unchanged.
-- PR metadata: create/update stacked Draft PR from `refactor/database-migration-standardization-v1` to `refactor/admin-foundation-completion-v1`.
+- Update spec only if implementation evidence requires an approved factual correction.
+- Open stacked Draft PR: head `refactor/database-migration-standardization-v1`, base `refactor/admin-foundation-completion-v1`.
 
-**Interfaces:**
-- Produces the supported operator workflow and final release evidence.
-
-- [ ] **Step 1: Document fresh install commands exactly**
-
-README must show:
+- [ ] Document the supported fresh install flow exactly:
 
 ```bash
 composer install
@@ -835,25 +572,21 @@ npm run build --prefix frontend/admin
 php think run -p 18080
 ```
 
-Also document:
+Document explicit legacy adoption:
 
 ```bash
 php think migration:adopt-v1
 ```
 
-for a verified pre-standardization V1 database, with explicit warning not to run it on partial/drifted schemas.
-
-Document rollback as development/test-destructive:
+Document destructive dev/test rollback:
 
 ```bash
 php think migrate:rollback --target=0
 ```
 
-and state that production rollback is not a replacement for backup/restore or forward-fix deployment.
+State that production rollback is not a backup/restore or forward-fix substitute.
 
-- [ ] **Step 2: Run local/static verification commands**
-
-Run:
+- [ ] Run fresh local/static verification:
 
 ```bash
 composer validate --strict
@@ -864,68 +597,35 @@ php vendor/bin/phpunit
 find app modules config tests database/migrations -name '*.php' -print0 | xargs -0 -n1 php -l
 ```
 
-Expected: all commands exit 0; console lists migrate commands plus `migration:adopt-v1` and `admin:bootstrap`.
+- [ ] Run the full real-MySQL release gate on a safe MySQL 8.4 test DB. Expected: fresh migrate, no-op migrate, rollback/re-run, bootstrap, legacy adoption matrix, and existing backend acceptance all PASS.
 
-- [ ] **Step 3: Run the full real-MySQL gate**
+- [ ] Push and require a new exact-head CI SUCCESS. Run #508 is not reusable because this Feature changes dependencies and DB lifecycle.
 
-Run:
+- [ ] Review the diff against the spec. Confirm no unrelated business schema/API/UI changes and confirm PR #10 branch/head remains unchanged.
 
-```bash
-WEPLATFORM_ACCEPTANCE=1 \
-DATABASE_HOSTNAME=127.0.0.1 \
-DATABASE_DATABASE=weplatform_migration_test \
-DATABASE_USERNAME=root \
-DATABASE_PASSWORD='<local-test-password>' \
-php tests/Release/run.php
-```
-
-Expected: offline, PHPUnit, lint, command contracts, fresh migration, no-op migration, rollback/re-run, legacy adoption positive/negative matrix, existing R8D acceptance all PASS.
-
-- [ ] **Step 4: Push and require fresh exact-head GitHub Actions GREEN**
-
-Do not reuse earlier Run #508 because the dependency graph and migration runtime changed. Require a new exact-head workflow where every job is SUCCESS.
-
-- [ ] **Step 5: Review scope/diff before completion claim**
-
-Verify the diff contains only migration-standardization work, documentation, and required CI/test changes. Confirm PR #10 branch/head was not modified by this feature.
-
-- [ ] **Step 6: Open/update stacked Draft PR**
-
-Base:
+- [ ] Open/update the stacked Draft PR. Body must say:
 
 ```text
-refactor/admin-foundation-completion-v1
-```
-
-Head:
-
-```text
-refactor/database-migration-standardization-v1
-```
-
-PR body must record:
-
-```text
-Automated Quality Gate = GREEN only after new exact-head evidence
+Automated Quality Gate = GREEN only after exact-head evidence
 Human Gate = PENDING
 ```
 
-Do not mark Ready and do not merge.
+Do not mark Ready or merge.
 
 ---
 
 ## Final Acceptance Checklist
 
-- [ ] AC1: `topthink/think-migration:^3.1` is committed and lockfile-pinned.
-- [ ] AC2: `migrate:create/run/rollback/status` are real supported commands.
-- [ ] AC3: fresh MySQL 8.4 database reaches the complete V1 schema only through `migrate:run`.
-- [ ] AC4: historical SQL 001–009 is preserved under `database/schema/v1` and SHA-256 pinned.
-- [ ] AC5: nine PHP wrappers preserve versions/history and use the active migration adapter.
-- [ ] AC6: repeated `migrate:run` is a no-op success.
-- [ ] AC7: full rollback is dependency-safe and re-run recreates equivalent schema/seeds.
-- [ ] AC8: `migration:adopt-v1` adopts only a strictly verified legacy complete V1 database.
-- [ ] AC9: partial/drifted/history-inconsistent databases fail closed without history mutation.
-- [ ] AC10: fresh migration is immediately compatible with real `admin:bootstrap`.
-- [ ] AC11: Admin browser E2E uses `migrate:run → admin:bootstrap → login/dashboard/reload/logout`.
-- [ ] AC12: main, migration, Admin browser, R8D release gates are GREEN at the same exact head.
-- [ ] AC13: independent Human Acceptance remains required before any Ready/merge decision.
+- [ ] `topthink/think-migration:^3.1` is committed and exact-version locked.
+- [ ] `migrate:create/run/rollback/status` are supported real commands.
+- [ ] Empty MySQL 8.4 reaches complete V1 solely through `migrate:run`.
+- [ ] 001–009 SQL is byte-preserved under `database/schema/v1` and SHA-256 pinned.
+- [ ] Nine PHP wrappers preserve version ordering and use the active migration adapter.
+- [ ] Repeated `migrate:run` is a no-op success.
+- [ ] Full rollback succeeds without modifying immutable baseline SQL; re-run recreates equivalent schema/seeds.
+- [ ] `migration:adopt-v1` adopts only a strictly verified complete legacy V1 database and writes all nine history rows atomically.
+- [ ] Partial/drifted/history-inconsistent DBs fail closed with no adoption history mutation.
+- [ ] Fresh migration is immediately compatible with real `admin:bootstrap`.
+- [ ] Admin browser E2E proves `migrate:run → admin:bootstrap → login → dashboard → reload → logout`.
+- [ ] main, migration, Admin browser, and R8D release jobs are GREEN at the same exact head.
+- [ ] Independent Human Acceptance remains required before Ready/merge.
